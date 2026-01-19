@@ -12,31 +12,33 @@ void CameraWorker::initializeClassColors() {
   // for better visual distinction and consistency
   const int numClasses = 80; // COCO dataset has 80 classes
   classColors.resize(numClasses);
-  
+
   // Create visually distinct colors for common classes
   for (int i = 0; i < numClasses; ++i) {
     // Use different color regions for different class types
     cv::Scalar color;
-    
+
     if (i == 0) { // person - blue
       color = cv::Scalar(255, 0, 0);
     } else if (i >= 1 && i <= 7) { // vehicles - red tones
       color = cv::Scalar(0, 0, 200 + i * 8);
     } else if (i >= 14 && i <= 23) { // animals - green tones
-      color = cv::Scalar(0, 200 + (i-14) * 5, 0);
+      color = cv::Scalar(0, 200 + (i - 14) * 5, 0);
     } else if (i >= 24 && i <= 39) { // objects - orange/yellow tones
-      color = cv::Scalar(0, 100 + (i-24) * 5, 200 + (i-24) * 3);
+      color = cv::Scalar(0, 100 + (i - 24) * 5, 200 + (i - 24) * 3);
     } else if (i >= 57 && i <= 61) { // furniture - purple tones
-      color = cv::Scalar(150 + (i-57) * 10, 0, 150 + (i-57) * 10);
+      color = cv::Scalar(150 + (i - 57) * 10, 0, 150 + (i - 57) * 10);
     } else { // other classes - cyan/magenta tones
-      float hue = fmodf(i * 137.5f, 360.0f); // Golden angle for better distribution
+      float hue =
+          fmodf(i * 137.5f, 360.0f); // Golden angle for better distribution
       color = cv::Scalar(
-        static_cast<int>(128 + 127 * sinf(hue * 3.14159f / 180.0f)),
-        static_cast<int>(128 + 127 * sinf((hue + 120.0f) * 3.14159f / 180.0f)),
-        static_cast<int>(128 + 127 * sinf((hue + 240.0f) * 3.14159f / 180.0f))
-      );
+          static_cast<int>(128 + 127 * sinf(hue * 3.14159f / 180.0f)),
+          static_cast<int>(128 +
+                           127 * sinf((hue + 120.0f) * 3.14159f / 180.0f)),
+          static_cast<int>(128 +
+                           127 * sinf((hue + 240.0f) * 3.14159f / 180.0f)));
     }
-    
+
     classColors[i] = color;
   }
 }
@@ -45,7 +47,7 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
   if (m_running)
     return;
   m_running = true;
-  
+
   // Initialize class colors
   initializeClassColors();
 
@@ -97,9 +99,10 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
 
     // Draw detections with consistent colors
     for (auto &re : results) {
-      cv::Scalar color = (re.classId < classColors.size()) ? 
-                         classColors[re.classId] : 
-                         cv::Scalar(255, 255, 255); // Default white for unknown classes
+      cv::Scalar color =
+          (re.classId < classColors.size())
+              ? classColors[re.classId]
+              : cv::Scalar(255, 255, 255); // Default white for unknown classes
       cv::rectangle(drawFrame, re.box, color, 3);
 
       float confidence = floor(100 * re.confidence) / 100;
@@ -108,11 +111,11 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
                               .substr(0, std::to_string(confidence).size() - 4);
 
       cv::rectangle(drawFrame, cv::Point(re.box.x, re.box.y - 25),
-                    cv::Point(re.box.x + label.length() * 15, re.box.y), color,
+                    cv::Point(re.box.x + label.length() * 10, re.box.y), color,
                     cv::FILLED);
 
       cv::putText(drawFrame, label, cv::Point(re.box.x, re.box.y - 5),
-                  cv::FONT_HERSHEY_SIMPLEX, 0.75, cv::Scalar(0, 0, 0), 2);
+                  cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
     }
 
     // Convert Color BGR -> RGBA
