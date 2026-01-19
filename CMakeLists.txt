@@ -16,12 +16,20 @@ qt_policy(SET QTP0001 NEW)
 set(OpenCV_DIR "C:/opencv/build_mingw")
 find_package(OpenCV REQUIRED)
 
+# 3. Setup ONNX Runtime
+include_directories("C:/onnxruntime/include")
+link_directories("C:/onnxruntime/lib")
+
 # 3. Create Executable (Updated to use VideoController)
 qt_add_executable(appCamera
     main.cpp
     src/VideoController.cpp
     src/VideoController.h
+    src/inference.cpp
+    src/inference.h
 )
+
+target_compile_options(appCamera PRIVATE -Wno-macro-redefined)
 
 # 4. Register QML Module
 qt_add_qml_module(appCamera
@@ -43,4 +51,21 @@ target_link_libraries(appCamera
     Qt6::Quick
     Qt6::Multimedia
     ${OpenCV_LIBS}
+    onnxruntime
+    onnxruntime_providers_shared
+)
+
+# 7. Copy ONNX Runtime DLLs to build directory
+add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        C:/onnxruntime/lib/onnxruntime.dll
+        C:/onnxruntime/lib/onnxruntime_providers_shared.dll
+        $<TARGET_FILE_DIR:appCamera>
+)
+
+# 8. Copy model files to build directory
+add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/inference
+        $<TARGET_FILE_DIR:appCamera>/inference
 )

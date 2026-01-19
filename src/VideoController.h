@@ -1,6 +1,7 @@
 #ifndef VIDEOCONTROLLER_H
 #define VIDEOCONTROLLER_H
 
+#include "inference.h"
 #include <QMutex>
 #include <QObject>
 #include <QQmlEngine>
@@ -23,6 +24,9 @@ public slots:
 private:
   bool m_running = false;
   cv::VideoCapture m_capture;
+  YOLO_V8 *yolo = nullptr;
+  std::vector<cv::Scalar> classColors;
+  void initializeClassColors();
 };
 
 // --- The Controller Class (Connects to QML) ---
