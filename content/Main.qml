@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import CameraModule 1.0 // Import our C++ module
+import CameraModule 1.0
 
 Window {
     width: 800
@@ -21,20 +21,36 @@ Window {
             font.bold: true
         }
 
-        // This is our C++ Class!
         OpenCVItem {
             id: camera
             width: 640
             height: 480
-            // Center it horizontally
             anchors.horizontalCenter: parent.horizontalCenter
 
-            // Add a simple border
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
-                border.color: "#41cd52" // Green border
+                border.color: "#41cd52"
                 border.width: 2
+            }
+
+            // --- FPS Display Overlay ---
+            Rectangle {
+                width: 80
+                height: 30
+                color: "#aa000000" // Semi-transparent black
+                radius: 5
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 10
+
+                Text {
+                    anchors.centerIn: parent
+                    // Bind directly to the C++ property
+                    text: "FPS: " + camera.fps
+                    color: "#00ff00"
+                    font.bold: true
+                }
             }
         }
 
