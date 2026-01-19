@@ -6,20 +6,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# 1. Setup Qt6
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+# 1. Setup Qt6 (Added Multimedia component)
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia)
+
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
-# 2. Setup OpenCV (Adjust path if necessary)
+# 2. Setup OpenCV
 set(OpenCV_DIR "C:/opencv/build_mingw")
 find_package(OpenCV REQUIRED)
 
-# 3. Create Executable
+# 3. Create Executable (Updated to use VideoController)
 qt_add_executable(appCamera
     main.cpp
-    src/OpenCVItem.cpp
-    src/OpenCVItem.h
+    src/VideoController.cpp
+    src/VideoController.h
 )
 
 # 4. Register QML Module
@@ -40,5 +41,6 @@ target_include_directories(appCamera PRIVATE
 target_link_libraries(appCamera
     PRIVATE
     Qt6::Quick
+    Qt6::Multimedia
     ${OpenCV_LIBS}
 )
