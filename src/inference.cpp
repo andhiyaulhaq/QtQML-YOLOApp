@@ -73,6 +73,8 @@ char *YOLO_V8::PreProcess(cv::Mat &iImg, std::vector<int> iImgSize,
                cv::Size(iImgSize.at(1), iImgSize.at(0)));
     break;
   }
+  case YOLO_CLS_HALF:
+    break;
   }
   return RET_OK;
 }

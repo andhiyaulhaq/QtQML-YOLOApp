@@ -1,7 +1,5 @@
 #include "VideoController.h"
-#include <filesystem>
 #include <fstream>
-#include <random>
 
 // =========================================================
 // WORKER IMPLEMENTATION (Background Thread)
