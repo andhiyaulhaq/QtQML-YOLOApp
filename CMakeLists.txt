@@ -27,6 +27,8 @@ qt_add_executable(appCamera
     src/VideoController.h
     src/inference.cpp
     src/inference.h
+    src/SystemMonitor.cpp
+    src/SystemMonitor.h
 )
 
 target_compile_options(appCamera PRIVATE -Wno-macro-redefined)
@@ -55,7 +57,12 @@ target_link_libraries(appCamera
     onnxruntime_providers_shared
 )
 
-# 7. Copy ONNX Runtime DLLs to build directory
+# 7. Platform-specific libraries for system monitoring
+if(WIN32)
+    target_link_libraries(appCamera PRIVATE pdh psapi)
+endif()
+
+# 8. Copy ONNX Runtime DLLs to build directory
 add_custom_command(TARGET appCamera POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         C:/onnxruntime/lib/onnxruntime.dll
@@ -63,7 +70,7 @@ add_custom_command(TARGET appCamera POST_BUILD
         $<TARGET_FILE_DIR:appCamera>
 )
 
-# 8. Copy model files to build directory
+# 9. Copy model files to build directory
 add_custom_command(TARGET appCamera POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/inference

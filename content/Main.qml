@@ -37,8 +37,8 @@ Window {
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
-                border.color: "#41cd52"
-                border.width: 2
+                // border.color: "#41cd52"
+                // border.width: 2
             }
         }
 

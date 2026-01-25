@@ -2,6 +2,7 @@
 #define VIDEOCONTROLLER_H
 
 #include "inference.h"
+#include "SystemMonitor.h"
 #include <QMutex>
 #include <QObject>
 #include <QQmlEngine>
@@ -54,6 +55,7 @@ private:
   QVideoSink *m_sink = nullptr;
   QThread m_workerThread;
   CameraWorker *m_worker = nullptr;
+  SystemMonitor *m_systemMonitor;
 };
 
 #endif // VIDEOCONTROLLER_H

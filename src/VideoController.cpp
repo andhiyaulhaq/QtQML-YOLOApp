@@ -152,6 +152,16 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
   m_worker = new CameraWorker();
   m_worker->moveToThread(&m_workerThread);
 
+  // Initialize System Monitor
+  m_systemMonitor = new SystemMonitor(this);
+  connect(m_systemMonitor, &SystemMonitor::resourceUsageUpdated, 
+          this, [](const QString &cpu, const QString &sysMem, const QString &procMem) {
+            // Console output is handled by SystemMonitor itself
+            Q_UNUSED(cpu)
+            Q_UNUSED(sysMem)
+            Q_UNUSED(procMem)
+          });
+
   connect(this, &VideoController::startWorker, m_worker,
           &CameraWorker::startCapturing);
   connect(this, &VideoController::stopWorker, m_worker,
@@ -174,6 +184,11 @@ void VideoController::setVideoSink(QVideoSink *sink) {
   emit videoSinkChanged();
 
   if (m_sink) {
+    // Start system monitoring when camera starts
+    m_systemMonitor->startMonitoring();
     emit startWorker(m_sink);
+  } else {
+    // Stop system monitoring when camera stops
+    m_systemMonitor->stopMonitoring();
   }
 }
