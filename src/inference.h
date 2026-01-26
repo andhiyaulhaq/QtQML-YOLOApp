@@ -11,6 +11,7 @@
 #endif
 
 #include "onnxruntime_cxx_api.h"
+#include <atomic>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <thread>
@@ -77,15 +78,20 @@ public:
 
 private:
   Ort::Env env;
-  Ort::Session *session;
-  bool cudaEnable;
-  Ort::RunOptions options;
+  // Session pool for multi-session inference (Phase 1 completion)
+  std::vector<Ort::Session *> m_sessionPool; // owned sessions
+  // Shared input/output node names for all sessions (assumes IO is identical
+  // across sessions)
   std::vector<const char *> inputNodeNames;
   std::vector<const char *> outputNodeNames;
+  bool cudaEnable;
+  Ort::RunOptions options;
+  // Input/output names are shared across sessions to avoid duplicating storage
 
   MODEL_TYPE modelType;
   std::vector<int> imgSize;
   float rectConfidenceThreshold;
   float iouThreshold;
   float resizeScales; // letterbox scale
+  std::atomic<size_t> m_sessionIndex{0};
 };
