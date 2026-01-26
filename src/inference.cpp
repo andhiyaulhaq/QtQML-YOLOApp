@@ -2,14 +2,12 @@
 
 #include "inference.h"
 #include <regex>
-#include <algorithm>
-#include <random>
 
 #define benchmark
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 YOLO_V8::YOLO_V8() {}
 
-YOLO_V8::~YOLO_V8() { 
+YOLO_V8::~YOLO_V8() {
   if (session) {
     delete session;
   }
@@ -108,14 +106,14 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
       cudaOption.device_id = 0;
       sessionOption.AppendExecutionProvider_CUDA(cudaOption);
     }
-    
+
     // Multi-threading optimization - Phase 1
     sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
     sessionOption.SetInterOpNumThreads(iParams.interOpNumThreads);
     sessionOption.SetGraphOptimizationLevel(
         GraphOptimizationLevel::ORT_ENABLE_ALL);
     sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
-    
+
     // Additional performance optimizations
     sessionOption.SetExecutionMode(ORT_SEQUENTIAL);
 
@@ -123,22 +121,24 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     // Set process priority for better performance
     HANDLE process = GetCurrentProcess();
     SetPriorityClass(process, HIGH_PRIORITY_CLASS);
-    
+
     // Set environment variables for Intel CPU optimization
     std::string ompThreads = std::to_string(iParams.intraOpNumThreads);
     SetEnvironmentVariableA("OMP_NUM_THREADS", ompThreads.c_str());
-    SetEnvironmentVariableA("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0");
+    SetEnvironmentVariableA("KMP_AFFINITY",
+                            "granularity=fine,verbose,compact,1,0");
     SetEnvironmentVariableA("KMP_BLOCKTIME", "1");
     SetEnvironmentVariableA("KMP_SETTINGS", "1");
 #else
-    setenv("OMP_NUM_THREADS", std::to_string(iParams.intraOpNumThreads).c_str(), 1);
+    setenv("OMP_NUM_THREADS", std::to_string(iParams.intraOpNumThreads).c_str(),
+           1);
     setenv("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0", 1);
     setenv("KMP_BLOCKTIME", "1", 1);
     setenv("KMP_SETTINGS", "1", 1);
 #endif
 
-    std::cout << "[YOLO_V8]: Creating optimized session with " 
-              << iParams.intraOpNumThreads << " intra-op threads and " 
+    std::cout << "[YOLO_V8]: Creating optimized session with "
+              << iParams.intraOpNumThreads << " intra-op threads and "
               << iParams.interOpNumThreads << " inter-op threads." << std::endl;
 
 #ifdef _WIN32
