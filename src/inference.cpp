@@ -2,12 +2,18 @@
 
 #include "inference.h"
 #include <regex>
+#include <algorithm>
+#include <random>
 
 #define benchmark
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 YOLO_V8::YOLO_V8() {}
 
-YOLO_V8::~YOLO_V8() { delete session; }
+YOLO_V8::~YOLO_V8() { 
+  if (session) {
+    delete session;
+  }
+}
 
 #ifdef USE_CUDA
 namespace Ort {
@@ -102,10 +108,38 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
       cudaOption.device_id = 0;
       sessionOption.AppendExecutionProvider_CUDA(cudaOption);
     }
+    
+    // Multi-threading optimization - Phase 1
+    sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
+    sessionOption.SetInterOpNumThreads(iParams.interOpNumThreads);
     sessionOption.SetGraphOptimizationLevel(
         GraphOptimizationLevel::ORT_ENABLE_ALL);
-    sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
     sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
+    
+    // Additional performance optimizations
+    sessionOption.SetExecutionMode(ORT_SEQUENTIAL);
+
+#ifdef _WIN32
+    // Set process priority for better performance
+    HANDLE process = GetCurrentProcess();
+    SetPriorityClass(process, HIGH_PRIORITY_CLASS);
+    
+    // Set environment variables for Intel CPU optimization
+    std::string ompThreads = std::to_string(iParams.intraOpNumThreads);
+    SetEnvironmentVariableA("OMP_NUM_THREADS", ompThreads.c_str());
+    SetEnvironmentVariableA("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0");
+    SetEnvironmentVariableA("KMP_BLOCKTIME", "1");
+    SetEnvironmentVariableA("KMP_SETTINGS", "1");
+#else
+    setenv("OMP_NUM_THREADS", std::to_string(iParams.intraOpNumThreads).c_str(), 1);
+    setenv("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0", 1);
+    setenv("KMP_BLOCKTIME", "1", 1);
+    setenv("KMP_SETTINGS", "1", 1);
+#endif
+
+    std::cout << "[YOLO_V8]: Creating optimized session with " 
+              << iParams.intraOpNumThreads << " intra-op threads and " 
+              << iParams.interOpNumThreads << " inter-op threads." << std::endl;
 
 #ifdef _WIN32
     int ModelPathSize = MultiByteToWideChar(
@@ -337,6 +371,9 @@ char *YOLO_V8::WarmUpSession() {
         (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
     if (cudaEnable) {
       std::cout << "[YOLO_V8(CUDA)]: " << "Cuda warm-up cost "
+                << post_process_time << " ms. " << std::endl;
+    } else {
+      std::cout << "[YOLO_V8(CPU)]: " << "Warm-up completed in "
                 << post_process_time << " ms. " << std::endl;
     }
   } else {

@@ -13,6 +13,7 @@
 #include "onnxruntime_cxx_api.h"
 #include <opencv2/opencv.hpp>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef USE_CUDA
@@ -40,7 +41,9 @@ typedef struct _DL_INIT_PARAM {
   int keyPointsNum = 2; // Note:kpt number for pose
   bool cudaEnable = false;
   int logSeverityLevel = 3;
-  int intraOpNumThreads = 1;
+  int intraOpNumThreads = std::thread::hardware_concurrency();
+  int interOpNumThreads = 1;
+  int sessionPoolSize = 1;
 } DL_INIT_PARAM;
 
 typedef struct _DL_RESULT {

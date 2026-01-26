@@ -1,5 +1,6 @@
 #include "VideoController.h"
 #include <fstream>
+#include <thread>
 
 // =========================================================
 // WORKER IMPLEMENTATION (Background Thread)
@@ -62,7 +63,7 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
   m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
   m_capture.set(cv::CAP_PROP_FPS, 30);
 
-  // Initialize YOLO
+  // Initialize YOLO with multi-threading optimizations
   yolo = new YOLO_V8;
   // Load classes
   std::ifstream file("inference/classes.txt");
@@ -71,12 +72,16 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
     yolo->classes.push_back(line);
   }
   file.close();
-  // Create session
+  
+  // Create session with optimized multi-threading configuration
   DL_INIT_PARAM params;
   params.modelPath = "inference/yolov8n.onnx";
   params.modelType = YOLO_DETECT_V8;
   params.imgSize = {640, 640};
   params.cudaEnable = false;
+  params.intraOpNumThreads = std::thread::hardware_concurrency(); // Use all logical cores (8)
+  params.interOpNumThreads = 1; // Keep low to avoid thread contention
+  params.sessionPoolSize = 1; // Phase 1: Single session with multi-threading
   yolo->CreateSession(params);
 
   cv::Mat rawFrame, displayFrame;
