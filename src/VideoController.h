@@ -19,6 +19,9 @@ class CameraWorker : public QObject {
 public:
   explicit CameraWorker(QObject *parent = nullptr) : QObject(parent) {}
 
+signals:
+    void fpsUpdated(double fps);
+
 public slots:
   void startCapturing(QVideoSink *sink);
   void stopCapturing();
@@ -36,9 +39,13 @@ class VideoController : public QObject {
   Q_OBJECT
   QML_ELEMENT
 
-  // Only the VideoSink property remains
+  // VideoSink Property
   Q_PROPERTY(QVideoSink *videoSink READ videoSink WRITE setVideoSink NOTIFY
                  videoSinkChanged)
+                 
+  // Performance Monitoring Properties
+  Q_PROPERTY(double fps READ fps NOTIFY fpsChanged)
+  Q_PROPERTY(QString systemStats READ systemStats NOTIFY systemStatsChanged)
 
 public:
   explicit VideoController(QObject *parent = nullptr);
@@ -47,8 +54,17 @@ public:
   QVideoSink *videoSink() const { return m_sink; }
   void setVideoSink(QVideoSink *sink);
 
+  double fps() const { return m_fps; }
+  QString systemStats() const { return m_systemStats; }
+
+public slots:
+    void updateFps(double fps);
+    void updateSystemStats(const QString &cpu, const QString &sysMem, const QString &procMem);
+
 signals:
   void videoSinkChanged();
+  void fpsChanged();
+  void systemStatsChanged();
   void startWorker(QVideoSink *sink);
   void stopWorker();
 
@@ -57,6 +73,9 @@ private:
   QThread m_workerThread;
   CameraWorker *m_worker = nullptr;
   SystemMonitor *m_systemMonitor;
+  
+  double m_fps = 0.0;
+  QString m_systemStats;
 };
 
 #endif // VIDEOCONTROLLER_H

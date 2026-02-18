@@ -34,18 +34,44 @@ Window {
             anchors.horizontalCenter: parent.horizontalCenter
             fillMode: VideoOutput.PreserveAspectFit
 
-            Rectangle {
-                anchors.fill: parent
-                color: "transparent"
-                // border.color: "#41cd52"
-                // border.width: 2
+        // Performance Overlay
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            border.color: "transparent" // Make border transparent for now
+            // border.width: 2
+            
+            Column {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: 10
+                spacing: 5
+                
+                Text {
+                    text: "FPS: " + controller.fps.toFixed(1)
+                    color: "lime" // High visibility color
+                    font.pixelSize: 18
+                    font.bold: true
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+                
+                Text {
+                    text: controller.systemStats
+                    color: "yellow"
+                    font.pixelSize: 14
+                    font.bold: true
+                    style: Text.Outline
+                    styleColor: "black"
+                }
             }
         }
-
+    
         Button {
             text: "Close App"
             anchors.horizontalCenter: parent.horizontalCenter
             onClicked: Qt.quit()
+        }
         }
     }
 }

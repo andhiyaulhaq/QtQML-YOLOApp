@@ -1,6 +1,7 @@
 #include "VideoController.h"
 #include <fstream>
 #include <thread>
+#include <chrono>
 
 // =========================================================
 // WORKER IMPLEMENTATION (Background Thread)
@@ -84,7 +85,11 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
   params.sessionPoolSize = 1; // Phase 1: Single session with multi-threading
   yolo->CreateSession(params);
 
-  cv::Mat rawFrame, displayFrame;
+  cv::Mat rawFrame; // No displayFrame needed for zero-copy
+
+  // FPS Calculation Variables
+  int frames = 0;
+  auto startTime = std::chrono::high_resolution_clock::now();
 
   while (m_running) {
     if (!m_capture.isOpened()) {
@@ -123,21 +128,36 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
     }
 
-    // Convert Color BGR -> RGBA
-    cv::cvtColor(rawFrame, displayFrame, cv::COLOR_BGR2RGBA);
-
-    // Send to VideoSink
+    // --- ZERO-COPY RENDERING OPTIMIZATION ---
     if (sink) {
-      QVideoFrameFormat format(QSize(displayFrame.cols, displayFrame.rows),
+        QVideoFrameFormat format(QSize(rawFrame.cols, rawFrame.rows),
                                QVideoFrameFormat::Format_RGBA8888);
-      QVideoFrame frame(format);
+        QVideoFrame frame(format);
 
-      if (frame.map(QVideoFrame::WriteOnly)) {
-        memcpy(frame.bits(0), displayFrame.data,
-               displayFrame.total() * displayFrame.elemSize());
-        frame.unmap();
-        sink->setVideoFrame(frame);
-      }
+        if (frame.map(QVideoFrame::WriteOnly)) {
+            // Create a cv::Mat wrapper around the QVideoFrame's memory
+            // using the frame's specific stride (bytesPerLine)
+            cv::Mat wrapper(rawFrame.rows, rawFrame.cols, CV_8UC4, 
+                          frame.bits(0), frame.bytesPerLine(0));
+            
+            // Direct conversion from BGR (OpenCV) to RGBA (Qt) into the mapped memory
+            cv::cvtColor(rawFrame, wrapper, cv::COLOR_BGR2RGBA);
+            
+            frame.unmap();
+            sink->setVideoFrame(frame);
+        }
+    }
+
+    // --- FPS CALCULATION ---
+    frames++;
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
+    
+    if (duration >= 500) { // Update every 500ms
+        double fps = frames * 1000.0 / duration;
+        emit fpsUpdated(fps);
+        frames = 0;
+        startTime = now;
     }
   }
 
@@ -162,19 +182,33 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
   // Initialize System Monitor
   m_systemMonitor = new SystemMonitor(this);
   connect(m_systemMonitor, &SystemMonitor::resourceUsageUpdated, 
-          this, [](const QString &cpu, const QString &sysMem, const QString &procMem) {
-            // Console output is handled by SystemMonitor itself
-            Q_UNUSED(cpu)
-            Q_UNUSED(sysMem)
-            Q_UNUSED(procMem)
-          });
+          this, &VideoController::updateSystemStats);
 
   connect(this, &VideoController::startWorker, m_worker,
           &CameraWorker::startCapturing);
   connect(this, &VideoController::stopWorker, m_worker,
           &CameraWorker::stopCapturing, Qt::DirectConnection);
+          
+  // Connect FPS signal
+  connect(m_worker, &CameraWorker::fpsUpdated, this, &VideoController::updateFps);
 
   m_workerThread.start();
+}
+
+void VideoController::updateFps(double fps) {
+    if (qAbs(m_fps - fps) > 0.1) {
+        m_fps = fps;
+        emit fpsChanged();
+    }
+}
+
+void VideoController::updateSystemStats(const QString &cpu, const QString &sysMem, const QString &procMem) {
+    // Format stats for display
+    QString stats = QString("CPU: %1 | RAM: %2").arg(cpu, procMem);
+    if (m_systemStats != stats) {
+        m_systemStats = stats;
+        emit systemStatsChanged();
+    }
 }
 
 VideoController::~VideoController() {

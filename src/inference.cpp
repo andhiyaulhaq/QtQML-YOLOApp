@@ -4,7 +4,7 @@
 #include <opencv2/dnn.hpp>
 #include <regex>
 
-#define benchmark
+// #define benchmark
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 YOLO_V8::YOLO_V8() {}
 
@@ -195,8 +195,9 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
 }
 
 char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult) {
+  clock_t starttime_1 = 0;
 #ifdef benchmark
-  clock_t starttime_1 = clock();
+  starttime_1 = clock();
 #endif // benchmark
 
   char *Ret = RET_OK;
