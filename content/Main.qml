@@ -52,16 +52,23 @@ Window {
                     width: modelData.w * parent.width
                     height: modelData.h * parent.height
 
+                    // Generate distinct color from classId
+                    function getObjectColor(classId) {
+                        return Qt.hsla((classId * 0.17) % 1.0, 1.0, 0.5, 1.0);
+                    }
+                    
+                    property color objColor: getObjectColor(modelData.classId)
+
                     Rectangle {
                         anchors.fill: parent
                         color: "transparent"
-                        border.color: "lime"
+                        border.color: objColor
                         border.width: 2
                     }
                     
                     Rectangle {
                         id: labelRect
-                        color: "lime"
+                        color: objColor
                         // Position label above box, but flip inside if at top edge
                         property bool atTop: (parent.y - height) < 0
                         y: atTop ? 0 : -height
