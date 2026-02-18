@@ -29,6 +29,9 @@ class VideoController : public QObject
     Q_PROPERTY(double fps READ fps NOTIFY fpsChanged)
     Q_PROPERTY(QString systemStats READ systemStats NOTIFY systemStatsChanged)
     Q_PROPERTY(QVariantList detections READ detections NOTIFY detectionsChanged)
+    Q_PROPERTY(double preProcessTime READ preProcessTime NOTIFY timingChanged)
+    Q_PROPERTY(double inferenceTime READ inferenceTime NOTIFY timingChanged)
+    Q_PROPERTY(double postProcessTime READ postProcessTime NOTIFY timingChanged)
 
 public:
     explicit VideoController(QObject *parent = nullptr);
@@ -40,12 +43,17 @@ public:
     double fps() const { return m_fps; }
     QString systemStats() const { return m_systemStats; }
     QVariantList detections() const { return m_detections; }
+    
+    double preProcessTime() const { return m_preProcessTime; }
+    double inferenceTime() const { return m_inferenceTime; }
+    double postProcessTime() const { return m_postProcessTime; }
 
 signals:
     void videoSinkChanged();
     void fpsChanged();
     void systemStatsChanged();
     void detectionsChanged();
+    void timingChanged();
     
     // Signals to workers
     void startWorkers(QVideoSink* sink);
@@ -54,13 +62,17 @@ signals:
 public slots:
     void updateFps(double fps);
     void updateSystemStats(const QString &cpu, const QString &sysMem, const QString &procMem);
-    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames);
+    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames, const YOLO_V8::InferenceTiming& timing);
 
 private:
     QVideoSink* m_sink = nullptr;
     double m_fps = 0.0;
     QString m_systemStats;
     QVariantList m_detections;
+    
+    double m_preProcessTime = 0.0;
+    double m_inferenceTime = 0.0;
+    double m_postProcessTime = 0.0;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;
@@ -101,7 +113,7 @@ public:
     ~InferenceWorker();
 
 signals:
-    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames);
+    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames, const YOLO_V8::InferenceTiming& timing);
 
 public slots:
     void startInference(); // Initialize model

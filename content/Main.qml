@@ -113,6 +113,33 @@ Window {
                     style: Text.Outline
                     styleColor: "black"
                 }
+
+                Text {
+                    text: "Pre: " + controller.preProcessTime.toFixed(1) + " ms"
+                    color: "lightgreen"
+                    font.pixelSize: 14
+                    font.bold: true
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+
+                Text {
+                    text: "Infer: " + controller.inferenceTime.toFixed(1) + " ms"
+                    color: "lightgreen"
+                    font.pixelSize: 14
+                    font.bold: true
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+
+                Text {
+                    text: "Post: " + controller.postProcessTime.toFixed(1) + " ms"
+                    color: "lightgreen"
+                    font.pixelSize: 14
+                    font.bold: true
+                    style: Text.Outline
+                    styleColor: "black"
+                }
             }
         }
     

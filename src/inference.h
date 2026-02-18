@@ -63,14 +63,20 @@ public:
 public:
   const char *CreateSession(DL_INIT_PARAM &iParams);
 
-  char *RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult);
+  typedef struct _InferenceTiming {
+    double preProcessTime;
+    double inferenceTime;
+    double postProcessTime;
+  } InferenceTiming;
+
+  char *RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
 
   char *WarmUpSession();
 
   template <typename N>
-  char *TensorProcess(clock_t &starttime_1, cv::Mat &iImg, N &blob,
+  char *TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, cv::Mat &iImg, N &blob,
                       std::vector<int64_t> &inputNodeDims,
-                      std::vector<DL_RESULT> &oResult);
+                      std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
 
   char *PreProcess(cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat &oImg);
 

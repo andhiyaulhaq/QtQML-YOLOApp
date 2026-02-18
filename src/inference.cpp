@@ -194,25 +194,26 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
   }
 }
 
-char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult) {
-  clock_t starttime_1 = 0;
-#ifdef benchmark
-  starttime_1 = clock();
-#endif // benchmark
+char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
+  auto start_pre = std::chrono::high_resolution_clock::now();
 
   char *Ret = RET_OK;
-  
+
   // Use member buffer instead of local stack generic variable
   // Optimization: Zero allocation if size matches
   PreProcess(iImg, imgSize, m_letterboxBuffer);
-  
+
   if (modelType < 4) {
     // Optimization: swapRB=true to handle BGR->RGB conversion here
     cv::dnn::blobFromImage(m_letterboxBuffer, m_commonBlob, 1.0 / 255.0, cv::Size(),
                            cv::Scalar(), true, false);
     float *blob = (float *)m_commonBlob.data;
     std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
-    TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+    
+    auto end_pre = std::chrono::high_resolution_clock::now();
+    timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+
+    TensorProcess(start_pre, iImg, blob, inputNodeDims, oResult, timing); 
   } else {
 #ifdef USE_CUDA
     // Unified path: Use cv::dnn::blobFromImage (float) -> convert to Half
@@ -220,10 +221,14 @@ char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult) {
                            cv::Scalar(), true, false);
     // Convert to FP16
     m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
-    
+
     half *blob = (half *)m_commonBlobHalf.data;
     std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
-    TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+
+    auto end_pre = std::chrono::high_resolution_clock::now();
+    timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+
+    TensorProcess(start_pre, iImg, blob, inputNodeDims, oResult, timing);
 #endif
   }
 
@@ -231,17 +236,17 @@ char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult) {
 }
 
 template <typename N>
-char *YOLO_V8::TensorProcess(clock_t &starttime_1, cv::Mat &iImg, N &blob,
+char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, cv::Mat &iImg, N &blob,
                              std::vector<int64_t> &inputNodeDims,
-                             std::vector<DL_RESULT> &oResult) {
+                             std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
   Ort::Value inputTensor =
       Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
           Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob,
           3 * imgSize.at(0) * imgSize.at(1), inputNodeDims.data(),
           inputNodeDims.size());
-#ifdef benchmark
-  clock_t starttime_2 = clock();
-#endif // benchmark
+
+  auto start_infer = std::chrono::high_resolution_clock::now();
+  
   size_t poolSize = m_sessionPool.size();
   Ort::Session *sess = m_sessionPool.front();
   if (poolSize > 0) {
@@ -250,9 +255,11 @@ char *YOLO_V8::TensorProcess(clock_t &starttime_1, cv::Mat &iImg, N &blob,
   }
   auto outputTensor = sess->Run(options, inputNodeNames.data(), &inputTensor, 1,
                                 outputNodeNames.data(), outputNodeNames.size());
-#ifdef benchmark
-  clock_t starttime_3 = clock();
-#endif // benchmark
+
+  auto end_infer = std::chrono::high_resolution_clock::now();
+  timing.inferenceTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_infer - start_infer).count();
+  
+  auto start_post = std::chrono::high_resolution_clock::now();
 
   Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
   auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
@@ -324,24 +331,8 @@ char *YOLO_V8::TensorProcess(clock_t &starttime_1, cv::Mat &iImg, N &blob,
       oResult.push_back(result);
     }
 
-#ifdef benchmark
-    clock_t starttime_4 = clock();
-    double pre_process_time =
-        (double)(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
-    double process_time =
-        (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
-    double post_process_time =
-        (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
-    if (cudaEnable) {
-      std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, "
-                << process_time << "ms inference, " << post_process_time
-                << "ms post-process." << std::endl;
-    } else {
-      std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, "
-                << process_time << "ms inference, " << post_process_time
-                << "ms post-process." << std::endl;
-    }
-#endif // benchmark
+    auto end_post = std::chrono::high_resolution_clock::now();
+    timing.postProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_post - start_post).count();
 
     break;
   }

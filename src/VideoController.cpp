@@ -130,12 +130,13 @@ void InferenceWorker::processFrame(const cv::Mat& frame) {
 
     // Run Inference
     std::vector<DL_RESULT> results;
+    YOLO_V8::InferenceTiming timing;
     // We need a non-const Mat for ONNX Runtime (it might modify it slightly or just API compat)
     cv::Mat blobFrame = frame.clone(); 
-    m_yolo->RunSession(blobFrame, results);
+    m_yolo->RunSession(blobFrame, results, timing);
 
     // Emit results
-    emit detectionsReady(results, m_classNames);
+    emit detectionsReady(results, m_classNames, timing);
 
     m_isProcessing = false;
 }
@@ -216,7 +217,7 @@ void VideoController::updateSystemStats(const QString &cpu, const QString &sysMe
     }
 }
 
-void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames) {
+void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames, const YOLO_V8::InferenceTiming& timing) {
     QVariantList detectionsList;
     
     for (const auto& res : results) {
@@ -248,9 +249,20 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
         det["w"] = w / 640.0;
         det["h"] = h / 480.0;
         
-        detectionsList.append(det);
+        detectionsList.append(det); // Corrected: Using append instead of push_back
     }
     
     m_detections = detectionsList;
     emit detectionsChanged();
+
+    // Update timing
+    if (std::abs(m_preProcessTime - timing.preProcessTime) > 0.1 ||
+        std::abs(m_inferenceTime - timing.inferenceTime) > 0.1 ||
+        std::abs(m_postProcessTime - timing.postProcessTime) > 0.1) {
+        
+        m_preProcessTime = timing.preProcessTime;
+        m_inferenceTime = timing.inferenceTime;
+        m_postProcessTime = timing.postProcessTime;
+        emit timingChanged();
+    }
 }
