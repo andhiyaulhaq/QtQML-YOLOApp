@@ -36,14 +36,15 @@ cd QtQML-YOLOApp
 mkdir build
 cd build
 
-# 3. Configure via CMake (Adjust paths to your OpenCV/ONNX installations)
-cmake .. -DOpenCV_DIR="C:/opencv/build" -DOnnxRuntime_ROOT="C:/onnxruntime"
+# 3. Configure via CMake (MinGW Makefiles)
+# Note: Ensure OpenCV and ONNX Runtime are in your PATH or provide -DOpenCV_DIR and -DOnnxRuntime_ROOT
+cmake -G "MinGW Makefiles" ..
 
 # 4. Build the application
-cmake --build . --config Release
+make
 
 # 5. Run
-./Release/appCamera.exe
+./appCamera.exe
 ```
 
 ## 🏗️ Architecture
