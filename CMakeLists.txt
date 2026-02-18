@@ -31,6 +31,14 @@ qt_add_executable(appCamera
     src/SystemMonitor.h
 )
 
+# Optimization Flags for Release
+if(MSVC)
+    target_compile_options(appCamera PRIVATE /O2 /Ob2 /Oi /Ot /Oy /GL)
+    target_link_options(appCamera PRIVATE /LTCG)
+else()
+    target_compile_options(appCamera PRIVATE -O3 -march=native -ffast-math)
+endif()
+
 # target_compile_options(appCamera PRIVATE -Wno-macro-redefined)
 
 # 4. Register QML Module

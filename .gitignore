@@ -84,3 +84,5 @@ desktop.ini
 # =========================
 # Uncomment if you DON'T want to track third-party libs
 # external/
+
+build_log.txt

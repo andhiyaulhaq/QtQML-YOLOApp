@@ -135,9 +135,9 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     setenv("KMP_SETTINGS", "1", 1);
 #endif
 
-    std::cout << "[YOLO_V8]: Creating optimized session with "
-              << iParams.intraOpNumThreads << " intra-op threads and "
-              << iParams.interOpNumThreads << " inter-op threads." << std::endl;
+    // std::cout << "[YOLO_V8]: Creating optimized session with "
+    //           << iParams.intraOpNumThreads << " intra-op threads and "
+    //           << iParams.interOpNumThreads << " inter-op threads." << std::endl;
 
 #ifdef _WIN32
     int ModelPathSize = MultiByteToWideChar(
@@ -310,6 +310,8 @@ char *YOLO_V8::TensorProcess(clock_t &starttime_1, cv::Mat &iImg, N &blob,
       }
       data += signalResultNum;
     }
+    // Draw detections removed. Rendering handled by QML.
+    
     std::vector<int> nmsResult;
     cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold,
                       nmsResult);
@@ -398,8 +400,8 @@ char *YOLO_V8::WarmUpSession() {
         std::cout << "[YOLO_V8(CUDA)]: " << "Cuda warm-up cost "
                   << post_process_time << " ms. " << std::endl;
       } else {
-        std::cout << "[YOLO_V8(CPU)]: " << "Warm-up completed in "
-                  << post_process_time << " ms. " << std::endl;
+        // std::cout << "[YOLO_V8(CPU)]: " << "Warm-up completed in "
+        //           << post_process_time << " ms. " << std::endl;
       }
     }
   } else {

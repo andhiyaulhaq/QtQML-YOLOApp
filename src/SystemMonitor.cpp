@@ -19,7 +19,7 @@ SystemMonitor::~SystemMonitor()
 void SystemMonitor::startMonitoring()
 {
     if (!m_timer->isActive()) {
-        qDebug() << "[SystemMonitor] Starting resource monitoring";
+        // qDebug() << "[SystemMonitor] Starting resource monitoring";
         m_timer->start();
         updateMetrics(); // Initial reading
     }
@@ -29,7 +29,7 @@ void SystemMonitor::stopMonitoring()
 {
     if (m_timer->isActive()) {
         m_timer->stop();
-        qDebug() << "[SystemMonitor] Stopped resource monitoring";
+        // qDebug() << "[SystemMonitor] Stopped resource monitoring";
     }
 }
 
@@ -45,7 +45,7 @@ void SystemMonitor::updateMetrics()
     QString message = QString("[%1] CPU: %2 | Sys Memory: %3 | Process Memory: %4")
                      .arg(timestamp, cpuStr, sysMemory, processMemory);
     
-    qDebug() << message;
+    // qDebug() << message;
     emit resourceUsageUpdated(cpuStr, sysMemory, processMemory);
 }
 
