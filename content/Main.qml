@@ -60,12 +60,15 @@ Window {
                     }
                     
                     Rectangle {
+                        id: labelRect
                         color: "lime"
+                        // Position label above box, but flip inside if at top edge
+                        property bool atTop: (parent.y - height) < 0
+                        y: atTop ? 0 : -height
                         x: 0
-                        y: -20
                         width: labelText.contentWidth + 10
                         height: 20
-                        visible: y >= 0
+                        visible: true // Always visible
                         
                         Text {
                             id: labelText
