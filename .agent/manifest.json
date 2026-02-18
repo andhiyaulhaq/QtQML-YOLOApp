@@ -1,0 +1,25 @@
+{
+  "project": "QtOpenCVCamera",
+  "agents": {
+    "system-architect": {
+      "path": ".agent/skills/system-architect",
+      "patterns": ["**/*.md", "CMakeLists.txt", ".agent/**"]
+    },
+    "qt-developer": {
+      "path": ".agent/skills/qt-developer",
+      "patterns": ["content/*.qml", "src/*.cpp", "src/*.h"]
+    },
+    "cv-engineer": {
+      "path": ".agent/skills/cv-engineer",
+      "patterns": ["src/inference.*", "src/VideoController.*", "inference/**"]
+    },
+    "devops-engineer": {
+      "path": ".agent/skills/devops-engineer",
+      "patterns": ["CMakeLists.txt", "package.json", ".github/**"]
+    },
+    "qa-specialist": {
+      "path": ".agent/skills/qa-specialist",
+      "patterns": ["tests/**", "dod.md"]
+    }
+  }
+}
