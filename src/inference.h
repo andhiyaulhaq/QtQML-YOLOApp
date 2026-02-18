@@ -69,16 +69,16 @@ public:
     double postProcessTime;
   } InferenceTiming;
 
-  char *RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
+  char *RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
 
   char *WarmUpSession();
 
   template <typename N>
-  char *TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, cv::Mat &iImg, N &blob,
+  char *TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, const cv::Mat &iImg, N &blob,
                       std::vector<int64_t> &inputNodeDims,
                       std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
 
-  char *PreProcess(cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat &oImg);
+  char *PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat &oImg);
 
   std::vector<std::string> classes{};
 

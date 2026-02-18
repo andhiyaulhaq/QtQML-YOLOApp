@@ -29,7 +29,7 @@ template <> struct TypeToTensorType<half> {
 // BlobFromImage replaced by cv::dnn::blobFromImage in RunSession
 
 
-char *YOLO_V8::PreProcess(cv::Mat &iImg, std::vector<int> iImgSize,
+char *YOLO_V8::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize,
                           cv::Mat &oImg) {
   // Optimization: Zero-copy resizing and letterboxing
   // We write directly into oImg (which should be m_letterboxBuffer)
@@ -194,7 +194,7 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
   }
 }
 
-char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
+char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
   auto start_pre = std::chrono::high_resolution_clock::now();
 
   char *Ret = RET_OK;
@@ -236,7 +236,7 @@ char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult, Infere
 }
 
 template <typename N>
-char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, cv::Mat &iImg, N &blob,
+char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, const cv::Mat &iImg, N &blob,
                              std::vector<int64_t> &inputNodeDims,
                              std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
   Ort::Value inputTensor =

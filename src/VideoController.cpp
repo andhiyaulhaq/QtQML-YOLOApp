@@ -131,9 +131,10 @@ void InferenceWorker::processFrame(const cv::Mat& frame) {
     // Run Inference
     std::vector<DL_RESULT> results;
     YOLO_V8::InferenceTiming timing;
-    // We need a non-const Mat for ONNX Runtime (it might modify it slightly or just API compat)
-    cv::Mat blobFrame = frame.clone(); 
-    m_yolo->RunSession(blobFrame, results, timing);
+    // We can use the input const reference directly if RunSession accepts it.
+    // If not, we might need a const_cast or better, fix RunSession to take const cv::Mat&
+    // For now, let's assume we will fix RunSession.
+    m_yolo->RunSession(frame, results, timing);
 
     // Emit results
     emit detectionsReady(results, m_classNames, timing);
@@ -146,6 +147,7 @@ void InferenceWorker::processFrame(const cv::Mat& frame) {
 // =========================================================
 
 VideoController::VideoController(QObject *parent) : QObject(parent) {
+    qRegisterMetaType<cv::Mat>("cv::Mat");
     // 1. Create Workers
     m_captureWorker = new CaptureWorker();
     m_inferenceWorker = new InferenceWorker();
@@ -265,4 +267,19 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
         m_postProcessTime = timing.postProcessTime;
         emit timingChanged();
     }
+
+    // Calculate Inference FPS
+    static auto lastTime = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    double diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTime).count();
+    
+    if (diff > 0) {
+        double currentFps = 1000.0 / diff;
+        // Simple smoothing
+        if (m_inferenceFps == 0) m_inferenceFps = currentFps;
+        else m_inferenceFps = m_inferenceFps * 0.9 + currentFps * 0.1;
+        
+        emit inferenceFpsChanged();
+    }
+    lastTime = now;
 }

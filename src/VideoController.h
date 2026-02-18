@@ -32,6 +32,7 @@ class VideoController : public QObject
     Q_PROPERTY(double preProcessTime READ preProcessTime NOTIFY timingChanged)
     Q_PROPERTY(double inferenceTime READ inferenceTime NOTIFY timingChanged)
     Q_PROPERTY(double postProcessTime READ postProcessTime NOTIFY timingChanged)
+    Q_PROPERTY(double inferenceFps READ inferenceFps NOTIFY inferenceFpsChanged)
 
 public:
     explicit VideoController(QObject *parent = nullptr);
@@ -47,10 +48,12 @@ public:
     double preProcessTime() const { return m_preProcessTime; }
     double inferenceTime() const { return m_inferenceTime; }
     double postProcessTime() const { return m_postProcessTime; }
+    double inferenceFps() const { return m_inferenceFps; }
 
 signals:
     void videoSinkChanged();
     void fpsChanged();
+    void inferenceFpsChanged();
     void systemStatsChanged();
     void detectionsChanged();
     void timingChanged();
@@ -73,6 +76,7 @@ private:
     double m_preProcessTime = 0.0;
     double m_inferenceTime = 0.0;
     double m_postProcessTime = 0.0;
+    double m_inferenceFps = 0.0;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;

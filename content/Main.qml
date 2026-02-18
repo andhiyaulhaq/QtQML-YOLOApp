@@ -97,8 +97,17 @@ Window {
                 spacing: 5
                 
                 Text {
-                    text: "FPS: " + controller.fps.toFixed(1)
+                    text: "Camera FPS: " + controller.fps.toFixed(1)
                     color: "cyan"
+                    font.pixelSize: 18
+                    font.bold: true
+                    style: Text.Outline
+                    styleColor: "black"
+                }
+
+                Text {
+                    text: "Inf FPS: " + controller.inferenceFps.toFixed(1)
+                    color: "magenta"
                     font.pixelSize: 18
                     font.bold: true
                     style: Text.Outline
