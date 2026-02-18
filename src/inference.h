@@ -94,4 +94,8 @@ private:
   float iouThreshold;
   float resizeScales; // letterbox scale
   std::atomic<size_t> m_sessionIndex{0};
+  
+  // Optimization: Reusable memory for blob to avoid reallocations
+  cv::Mat m_commonBlob; 
+  cv::Mat m_commonBlobHalf;
 };

@@ -1,6 +1,7 @@
 // Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
 #include "inference.h"
+#include <opencv2/dnn.hpp>
 #include <regex>
 
 #define benchmark
@@ -25,22 +26,8 @@ template <> struct TypeToTensorType<half> {
 } // namespace Ort
 #endif
 
-template <typename T> char *BlobFromImage(cv::Mat &iImg, T &iBlob) {
-  int channels = iImg.channels();
-  int imgHeight = iImg.rows;
-  int imgWidth = iImg.cols;
+// BlobFromImage replaced by cv::dnn::blobFromImage in RunSession
 
-  for (int c = 0; c < channels; c++) {
-    for (int h = 0; h < imgHeight; h++) {
-      for (int w = 0; w < imgWidth; w++) {
-        iBlob[c * imgWidth * imgHeight + h * imgWidth + w] =
-            typename std::remove_pointer<T>::type(
-                (iImg.at<cv::Vec3b>(h, w)[c]) / 255.0f);
-      }
-    }
-  }
-  return RET_OK;
-}
 
 char *YOLO_V8::PreProcess(cv::Mat &iImg, std::vector<int> iImgSize,
                           cv::Mat &oImg) {
@@ -208,14 +195,20 @@ char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult) {
   cv::Mat processedImg;
   PreProcess(iImg, imgSize, processedImg);
   if (modelType < 4) {
-    float *blob = new float[processedImg.total() * 3];
-    BlobFromImage(processedImg, blob);
+    cv::dnn::blobFromImage(processedImg, m_commonBlob, 1.0 / 255.0, cv::Size(),
+                           cv::Scalar(), false, false);
+    float *blob = (float *)m_commonBlob.data;
     std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
     TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
   } else {
 #ifdef USE_CUDA
-    half *blob = new half[processedImg.total() * 3];
-    BlobFromImage(processedImg, blob);
+    // Unified path: Use cv::dnn::blobFromImage (float) -> convert to Half
+    cv::dnn::blobFromImage(processedImg, m_commonBlob, 1.0 / 255.0, cv::Size(),
+                           cv::Scalar(), false, false);
+    // Convert to FP16
+    m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
+    
+    half *blob = (half *)m_commonBlobHalf.data;
     std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
     TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
 #endif
@@ -254,7 +247,7 @@ char *YOLO_V8::TensorProcess(clock_t &starttime_1, cv::Mat &iImg, N &blob,
   auto output =
       outputTensor.front()
           .GetTensorMutableData<typename std::remove_pointer<N>::type>();
-  delete[] blob;
+  // delete[] blob; // Optimization: Removed deletion of managed blob
   switch (modelType) {
   case YOLO_DETECT_V8:
   case YOLO_DETECT_V8_HALF: {
@@ -371,8 +364,10 @@ char *YOLO_V8::WarmUpSession() {
   PreProcess(iImg, imgSize, processedImg);
   if (modelType < 4) {
     for (auto s : m_sessionPool) {
-      float *blob = new float[iImg.total() * 3];
-      BlobFromImage(processedImg, blob);
+      cv::Mat blobMat;
+      cv::dnn::blobFromImage(processedImg, blobMat, 1.0 / 255.0, cv::Size(),
+                             cv::Scalar(), false, false);
+      float *blob = (float *)blobMat.data;
       std::vector<int64_t> YOLO_input_node_dims = {1, 3, imgSize.at(0),
                                                    imgSize.at(1)};
       Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
@@ -382,7 +377,7 @@ char *YOLO_V8::WarmUpSession() {
       auto output_tensors =
           s->Run(options, inputNodeNames.data(), &input_tensor, 1,
                  outputNodeNames.data(), outputNodeNames.size());
-      delete[] blob;
+      // delete[] blob; // No need to delete, managed by cv::Mat
       clock_t starttime_4 = clock();
       double post_process_time =
           (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
@@ -397,8 +392,12 @@ char *YOLO_V8::WarmUpSession() {
   } else {
 #ifdef USE_CUDA
     for (auto s : m_sessionPool) {
-      half *blob = new half[iImg.total() * 3];
-      BlobFromImage(processedImg, blob);
+      cv::Mat blobMat;
+      cv::dnn::blobFromImage(processedImg, blobMat, 1.0 / 255.0, cv::Size(),
+                             cv::Scalar(), false, false);
+      cv::Mat blobMatHalf;
+      blobMat.convertTo(blobMatHalf, CV_16F);
+      half *blob = (half *)blobMatHalf.data;
       std::vector<int64_t> YOLO_input_node_dims = {1, 3, imgSize.at(0),
                                                    imgSize.at(1)};
       Ort::Value input_tensor = Ort::Value::CreateTensor<half>(
@@ -408,7 +407,7 @@ char *YOLO_V8::WarmUpSession() {
       auto output_tensors =
           s->Run(options, inputNodeNames.data(), &input_tensor, 1,
                  outputNodeNames.data(), outputNodeNames.size());
-      delete[] blob;
+      // delete[] blob; // Managed by cv::Mat
       clock_t starttime_4 = clock();
       double post_process_time =
           (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;

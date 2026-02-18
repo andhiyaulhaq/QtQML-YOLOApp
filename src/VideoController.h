@@ -4,6 +4,7 @@
 #include "inference.h"
 #include "SystemMonitor.h"
 #include <QMutex>
+#include <atomic>
 #include <QObject>
 #include <QQmlEngine>
 #include <QThread>
@@ -23,7 +24,7 @@ public slots:
   void stopCapturing();
 
 private:
-  bool m_running = false;
+  std::atomic<bool> m_running{false};
   cv::VideoCapture m_capture;
   YOLO_V8 *yolo = nullptr;
   std::vector<cv::Scalar> classColors;

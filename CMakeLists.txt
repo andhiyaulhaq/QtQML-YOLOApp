@@ -31,7 +31,7 @@ qt_add_executable(appCamera
     src/SystemMonitor.h
 )
 
-target_compile_options(appCamera PRIVATE -Wno-macro-redefined)
+# target_compile_options(appCamera PRIVATE -Wno-macro-redefined)
 
 # 4. Register QML Module
 qt_add_qml_module(appCamera
