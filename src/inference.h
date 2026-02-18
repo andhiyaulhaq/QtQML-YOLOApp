@@ -98,4 +98,5 @@ private:
   // Optimization: Reusable memory for blob to avoid reallocations
   cv::Mat m_commonBlob; 
   cv::Mat m_commonBlobHalf;
+  cv::Mat m_letterboxBuffer;
 };

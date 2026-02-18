@@ -96,33 +96,35 @@ void CameraWorker::startCapturing(QVideoSink *sink) {
     if (rawFrame.empty())
       continue;
 
-    cv::Mat drawFrame = rawFrame.clone();
+    // Optimization: Removed redundant clone. RunSession treats input as const.
+    // Drawing happens on rawFrame *after* inference is done.
+    
     std::vector<DL_RESULT> results;
     yolo->RunSession(rawFrame, results);
 
-    // Draw detections with consistent colors
+    // Draw detections with consistent colors directly on rawFrame
     for (auto &re : results) {
       cv::Scalar color =
           (re.classId < classColors.size())
               ? classColors[re.classId]
               : cv::Scalar(255, 255, 255); // Default white for unknown classes
-      cv::rectangle(drawFrame, re.box, color, 3);
+      cv::rectangle(rawFrame, re.box, color, 3);
 
       float confidence = floor(100 * re.confidence) / 100;
       std::string label = yolo->classes[re.classId] + " " +
                           std::to_string(confidence)
                               .substr(0, std::to_string(confidence).size() - 4);
 
-      cv::rectangle(drawFrame, cv::Point(re.box.x, re.box.y - 25),
+      cv::rectangle(rawFrame, cv::Point(re.box.x, re.box.y - 25),
                     cv::Point(re.box.x + label.length() * 10, re.box.y), color,
                     cv::FILLED);
 
-      cv::putText(drawFrame, label, cv::Point(re.box.x, re.box.y - 5),
+      cv::putText(rawFrame, label, cv::Point(re.box.x, re.box.y - 5),
                   cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 1);
     }
 
     // Convert Color BGR -> RGBA
-    cv::cvtColor(drawFrame, displayFrame, cv::COLOR_BGR2RGBA);
+    cv::cvtColor(rawFrame, displayFrame, cv::COLOR_BGR2RGBA);
 
     // Send to VideoSink
     if (sink) {

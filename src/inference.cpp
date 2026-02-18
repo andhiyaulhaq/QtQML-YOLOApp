@@ -31,12 +31,19 @@ template <> struct TypeToTensorType<half> {
 
 char *YOLO_V8::PreProcess(cv::Mat &iImg, std::vector<int> iImgSize,
                           cv::Mat &oImg) {
-  if (iImg.channels() == 3) {
-    oImg = iImg.clone();
-    cv::cvtColor(oImg, oImg, cv::COLOR_BGR2RGB);
-  } else {
-    cv::cvtColor(iImg, oImg, cv::COLOR_GRAY2RGB);
+  // Optimization: Zero-copy resizing and letterboxing
+  // We write directly into oImg (which should be m_letterboxBuffer)
+  
+  int target_h = iImgSize.at(0);
+  int target_w = iImgSize.at(1);
+  
+  // Ensure buffer is allocated
+  if (oImg.size() != cv::Size(target_w, target_h) || oImg.type() != CV_8UC3) {
+      oImg.create(target_h, target_w, CV_8UC3);
   }
+  
+  // Fill with padding color (usually 114 for YOLO, but 0 in original code)
+  oImg.setTo(cv::Scalar(0, 0, 0));
 
   switch (modelType) {
   case YOLO_DETECT_V8:
@@ -44,16 +51,16 @@ char *YOLO_V8::PreProcess(cv::Mat &iImg, std::vector<int> iImgSize,
   case YOLO_DETECT_V8_HALF:
   case YOLO_POSE_V8_HALF: // LetterBox
   {
-    int new_h = iImgSize.at(0);
-    int new_w = iImgSize.at(1);
-    float r = min(new_w / (float)iImg.cols, new_h / (float)iImg.rows);
+    float r = min(target_w / (float)iImg.cols, target_h / (float)iImg.rows);
     int resized_w = static_cast<int>(iImg.cols * r);
     int resized_h = static_cast<int>(iImg.rows * r);
     resizeScales = 1.0f / r;
-    cv::resize(oImg, oImg, cv::Size(resized_w, resized_h));
-    cv::Mat tempImg = cv::Mat::zeros(new_h, new_w, CV_8UC3);
-    oImg.copyTo(tempImg(cv::Rect(0, 0, resized_w, resized_h)));
-    oImg = tempImg;
+    
+    // Resize directly into the buffer's ROI (Optimization: Avoids temp allocation)
+    // Note: We keep BGR format here and use swapRB=true in blobFromImage later
+    cv::resize(iImg, oImg(cv::Rect(0, 0, resized_w, resized_h)), 
+               cv::Size(resized_w, resized_h));
+    
     break;
   }
   case YOLO_CLS: // CenterCrop
@@ -63,8 +70,9 @@ char *YOLO_V8::PreProcess(cv::Mat &iImg, std::vector<int> iImgSize,
     int m = min(h, w);
     int top = (h - m) / 2;
     int left = (w - m) / 2;
-    cv::resize(oImg(cv::Rect(left, top, m, m)), oImg,
-               cv::Size(iImgSize.at(1), iImgSize.at(0)));
+    // Resize directly to output buffer
+    cv::resize(iImg(cv::Rect(left, top, m, m)), oImg,
+               cv::Size(target_w, target_h));
     break;
   }
   case YOLO_CLS_HALF:
@@ -192,19 +200,23 @@ char *YOLO_V8::RunSession(cv::Mat &iImg, std::vector<DL_RESULT> &oResult) {
 #endif // benchmark
 
   char *Ret = RET_OK;
-  cv::Mat processedImg;
-  PreProcess(iImg, imgSize, processedImg);
+  
+  // Use member buffer instead of local stack generic variable
+  // Optimization: Zero allocation if size matches
+  PreProcess(iImg, imgSize, m_letterboxBuffer);
+  
   if (modelType < 4) {
-    cv::dnn::blobFromImage(processedImg, m_commonBlob, 1.0 / 255.0, cv::Size(),
-                           cv::Scalar(), false, false);
+    // Optimization: swapRB=true to handle BGR->RGB conversion here
+    cv::dnn::blobFromImage(m_letterboxBuffer, m_commonBlob, 1.0 / 255.0, cv::Size(),
+                           cv::Scalar(), true, false);
     float *blob = (float *)m_commonBlob.data;
     std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
     TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
   } else {
 #ifdef USE_CUDA
     // Unified path: Use cv::dnn::blobFromImage (float) -> convert to Half
-    cv::dnn::blobFromImage(processedImg, m_commonBlob, 1.0 / 255.0, cv::Size(),
-                           cv::Scalar(), false, false);
+    cv::dnn::blobFromImage(m_letterboxBuffer, m_commonBlob, 1.0 / 255.0, cv::Size(),
+                           cv::Scalar(), true, false);
     // Convert to FP16
     m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
     
