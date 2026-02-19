@@ -179,8 +179,11 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     connect(m_systemMonitor, &SystemMonitor::resourceUsageUpdated, this, &VideoController::updateSystemStats);
 
     // Start Threads
-    m_inferenceThread.start(QThread::HighPriority); // This triggers startInference()
-    m_captureThread.start();
+    // Start Threads (Deferred to prevent startup hang)
+    QTimer::singleShot(500, this, [this](){
+        m_inferenceThread.start(QThread::HighPriority);
+        m_captureThread.start();
+    });
     
     m_lastInferenceTime = std::chrono::steady_clock::now();
 }
