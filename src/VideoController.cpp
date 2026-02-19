@@ -108,7 +108,7 @@ void InferenceWorker::startInference() {
     params.modelType = YOLO_DETECT_V8;
     params.imgSize = {640, 640};
     params.cudaEnable = false; // CPU
-    params.intraOpNumThreads = std::thread::hardware_concurrency(); 
+    params.intraOpNumThreads = std::max(1u, std::thread::hardware_concurrency() / 2); 
     params.interOpNumThreads = 1;
     m_yolo->CreateSession(params);
     
@@ -160,6 +160,7 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     // Main -> Workers
     connect(this, &VideoController::startWorkers, m_captureWorker, &CaptureWorker::startCapturing, Qt::QueuedConnection);
     connect(this, &VideoController::stopWorkers, m_captureWorker, &CaptureWorker::stopCapturing, Qt::DirectConnection); 
+    connect(this, &VideoController::stopWorkers, m_inferenceWorker, &InferenceWorker::stopInference, Qt::DirectConnection); 
     connect(&m_inferenceThread, &QThread::started, m_inferenceWorker, &InferenceWorker::startInference);
     
     // Capture -> Inference
@@ -180,10 +181,13 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
 
 VideoController::~VideoController() {
     emit stopWorkers();
-    m_captureThread.quit();
-    m_captureThread.wait();
     
+    // Signal both threads to quit
+    m_captureThread.quit();
     m_inferenceThread.quit();
+    
+    // Wait for both to finish (parallelized wait)
+    m_captureThread.wait();
     m_inferenceThread.wait();
 
     delete m_captureWorker;

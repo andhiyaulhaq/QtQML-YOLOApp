@@ -42,7 +42,7 @@ typedef struct _DL_INIT_PARAM {
   int keyPointsNum = 2; // Note:kpt number for pose
   bool cudaEnable = false;
   int logSeverityLevel = 3;
-  int intraOpNumThreads = std::thread::hardware_concurrency();
+  int intraOpNumThreads = std::max(1u, std::thread::hardware_concurrency() / 2);
   int interOpNumThreads = 1;
   int sessionPoolSize = 1;
 } DL_INIT_PARAM;
