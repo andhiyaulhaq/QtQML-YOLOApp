@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 1. Setup Qt6 (Added Multimedia component)
-find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia QuickControls2)
 
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
@@ -64,6 +64,7 @@ target_include_directories(appCamera PRIVATE
 target_link_libraries(appCamera
     PRIVATE
     Qt6::Quick
+    Qt6::QuickControls2
     Qt6::Multimedia
     ${OpenCV_LIBS}
     onnxruntime

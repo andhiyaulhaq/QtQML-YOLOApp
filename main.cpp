@@ -1,10 +1,13 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQuickStyle>
 
 using namespace Qt::StringLiterals;
 
 int main(int argc, char *argv[]) {
   QGuiApplication app(argc, argv);
+  
+  QQuickStyle::setStyle("Basic");
 
   QQmlApplicationEngine engine;
 

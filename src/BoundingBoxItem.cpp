@@ -70,7 +70,7 @@ QSGNode *BoundingBoxItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData 
         // 4 lines per box * 2 vertices per line = 8 vertices per detection
         // Use defaultAttributes_ColoredPoint2D() for modern Qt
         QSGGeometry *geometry = new QSGGeometry(QSGGeometry::defaultAttributes_ColoredPoint2D(), 0);
-        geometry->setLineWidth(3);
+        geometry->setLineWidth(1);
         geometry->setDrawingMode(QSGGeometry::DrawLines); // Use Qt enum instead of GL_LINES
         node->setGeometry(geometry);
         node->setFlag(QSGNode::OwnsGeometry);
