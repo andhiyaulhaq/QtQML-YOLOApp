@@ -38,55 +38,10 @@ Window {
                 fillMode: VideoOutput.PreserveAspectFit
             }
 
-            // Bounding Box Overlay
-            Repeater {
-                model: controller.detections
-                delegate: Item {
-                    // Normalize coordinates are 0.0-1.0 relative to 640x480 source
-                    // We need to map them to the VideoOutput's actual displayed rect
-                    // For Stretch/PreserveAspectFit, it might differ. 
-                    // Since container matches source aspect (640x480), it's simple mapping.
-                    
-                    x: modelData.x * parent.width
-                    y: modelData.y * parent.height
-                    width: modelData.w * parent.width
-                    height: modelData.h * parent.height
-
-                    // Generate distinct color from classId
-                    function getObjectColor(classId) {
-                        return Qt.hsla((classId * 0.17) % 1.0, 1.0, 0.5, 1.0);
-                    }
-                    
-                    property color objColor: getObjectColor(modelData.classId)
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: "transparent"
-                        border.color: objColor
-                        border.width: 2
-                    }
-                    
-                    Rectangle {
-                        id: labelRect
-                        color: objColor
-                        // Position label above box, but flip inside if at top edge
-                        property bool atTop: (parent.y - height) < 0
-                        y: atTop ? 0 : -height
-                        x: 0
-                        width: labelText.contentWidth + 10
-                        height: 20
-                        visible: true // Always visible
-                        
-                        Text {
-                            id: labelText
-                            anchors.centerIn: parent
-                            text: modelData.label + " " + (modelData.confidence * 100).toFixed(0) + "%"
-                            color: "black"
-                            font.pixelSize: 12
-                            font.bold: true
-                        }
-                    }
-                }
+            // Optimized Bounding Box Overlay
+            BoundingBoxItem {
+                anchors.fill: parent
+                detections: controller.detections
             }
         
             // Performance Overlay
