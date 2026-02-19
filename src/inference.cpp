@@ -154,9 +154,30 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
 #endif // _WIN32
 
     // Initialize a pool of sessions (Phase 1: session pool for multi-inference)
-    Ort::Session *firstSession =
-        new Ort::Session(env, modelPath, sessionOption);
-    m_sessionPool.push_back(firstSession);
+    try {
+        Ort::Session *firstSession = new Ort::Session(env, modelPath, sessionOption);
+        m_sessionPool.push_back(firstSession);
+    } catch (const std::exception &e) {
+        if (iParams.cudaEnable) {
+            std::cout << "[YOLO_V8]: CUDA initialization failed (" << e.what() << "). Falling back to CPU." << std::endl;
+            // Fallback: Disable CUDA and try again
+            iParams.cudaEnable = false;
+            cudaEnable = false;
+            // Re-create session options without CUDA
+            sessionOption = Ort::SessionOptions();
+            sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
+            sessionOption.SetInterOpNumThreads(iParams.interOpNumThreads);
+            sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+            sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
+            sessionOption.SetExecutionMode(ORT_SEQUENTIAL);
+            
+            Ort::Session *firstSession = new Ort::Session(env, modelPath, sessionOption);
+            m_sessionPool.push_back(firstSession);
+        } else {
+            throw e; // Re-throw if CPU also failed
+        }
+    }
+
     for (int i = 1; i < iParams.sessionPoolSize; ++i) {
       Ort::Session *s = new Ort::Session(env, modelPath, sessionOption);
       m_sessionPool.push_back(s);
