@@ -245,6 +245,6 @@ Using `static` local in a member function is fragile — it won't reset on objec
 - [x] Replace `QVariantList` with `QAbstractListModel` for detections (Implemented `DetectionListModel` for zero-copy access in C++ and efficient QML binding)
 - [x] Move `SystemMonitor` off the UI thread (Moved to dedicated `QThread`)
 
-### Phase 4 — Micro-Optimizations (P3, optional)
-- Manual blob pipeline replacing `cv::dnn::blobFromImage`
-- Profile and tune ONNX thread counts
+### Phase 4 — Micro-Optimizations (P3, optional) [Completed]
+- [x] Manual blob pipeline replacing `cv::dnn::blobFromImage` (Implemented custom NCHW loop)
+- [x] Profile and tune ONNX thread counts (Capped IntraOp threads to 4 for YOLOv8n)

@@ -218,32 +218,91 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
   // Optimization: Zero allocation if size matches
   PreProcess(iImg, imgSize, m_letterboxBuffer);
 
-  if (modelType < 4) {
-    // Optimization: swapRB=true to handle BGR->RGB conversion here
-    cv::dnn::blobFromImage(m_letterboxBuffer, m_commonBlob, 1.0 / 255.0, cv::Size(),
-                           cv::Scalar(), true, false);
-    float *blob = (float *)m_commonBlob.data;
-    std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
-    
-    auto end_pre = std::chrono::high_resolution_clock::now();
-    timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+  // Manual pre-processing (replacing cv::dnn::blobFromImage)
+  // 1. Ensure output blob buffer is allocated with correct dimensions (NCHW)
+  int channels = 3;
+  int height = imgSize.at(0);
+  int width = imgSize.at(1);
+  
+  if (modelType < 4) { // FLOAT32 models
+      // Ensure m_commonBlob is NCHW [1, 3, h, w] CV_32F
+      // OpenCV create() reuses buffer if size/type matches
+      int sz[] = {1, channels, height, width};
+      m_commonBlob.create(4, sz, CV_32F);
+      
+      float* blob_data = m_commonBlob.ptr<float>();
+      const uint8_t* img_data = m_letterboxBuffer.data;
+      int step = width * channels; // bytes per row in source
 
-    TensorProcess(start_pre, iImg, blob, inputNodeDims, oResult, timing); 
-  } else {
+      // Manual loop: BGR -> RGB, /255.0, HWC -> CHW
+      // This is the "Hot Loop" for preprocessing
+      // Planar offsets
+      int plane_0 = 0;                  // R channel (dst)
+      int plane_1 = height * width;     // G channel (dst)
+      int plane_2 = 2 * height * width; // B channel (dst)
+      
+      for (int h = 0; h < height; ++h) {
+          const uint8_t* row_ptr = img_data + h * m_letterboxBuffer.step;
+          for (int w = 0; w < width; ++w) {
+              // Source is BGR (OpenCV default)
+              uint8_t b = row_ptr[w * 3 + 0];
+              uint8_t g = row_ptr[w * 3 + 1];
+              uint8_t r = row_ptr[w * 3 + 2];
+
+              // Dest is RGB Planar (CHW) + Normalize
+              // Access: blob_data[channel * H * W + y * W + x]
+              int offset = h * width + w;
+              
+              blob_data[plane_0 + offset] = r / 255.0f;
+              blob_data[plane_1 + offset] = g / 255.0f;
+              blob_data[plane_2 + offset] = b / 255.0f;
+          }
+      }
+
+      std::vector<int64_t> inputNodeDims = {1, 3, height, width};
+      auto end_pre = std::chrono::high_resolution_clock::now();
+      timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+
+      TensorProcess(start_pre, iImg, blob_data, inputNodeDims, oResult, timing); 
+
+  } else { // FLOAT16 models (reuse same logic, convert at end or use half ptr)
 #ifdef USE_CUDA
-    // Unified path: Use cv::dnn::blobFromImage (float) -> convert to Half
-    cv::dnn::blobFromImage(m_letterboxBuffer, m_commonBlob, 1.0 / 255.0, cv::Size(),
-                           cv::Scalar(), true, false);
-    // Convert to FP16
-    m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
+      // For simplicity in this phase, we do the same float conversion then convert to half
+      // A full optimization would write directly to half, but requires half-float logic
+      
+      int sz[] = {1, channels, height, width};
+      m_commonBlob.create(4, sz, CV_32F);
+      
+      float* blob_data = m_commonBlob.ptr<float>();
+      const uint8_t* img_data = m_letterboxBuffer.data;
+      
+      int plane_0 = 0;
+      int plane_1 = height * width;
+      int plane_2 = 2 * height * width;
+      
+       for (int h = 0; h < height; ++h) {
+          const uint8_t* row_ptr = img_data + h * m_letterboxBuffer.step;
+          for (int w = 0; w < width; ++w) {
+              uint8_t b = row_ptr[w * 3 + 0];
+              uint8_t g = row_ptr[w * 3 + 1];
+              uint8_t r = row_ptr[w * 3 + 2];
 
-    half *blob = (half *)m_commonBlobHalf.data;
-    std::vector<int64_t> inputNodeDims = {1, 3, imgSize.at(0), imgSize.at(1)};
+              int offset = h * width + w;
+              blob_data[plane_0 + offset] = r / 255.0f;
+              blob_data[plane_1 + offset] = g / 255.0f;
+              blob_data[plane_2 + offset] = b / 255.0f;
+          }
+      }
 
-    auto end_pre = std::chrono::high_resolution_clock::now();
-    timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+      // Convert to FP16
+      m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
+      half *blob = (half *)m_commonBlobHalf.data;
+      std::vector<int64_t> inputNodeDims = {1, 3, height, width};
 
-    TensorProcess(start_pre, iImg, blob, inputNodeDims, oResult, timing);
+      auto end_pre = std::chrono::high_resolution_clock::now();
+      timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+
+      TensorProcess(start_pre, iImg, blob, inputNodeDims, oResult, timing);
 #endif
   }
 

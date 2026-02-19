@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QThread>
 #include <fstream>
+#include <algorithm>
 
 // =========================================================
 // CAPTURE WORKER
@@ -112,7 +113,10 @@ void InferenceWorker::startInference() {
     params.modelType = YOLO_DETECT_V8;
     params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
     params.cudaEnable = false; // CPU
-    params.intraOpNumThreads = std::max(1u, std::thread::hardware_concurrency() / 2); 
+    // Optimization: Cap threads to 4 for YOLOv8n (small model). 
+    // More threads often increase overhead without performance gain for 'nano' models.
+    unsigned int threads = std::thread::hardware_concurrency() / 2;
+    params.intraOpNumThreads = std::max(1u, std::min(4u, threads)); 
     params.interOpNumThreads = 1;
     m_yolo->CreateSession(params);
     
