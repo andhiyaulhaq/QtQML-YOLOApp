@@ -29,37 +29,41 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
     m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
     m_capture.set(cv::CAP_PROP_FPS, 30);
 
-    cv::Mat rawFrame;
+    // cv::Mat rawFrame; // Replaced by pool
     int frames = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
 
     while (m_running) {
-        if (!m_capture.read(rawFrame) || rawFrame.empty()) {
+        cv::Mat& currentFrame = m_framePool[m_poolIndex];
+        
+        if (!m_capture.read(currentFrame) || currentFrame.empty()) {
             QThread::msleep(10);
             continue;
         }
 
         // 1. Send to UI (Zero-copy optimization)
         if (sink) {
-            QVideoFrameFormat format(QSize(rawFrame.cols, rawFrame.rows),
+            QVideoFrameFormat format(QSize(currentFrame.cols, currentFrame.rows),
                                    QVideoFrameFormat::Format_RGBA8888);
             QVideoFrame frame(format);
             
             if (frame.map(QVideoFrame::WriteOnly)) {
-                cv::Mat wrapper(rawFrame.rows, rawFrame.cols, CV_8UC4, 
+                cv::Mat wrapper(currentFrame.rows, currentFrame.cols, CV_8UC4, 
                               frame.bits(0), frame.bytesPerLine(0));
-                cv::cvtColor(rawFrame, wrapper, cv::COLOR_BGR2RGBA);
+                cv::cvtColor(currentFrame, wrapper, cv::COLOR_BGR2RGBA);
                 frame.unmap();
                 sink->setVideoFrame(frame);
             }
         }
 
-        // 2. Send to Inference (Signal blocks if connected via QueuedConnection, but we want it async)
-        // We emit a copy or ensure the receiver handles it quickly. 
-        // Ideally we'd use a shared pointer or a circular buffer, but for now copying the Mat is safer to avoid race conditions 
-        // given OpenCV Mats differ in thread safety.
-        // HOWEVER, to avoid deep copy every frame if inference is slow, the InferenceWorker has a "processing" flag.
-        emit frameReady(rawFrame.clone()); 
+        // 2. Send to Inference (Optimization: Ring Buffer instead of clone)
+        // We emit the Mat. Qt copies the header, increasing the refcounter to the underlying data.
+        // As long as we don't overwrite this specific m_framePool index before inference is done, we are safe.
+        // With 3 buffers at 30fps, we have 100ms before overwrite. If inference < 100ms, correct.
+        emit frameReady(currentFrame);
+        
+        // Advance pool index
+        m_poolIndex = (m_poolIndex + 1) % 3;
 
         // 3. FPS Calculation
         frames++;
@@ -227,35 +231,20 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
     QVariantList detectionsList;
     
     for (const auto& res : results) {
-        QVariantMap det;
-        det["classId"] = res.classId;
-        det["confidence"] = res.confidence;
-        det["label"] = QString::fromStdString(classNames[res.classId]);
+        Detection det; // Use GADGET struct
+        det.classId = res.classId;
+        det.confidence = res.confidence;
+        det.label = QString::fromStdString(classNames[res.classId]);
         
-        // Normalize coordinates (assuming 640x480 input frame)
-        // Note: The UI VideoOutput might stretch, so we send relative coordinates (0.0 - 1.0)
-        // or absolute if we know the size. 
-        // YOLO results are absolute pixels relative to the input image size.
-        // We know input is 640x480.
-        
-        float x = res.box.x;
-        float y = res.box.y;
         float w = res.box.width;
         float h = res.box.height;
         
-        det["x"] = x / 640.0;
-        det["y"] = y / 480.0; // Depending on how we resized/padded?
-        // Wait, current logic in inference.cpp does a fit/resize. 
-        // The results coming out of YOLO are scaled back to the original image size?
-        // Let's check inference.cpp PostProcess logic.
-        // It uses `resizeScales`.
-        // So `res.box` IS in the coordinate space of the ORIGINAL 'rawFrame'.
-        // rawFrame is fixed to 640x480 in capture settings.
+        det.x = res.box.x / 640.0;
+        det.y = res.box.y / 480.0;
+        det.w = w / 640.0;
+        det.h = h / 480.0;
         
-        det["w"] = w / 640.0;
-        det["h"] = h / 480.0;
-        
-        detectionsList.append(det); // Corrected: Using append instead of push_back
+        detectionsList.append(QVariant::fromValue(det));
     }
     
     m_detections = detectionsList;
