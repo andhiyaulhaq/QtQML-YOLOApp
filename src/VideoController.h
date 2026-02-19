@@ -10,6 +10,14 @@
 #include <QWaitCondition>
 #include <QVariantList>
 #include <opencv2/opencv.hpp>
+#include <chrono>
+
+namespace AppConfig {
+    static constexpr int FrameWidth = 640;
+    static constexpr int FrameHeight = 480;
+    static constexpr int ModelWidth = 640;
+    static constexpr int ModelHeight = 640;
+}
 
 #include "inference.h"
 #include "SystemMonitor.h"
@@ -99,6 +107,7 @@ private:
     double m_inferenceTime = 0.0;
     double m_postProcessTime = 0.0;
     double m_inferenceFps = 0.0;
+    std::chrono::time_point<std::chrono::steady_clock> m_lastInferenceTime;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;

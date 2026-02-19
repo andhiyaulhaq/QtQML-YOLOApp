@@ -25,8 +25,8 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
 
     // Optimization Settings
     m_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    m_capture.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-    m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    m_capture.set(cv::CAP_PROP_FRAME_WIDTH, AppConfig::FrameWidth);
+    m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, AppConfig::FrameHeight);
     m_capture.set(cv::CAP_PROP_FPS, 30);
 
     // cv::Mat rawFrame; // Replaced by pool
@@ -110,7 +110,7 @@ void InferenceWorker::startInference() {
     DL_INIT_PARAM params;
     params.modelPath = "inference/yolov8n.onnx";
     params.modelType = YOLO_DETECT_V8;
-    params.imgSize = {640, 640};
+    params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
     params.cudaEnable = false; // CPU
     params.intraOpNumThreads = std::max(1u, std::thread::hardware_concurrency() / 2); 
     params.interOpNumThreads = 1;
@@ -179,8 +179,10 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     connect(m_systemMonitor, &SystemMonitor::resourceUsageUpdated, this, &VideoController::updateSystemStats);
 
     // Start Threads
-    m_inferenceThread.start(); // This triggers startInference()
+    m_inferenceThread.start(QThread::HighPriority); // This triggers startInference()
     m_captureThread.start();
+    
+    m_lastInferenceTime = std::chrono::steady_clock::now();
 }
 
 VideoController::~VideoController() {
@@ -239,10 +241,10 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
         float w = res.box.width;
         float h = res.box.height;
         
-        det.x = res.box.x / 640.0;
-        det.y = res.box.y / 480.0;
-        det.w = w / 640.0;
-        det.h = h / 480.0;
+        det.x = res.box.x / (float)AppConfig::FrameWidth;
+        det.y = res.box.y / (float)AppConfig::FrameHeight;
+        det.w = w / (float)AppConfig::FrameWidth;
+        det.h = h / (float)AppConfig::FrameHeight;
         
         detectionsList.append(QVariant::fromValue(det));
     }
@@ -262,9 +264,8 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
     }
 
     // Calculate Inference FPS
-    static auto lastTime = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
-    double diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTime).count();
+    double diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_lastInferenceTime).count();
     
     if (diff > 0) {
         double currentFps = 1000.0 / diff;
@@ -274,5 +275,5 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
         
         emit inferenceFpsChanged();
     }
-    lastTime = now;
+    m_lastInferenceTime = now;
 }

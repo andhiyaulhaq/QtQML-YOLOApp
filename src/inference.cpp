@@ -116,20 +116,14 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     sessionOption.SetExecutionMode(ORT_SEQUENTIAL);
 
 #ifdef _WIN32
-    // Set process priority for better performance
-    HANDLE process = GetCurrentProcess();
-    SetPriorityClass(process, HIGH_PRIORITY_CLASS);
-
     // Set environment variables for Intel CPU optimization
     std::string ompThreads = std::to_string(iParams.intraOpNumThreads);
     SetEnvironmentVariableA("OMP_NUM_THREADS", ompThreads.c_str());
-    SetEnvironmentVariableA("KMP_AFFINITY",
-                            "granularity=fine,verbose,compact,1,0");
+    SetEnvironmentVariableA("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0");
     SetEnvironmentVariableA("KMP_BLOCKTIME", "1");
     SetEnvironmentVariableA("KMP_SETTINGS", "1");
 #else
-    setenv("OMP_NUM_THREADS", std::to_string(iParams.intraOpNumThreads).c_str(),
-           1);
+    setenv("OMP_NUM_THREADS", std::to_string(iParams.intraOpNumThreads).c_str(), 1);
     setenv("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0", 1);
     setenv("KMP_BLOCKTIME", "1", 1);
     setenv("KMP_SETTINGS", "1", 1);
