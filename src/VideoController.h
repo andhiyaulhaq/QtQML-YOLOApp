@@ -21,32 +21,12 @@ namespace AppConfig {
 
 #include "inference.h"
 #include "SystemMonitor.h"
+#include "DetectionStruct.h"
+#include "DetectionListModel.h"
 
 // Forward declarations
 class CaptureWorker;
 class InferenceWorker;
-
-// Struct for efficient data passing to QML
-struct Detection {
-    Q_GADGET
-    Q_PROPERTY(int classId MEMBER classId)
-    Q_PROPERTY(float confidence MEMBER confidence)
-    Q_PROPERTY(QString label MEMBER label)
-    Q_PROPERTY(float x MEMBER x)
-    Q_PROPERTY(float y MEMBER y)
-    Q_PROPERTY(float w MEMBER w)
-    Q_PROPERTY(float h MEMBER h)
-
-public:
-    int classId;
-    float confidence;
-    QString label;
-    float x;
-    float y;
-    float w;
-    float h;
-};
-Q_DECLARE_METATYPE(Detection)
 
 // =========================================================
 // CONTROLLER (Main UI Thread)
@@ -58,7 +38,7 @@ class VideoController : public QObject
     Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
     Q_PROPERTY(double fps READ fps NOTIFY fpsChanged)
     Q_PROPERTY(QString systemStats READ systemStats NOTIFY systemStatsChanged)
-    Q_PROPERTY(QVariantList detections READ detections NOTIFY detectionsChanged)
+    Q_PROPERTY(QObject* detections READ detections NOTIFY detectionsChanged)
     Q_PROPERTY(double preProcessTime READ preProcessTime NOTIFY timingChanged)
     Q_PROPERTY(double inferenceTime READ inferenceTime NOTIFY timingChanged)
     Q_PROPERTY(double postProcessTime READ postProcessTime NOTIFY timingChanged)
@@ -73,7 +53,7 @@ public:
 
     double fps() const { return m_fps; }
     QString systemStats() const { return m_systemStats; }
-    QVariantList detections() const { return m_detections; }
+    QObject* detections() const { return m_detections; }
     
     double preProcessTime() const { return m_preProcessTime; }
     double inferenceTime() const { return m_inferenceTime; }
@@ -101,7 +81,7 @@ private:
     QVideoSink* m_sink = nullptr;
     double m_fps = 0.0;
     QString m_systemStats;
-    QVariantList m_detections;
+    DetectionListModel* m_detections = nullptr;
     
     double m_preProcessTime = 0.0;
     double m_inferenceTime = 0.0;
@@ -116,6 +96,7 @@ private:
     QThread m_inferenceThread;
 
     SystemMonitor* m_systemMonitor = nullptr;
+    QThread m_systemThread;
 };
 
 // =========================================================

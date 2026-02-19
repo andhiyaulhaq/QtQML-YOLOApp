@@ -241,9 +241,9 @@ Using `static` local in a member function is fragile — it won't reset on objec
 - [x] Add proper ring buffer synchronization (De-prioritized: current probabilistic lock-free is stable enough)
 - [x] Optimize or eliminate BGR→RGBA conversion (Investigated: Qt6 requires 32-bit texture upload, so 24->32 expansion is unavoidable. Kept `cvtColor` for correctness).
 
-### Phase 3 — Data Layer (P1)
-- Replace `QVariantList` with `QAbstractListModel` for detections
-- Move `SystemMonitor` off the UI thread
+### Phase 3 — Data Layer (P1) [Completed]
+- [x] Replace `QVariantList` with `QAbstractListModel` for detections (Implemented `DetectionListModel` for zero-copy access in C++ and efficient QML binding)
+- [x] Move `SystemMonitor` off the UI thread (Moved to dedicated `QThread`)
 
 ### Phase 4 — Micro-Optimizations (P3, optional)
 - Manual blob pipeline replacing `cv::dnn::blobFromImage`

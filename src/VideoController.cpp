@@ -152,6 +152,9 @@ void InferenceWorker::processFrame(const cv::Mat& frame) {
 
 VideoController::VideoController(QObject *parent) : QObject(parent) {
     qRegisterMetaType<cv::Mat>("cv::Mat");
+    
+    // Initialize Model
+    m_detections = new DetectionListModel(this);
     // 1. Create Workers
     m_captureWorker = new CaptureWorker();
     m_inferenceWorker = new InferenceWorker();
@@ -175,14 +178,21 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     connect(m_inferenceWorker, &InferenceWorker::detectionsReady, this, &VideoController::updateDetections);
 
     // System Monitor
-    m_systemMonitor = new SystemMonitor(this);
+    m_systemMonitor = new SystemMonitor(nullptr); // No parent to allow moveToThread
+    m_systemMonitor->moveToThread(&m_systemThread);
+    connect(&m_systemThread, &QThread::finished, m_systemMonitor, &QObject::deleteLater);
     connect(m_systemMonitor, &SystemMonitor::resourceUsageUpdated, this, &VideoController::updateSystemStats);
+    
+    // Wire start/stop
+    connect(this, &VideoController::startWorkers, m_systemMonitor, &SystemMonitor::startMonitoring, Qt::QueuedConnection);
+    connect(this, &VideoController::stopWorkers, m_systemMonitor, &SystemMonitor::stopMonitoring, Qt::QueuedConnection);
 
     // Start Threads
     // Start Threads (Deferred to prevent startup hang)
     QTimer::singleShot(500, this, [this](){
         m_inferenceThread.start(QThread::HighPriority);
         m_captureThread.start();
+        m_systemThread.start(QThread::LowPriority);
     });
     
     m_lastInferenceTime = std::chrono::steady_clock::now();
@@ -191,16 +201,19 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
 VideoController::~VideoController() {
     emit stopWorkers();
     
-    // Signal both threads to quit
+    // Signal all threads to quit
     m_captureThread.quit();
     m_inferenceThread.quit();
+    m_systemThread.quit();
     
-    // Wait for both to finish (parallelized wait)
+    // Wait for all to finish (parallelized wait)
     m_captureThread.wait();
     m_inferenceThread.wait();
+    m_systemThread.wait();
 
     delete m_captureWorker;
     delete m_inferenceWorker;
+    // SystemMonitor deleted by deleteLater on thread finish
 }
 
 void VideoController::setVideoSink(QVideoSink* sink) {
@@ -210,10 +223,10 @@ void VideoController::setVideoSink(QVideoSink* sink) {
 
     if (m_sink) {
         emit startWorkers(m_sink);
-        m_systemMonitor->startMonitoring();
+        // m_systemMonitor->startMonitoring(); // Removed direct call
     } else {
         emit stopWorkers();
-        m_systemMonitor->stopMonitoring();
+        // m_systemMonitor->stopMonitoring(); // Removed direct call
     }
 }
 
@@ -233,27 +246,15 @@ void VideoController::updateSystemStats(const QString &cpu, const QString &sysMe
 }
 
 void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames, const YOLO_V8::InferenceTiming& timing) {
-    QVariantList detectionsList;
-    
-    for (const auto& res : results) {
-        Detection det; // Use GADGET struct
-        det.classId = res.classId;
-        det.confidence = res.confidence;
-        det.label = QString::fromStdString(classNames[res.classId]);
-        
-        float w = res.box.width;
-        float h = res.box.height;
-        
-        det.x = res.box.x / (float)AppConfig::FrameWidth;
-        det.y = res.box.y / (float)AppConfig::FrameHeight;
-        det.w = w / (float)AppConfig::FrameWidth;
-        det.h = h / (float)AppConfig::FrameHeight;
-        
-        detectionsList.append(QVariant::fromValue(det));
+    // Update the model directly
+    if (m_detections) {
+        m_detections->updateDetections(results, classNames);
+        emit detectionsChanged(); // Notify that the model object itself 'changed' (or just keeping signal for compatibility, mostly not needed if model internal signals fire)
+        // Actually, for QAbstractListModel, the model emits rowsInserted/etc. 
+        // emit detectionsChanged() is only needed if the pointer m_detections changed, which it doesn't.
+        // But some QML bindings might rely on it if they bind to 'detections'.
+        // Let's keep it but it might be redundant.
     }
-    
-    m_detections = detectionsList;
-    emit detectionsChanged();
 
     // Update timing
     if (std::abs(m_preProcessTime - timing.preProcessTime) > 0.1 ||

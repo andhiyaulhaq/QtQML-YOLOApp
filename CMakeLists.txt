@@ -31,6 +31,9 @@ qt_add_executable(appCamera
     src/inference.h
     src/SystemMonitor.cpp
     src/SystemMonitor.h
+    src/DetectionStruct.h
+    src/DetectionListModel.cpp
+    src/DetectionListModel.h
 )
 
 # Optimization Flags for Release

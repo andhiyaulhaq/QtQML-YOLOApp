@@ -7,26 +7,30 @@
 #include <QSGGeometryNode>
 #include <QSGGeometry>
 #include "VideoController.h"
+#include "DetectionListModel.h"
 
 class BoundingBoxItem : public QQuickItem
 {
     Q_OBJECT
-    Q_PROPERTY(QVariantList detections READ detections WRITE setDetections NOTIFY detectionsChanged)
+    Q_PROPERTY(QObject* detections READ detections WRITE setDetections NOTIFY detectionsChanged)
     QML_ELEMENT
 
 public:
     BoundingBoxItem(QQuickItem *parent = nullptr);
 
-    QVariantList detections() const;
-    void setDetections(const QVariantList &detections);
+    QObject* detections() const;
+    void setDetections(QObject *detections);
 
     QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *) override;
 
 signals:
     void detectionsChanged();
 
+private slots:
+    void onModelUpdated();
+
 private:
-    QVariantList m_detections;
+    DetectionListModel* m_model = nullptr;
 };
 
 #endif // BOUNDINGBOXITEM_H

@@ -12,29 +12,53 @@ BoundingBoxItem::BoundingBoxItem(QQuickItem *parent)
     setFlag(ItemHasContents, true);
 }
 
-QVariantList BoundingBoxItem::detections() const
+QObject* BoundingBoxItem::detections() const
 {
-    return m_detections;
+    return m_model;
 }
 
-void BoundingBoxItem::setDetections(const QVariantList &detections)
+void BoundingBoxItem::setDetections(QObject *detections)
 {
-    if (m_detections != detections) {
-        m_detections = detections;
+    DetectionListModel* newModel = qobject_cast<DetectionListModel*>(detections);
+    // qDebug() << "BoundingBoxItem::setDetections called with ptr:" << detections << " casted:" << newModel;
+    
+    if (m_model != newModel) {
+        if (m_model) {
+            disconnect(m_model, nullptr, this, nullptr);
+        }
+        m_model = newModel;
+        if (m_model) {
+            connect(m_model, &QAbstractListModel::modelReset, this, &BoundingBoxItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::layoutChanged, this, &BoundingBoxItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::rowsInserted, this, &BoundingBoxItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::rowsRemoved, this, &BoundingBoxItem::onModelUpdated);
+            // qDebug() << "BoundingBoxItem: Model connected";
+        }
         emit detectionsChanged();
         update(); // Schedule a scene graph update
     }
 }
 
+void BoundingBoxItem::onModelUpdated()
+{
+    // qDebug() << "BoundingBoxItem::onModelUpdated triggered"; // Noisy if frequent
+    update();
+}
+
 QSGNode *BoundingBoxItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
-    // Define a custom node structure to hold all our boxes
-    // Root -> [Box1, Box2, Box3...]
-    // Better: Single GeometryNode with GL_LINES or GL_TRIANGLES for all boxes?
-    // Batching is better. Let's use ONE node with lines for the rectangles.
-    
     QSGGeometryNode *node = static_cast<QSGGeometryNode *>(oldNode);
-    int detectionCount = m_detections.size();
+    
+    // Safety check
+    if (!m_model) {
+        if (node) delete node;
+        return nullptr;
+    }
+
+    const auto& detections = m_model->getDetections();
+    int detectionCount = detections.size();
+    
+    // qDebug() << "BoundingBoxItem::updatePaintNode: detections=" << detectionCount;
 
     if (detectionCount == 0) {
         if (node) delete node;
@@ -64,44 +88,39 @@ QSGNode *BoundingBoxItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData 
     QSGGeometry::ColoredPoint2D *vertices = geometry->vertexDataAsColoredPoint2D();
 
     int idx = 0;
-    for (const QVariant &var : m_detections) {
-        if (var.canConvert<Detection>()) {
-            Detection det = var.value<Detection>();
+    for (const auto &det : detections) {
+        // Convert normalized to local coords
+        float x = det.x * width();
+        float y = det.y * height();
+        float w = det.w * width();
+        float h = det.h * height();
 
-            // Convert normalized to local coords
-            float x = det.x * width();
-            float y = det.y * height();
-            float w = det.w * width();
-            float h = det.h * height();
+        // Color generation
+        int hue = (det.classId * 60) % 360;
+        QColor color = QColor::fromHsl(hue, 255, 127);
+        quint8 r = color.red();
+        quint8 g = color.green();
+        quint8 b = color.blue();
+        quint8 a = 255;
 
-            // Color generation
-            int hue = (det.classId * 60) % 360;
-            QColor color = QColor::fromHsl(hue, 255, 127);
-            quint8 r = color.red();
-            quint8 g = color.green();
-            quint8 b = color.blue();
-            quint8 a = 255;
+        // Top Line
+        vertices[idx].set(x, y, r, g, b, a); idx++;
+        vertices[idx].set(x + w, y, r, g, b, a); idx++;
 
-            // Top Line
-            vertices[idx].set(x, y, r, g, b, a); idx++;
-            vertices[idx].set(x + w, y, r, g, b, a); idx++;
+        // Right Line
+        vertices[idx].set(x + w, y, r, g, b, a); idx++;
+        vertices[idx].set(x + w, y + h, r, g, b, a); idx++;
 
-            // Right Line
-            vertices[idx].set(x + w, y, r, g, b, a); idx++;
-            vertices[idx].set(x + w, y + h, r, g, b, a); idx++;
+        // Bottom Line
+        vertices[idx].set(x + w, y + h, r, g, b, a); idx++;
+        vertices[idx].set(x, y + h, r, g, b, a); idx++;
 
-            // Bottom Line
-            vertices[idx].set(x + w, y + h, r, g, b, a); idx++;
-            vertices[idx].set(x, y + h, r, g, b, a); idx++;
-
-            // Left Line
-            vertices[idx].set(x, y + h, r, g, b, a); idx++;
-            vertices[idx].set(x, y, r, g, b, a); idx++;
-        }
+        // Left Line
+        vertices[idx].set(x, y + h, r, g, b, a); idx++;
+        vertices[idx].set(x, y, r, g, b, a); idx++;
     }
     
     // Safety check just in case allocations don't match loop
-    // geometry->markVertexDataDirty(); // Included in allocate() usually, but safe to call if modifying existing
     node->markDirty(QSGNode::DirtyGeometry);
 
     return node;
