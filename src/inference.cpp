@@ -261,7 +261,7 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
 
       std::vector<int64_t> inputNodeDims = {1, 3, height, width};
       auto end_pre = std::chrono::high_resolution_clock::now();
-      timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
+      timing.preProcessTime = std::chrono::duration<double, std::milli>(end_pre - start_pre).count();
 
       TensorProcess(start_pre, iImg, blob_data, inputNodeDims, oResult, timing); 
 
@@ -300,8 +300,8 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
       std::vector<int64_t> inputNodeDims = {1, 3, height, width};
 
       auto end_pre = std::chrono::high_resolution_clock::now();
-      timing.preProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_pre - start_pre).count();
-
+      timing.preProcessTime = std::chrono::duration<double, std::milli>(end_pre - start_pre).count();
+      
       TensorProcess(start_pre, iImg, blob, inputNodeDims, oResult, timing);
 #endif
   }
@@ -331,7 +331,7 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
                                 outputNodeNames.data(), outputNodeNames.size());
 
   auto end_infer = std::chrono::high_resolution_clock::now();
-  timing.inferenceTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_infer - start_infer).count();
+  timing.inferenceTime = std::chrono::duration<double, std::milli>(end_infer - start_infer).count();
   
   auto start_post = std::chrono::high_resolution_clock::now();
 
@@ -406,7 +406,7 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
     }
 
     auto end_post = std::chrono::high_resolution_clock::now();
-    timing.postProcessTime = std::chrono::duration_cast<std::chrono::milliseconds>(end_post - start_post).count();
+    timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
 
     break;
   }

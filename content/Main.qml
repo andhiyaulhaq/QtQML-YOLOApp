@@ -126,7 +126,7 @@ Window {
                 }
 
                 Text {
-                    text: "Pre: " + controller.preProcessTime.toFixed(1) + " ms"
+                    text: "Pre: " + controller.preProcessTime.toFixed(3) + " ms"
                     color: "lightgreen"
                     font.pixelSize: 14
                     font.bold: true
@@ -135,7 +135,7 @@ Window {
                 }
 
                 Text {
-                    text: "Infer: " + controller.inferenceTime.toFixed(1) + " ms"
+                    text: "Infer: " + controller.inferenceTime.toFixed(3) + " ms"
                     color: "lightgreen"
                     font.pixelSize: 14
                     font.bold: true
@@ -144,7 +144,7 @@ Window {
                 }
 
                 Text {
-                    text: "Post: " + controller.postProcessTime.toFixed(1) + " ms"
+                    text: "Post: " + controller.postProcessTime.toFixed(3) + " ms"
                     color: "lightgreen"
                     font.pixelSize: 14
                     font.bold: true

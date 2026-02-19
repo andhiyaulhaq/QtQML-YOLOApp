@@ -261,9 +261,9 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
     }
 
     // Update timing
-    if (std::abs(m_preProcessTime - timing.preProcessTime) > 0.1 ||
-        std::abs(m_inferenceTime - timing.inferenceTime) > 0.1 ||
-        std::abs(m_postProcessTime - timing.postProcessTime) > 0.1) {
+    if (std::abs(m_preProcessTime - timing.preProcessTime) > 0.001 ||
+        std::abs(m_inferenceTime - timing.inferenceTime) > 0.001 ||
+        std::abs(m_postProcessTime - timing.postProcessTime) > 0.001) {
         
         m_preProcessTime = timing.preProcessTime;
         m_inferenceTime = timing.inferenceTime;
