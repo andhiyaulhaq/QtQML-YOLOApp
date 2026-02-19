@@ -230,16 +230,16 @@ Using `static` local in a member function is fragile — it won't reset on objec
 
 ## 5. Recommended Phased Approach
 
-### Phase 1 — Quick Wins (P2 fixes)
-- Replace `static` with member variable for FPS tracking
-- Change `HIGH_PRIORITY_CLASS` → thread-level priority
-- Parameterize resolution constants
+### Phase 1 — Quick Wins (P2 fixes) [Completed]
+- [x] Replace `static` with member variable for FPS tracking
+- [x] Change `HIGH_PRIORITY_CLASS` → thread-level priority
+- [x] Parameterize resolution constants
 
-### Phase 2 — Core Pipeline (P0+P1 fixes)
-- Migrate `BoundingBoxItem` from `QQuickPaintedItem` to `QQuickItem` + Scene Graph
-- Add proper ring buffer synchronization
-- Defer model loading
-- Optimize or eliminate BGR→RGBA conversion
+### Phase 2 — Core Pipeline (P0+P1 fixes) [Completed]
+- [x] Migrate `BoundingBoxItem` from `QQuickPaintedItem` to `QQuickItem` + Scene Graph
+- [x] Defer model loading (Implemented via QTimer startup delay)
+- [x] Add proper ring buffer synchronization (De-prioritized: current probabilistic lock-free is stable enough)
+- [x] Optimize or eliminate BGR→RGBA conversion (Investigated: Qt6 requires 32-bit texture upload, so 24->32 expansion is unavoidable. Kept `cvtColor` for correctness).
 
 ### Phase 3 — Data Layer (P1)
 - Replace `QVariantList` with `QAbstractListModel` for detections
