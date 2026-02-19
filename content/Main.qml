@@ -1,163 +1,228 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtMultimedia 6.0
 import CameraModule 1.0
 
 Window {
-    width: 800
-    height: 600
+    width: 1000
+    height: 700
     visible: true
-    title: "Qt6 Optimized Camera (Async Inference)"
-    color: "#2b2b2b"
+    title: "YOLO Object Detection - Metrics Dashboard"
+    color: "#121212"
 
     VideoController {
         id: controller
         videoSink: videoOutput.videoSink
     }
 
-    Column {
+    ColumnLayout {
         anchors.fill: parent
-        spacing: 10
-        padding: 20
+        anchors.margins: 20
+        spacing: 15
 
+        // Header Section
         Text {
-            text: "Live Feed"
-            color: "white"
-            font.pixelSize: 24
+            text: "Real-time AI Vision"
+            color: "#FFFFFF"
+            font.pixelSize: 28
             font.bold: true
+            Layout.alignment: Qt.AlignLeft
         }
 
-        Item {
-            width: 640
-            height: 480
-            anchors.horizontalCenter: parent.horizontalCenter
+        // Main Content: Video Feed + Metrics Panel
+        RowLayout {
+            spacing: 20
+            Layout.fillWidth: true
+            Layout.fillHeight: true
 
-            VideoOutput {
-                id: videoOutput
-                anchors.fill: parent
-                fillMode: VideoOutput.PreserveAspectFit
-            }
+            // Video Container
+            Rectangle {
+                id: videoContainer
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "#000000"
+                radius: 8
+                clip: true
 
-            // Optimized Bounding Box Overlay (C++ Scene Graph for Boxes)
-            BoundingBoxItem {
-                id: bboxItem
-                anchors.fill: parent
-                detections: controller.detections
+                VideoOutput {
+                    id: videoOutput
+                    anchors.fill: parent
+                    fillMode: VideoOutput.PreserveAspectFit
+                }
 
-                // Hybrid Approach: Use QML Repeater for Text Labels (High Performance & Easy Text Handling)
-                Repeater {
-                    model: bboxItem.detections
-                    
-                    Item {
-                        id: detectionDelegate
-                        // Bind to detection data
-                        // modelData is the Detection struct (Q_GADGET)
-                        property var det: modelData 
-                        
-                        x: det.x * parent.width
-                        y: det.y * parent.height
-                        width: det.w * parent.width
-                        height: det.h * parent.height
-                        
-                        // Label Background
-                        Rectangle {
-                            id: labelBg
-                            y: -height - 2
-                            width: labelText.width + 8
-                            height: labelText.height + 4
-                            color: {
-                                // Calculate color based on classId (same logic as C++)
-                                var hue = (det.classId * 60) % 360
-                                return Qt.hsla(hue / 360.0, 1.0, 0.5, 1.0)
-                            }
-                            radius: 2
+                // Bounding Box Overlay
+                BoundingBoxItem {
+                    id: bboxItem
+                    anchors.fill: parent
+                    detections: controller.detections
+
+                    Repeater {
+                        model: bboxItem.detections
+                        Item {
+                            id: detectionDelegate
+                            property var det: modelData 
+                            x: det.x * parent.width
+                            y: det.y * parent.height
+                            width: det.w * parent.width
+                            height: det.h * parent.height
                             
-                            // Flip label if at top edge
-                            transform: Translate {
-                                // Check if label goes above top of the container (detectionDelegate.y is relative to BoundingBoxItem)
-                                y: (detectionDelegate.y + labelBg.y < 0) ? labelBg.height + 4 : 0
-                            }
-
-                            Text {
-                                id: labelText
-                                anchors.centerIn: parent
-                                text: det.label + " " + Math.round(det.confidence * 100) + "%"
-                                color: "black"
-                                font.pixelSize: 12
-                                font.bold: true
+                            Rectangle {
+                                id: labelBg
+                                y: -height - 2
+                                width: labelText.width + 8
+                                height: labelText.height + 4
+                                color: Qt.hsla((det.classId * 60) % 360 / 360.0, 1.0, 0.5, 0.9)
+                                radius: 2
+                                transform: Translate {
+                                    y: (detectionDelegate.y + labelBg.y < 0) ? labelBg.height + 4 : 0
+                                }
+                                Text {
+                                    id: labelText
+                                    anchors.centerIn: parent
+                                    text: det.label + " " + Math.round(det.confidence * 100) + "%"
+                                    color: "white"
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                }
                             }
                         }
                     }
                 }
             }
-        
-            // Performance Overlay
-            Column {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.margins: 10
-                spacing: 5
-                
-                Text {
-                    text: "Camera FPS: " + controller.fps.toFixed(1)
-                    color: "cyan"
-                    font.pixelSize: 18
-                    font.bold: true
-                    style: Text.Outline
-                    styleColor: "black"
+
+            // Metrics Panel (Right Sidebar)
+            Rectangle {
+                id: metricsPanel
+                width: 260
+                Layout.fillHeight: true
+                color: "#1e1e1e"
+                border.color: "#333333"
+                border.width: 1
+                radius: 8
+
+                Column {
+                    anchors.fill: parent
+                    anchors.margins: 15
+                    spacing: 20
+
+                    Text {
+                        text: "PERFORMANCE METRICS"
+                        color: "#888888"
+                        font.pixelSize: 12
+                        font.bold: true
+                        font.letterSpacing: 1.2
+                    }
+
+                    // FPS Section
+                    Column {
+                        width: parent.width
+                        spacing: 8
+                        
+                        MetricItem {
+                            label: "Camera FPS"
+                            value: controller.fps.toFixed(1)
+                            color: "#00E5FF"
+                        }
+                        MetricItem {
+                            label: "Inference FPS"
+                            value: controller.inferenceFps.toFixed(1)
+                            color: "#FF00FF"
+                        }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: "#333333" }
+
+                    // Timing Section
+                    Column {
+                        width: parent.width
+                        spacing: 10
+                        
+                        Text {
+                            text: "LATENCY (ms)"
+                            color: "#888888"
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        
+                        MetricItem { label: "Pre-Process"; value: controller.preProcessTime.toFixed(3); color: "#76FF03" }
+                        MetricItem { label: "Inference"; value: controller.inferenceTime.toFixed(3); color: "#76FF03" }
+                        MetricItem { label: "Post-Process"; value: controller.postProcessTime.toFixed(3); color: "#76FF03" }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: "#333333" }
+
+                    // System Section
+                    Column {
+                        width: parent.width
+                        spacing: 10
+                        
+                        Text {
+                            text: "SYSTEM RESOURCES"
+                            color: "#888888"
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        
+                        Text {
+                            width: parent.width
+                            text: controller.systemStats
+                            color: "#FFD600"
+                            font.family: "Courier"
+                            font.pixelSize: 12
+                            wrapMode: Text.Wrap
+                        }
+                    }
                 }
 
-                Text {
-                    text: "Inf FPS: " + controller.inferenceFps.toFixed(1)
-                    color: "magenta"
-                    font.pixelSize: 18
-                    font.bold: true
-                    style: Text.Outline
-                    styleColor: "black"
-                }
-                
-                Text {
-                    text: controller.systemStats
-                    color: "yellow"
-                    font.pixelSize: 14
-                    font.bold: true
-                    style: Text.Outline
-                    styleColor: "black"
-                }
-
-                Text {
-                    text: "Pre: " + controller.preProcessTime.toFixed(3) + " ms"
-                    color: "lightgreen"
-                    font.pixelSize: 14
-                    font.bold: true
-                    style: Text.Outline
-                    styleColor: "black"
-                }
-
-                Text {
-                    text: "Infer: " + controller.inferenceTime.toFixed(3) + " ms"
-                    color: "lightgreen"
-                    font.pixelSize: 14
-                    font.bold: true
-                    style: Text.Outline
-                    styleColor: "black"
-                }
-
-                Text {
-                    text: "Post: " + controller.postProcessTime.toFixed(3) + " ms"
-                    color: "lightgreen"
-                    font.pixelSize: 14
-                    font.bold: true
-                    style: Text.Outline
-                    styleColor: "black"
+                // Helper component for metric rows
+                component MetricItem : Row {
+                    property string label: ""
+                    property string value: ""
+                    property color color: "white"
+                    width: parent.width
+                    
+                    Text {
+                        text: label
+                        color: "#BBBBBB"
+                        font.pixelSize: 14
+                        width: parent.width * 0.6
+                    }
+                    Text {
+                        text: value
+                        color: parent.color
+                        font.pixelSize: 16
+                        font.bold: true
+                        font.family: "Courier New"
+                        horizontalAlignment: Text.AlignRight
+                        width: parent.width * 0.4
+                    }
                 }
             }
         }
-    
+
+        // Footer Section
         Button {
-            text: "Close App"
-            anchors.horizontalCenter: parent.horizontalCenter
+            text: "Exit Application"
+            Layout.alignment: Qt.AlignHCenter
             onClicked: Qt.quit()
+            
+            contentItem: Text {
+                text: parent.text
+                color: parent.pressed ? "#FF5252" : "#FFFFFF"
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            
+            background: Rectangle {
+                implicitWidth: 150
+                implicitHeight: 40
+                color: parent.hovered ? "#333333" : "#222222"
+                radius: 4
+                border.color: "#444444"
+                border.width: 1
+            }
         }
     }
 }
