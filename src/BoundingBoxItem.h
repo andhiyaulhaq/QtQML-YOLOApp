@@ -1,11 +1,14 @@
 #ifndef BOUNDINGBOXITEM_H
 #define BOUNDINGBOXITEM_H
 
-#include <QQuickPaintedItem>
-#include <QPainter>
+#include <QQuickItem>
+#include <QSGNode>
+#include <QSGFlatColorMaterial>
+#include <QSGGeometryNode>
+#include <QSGGeometry>
 #include "VideoController.h"
 
-class BoundingBoxItem : public QQuickPaintedItem
+class BoundingBoxItem : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(QVariantList detections READ detections WRITE setDetections NOTIFY detectionsChanged)
@@ -17,7 +20,7 @@ public:
     QVariantList detections() const;
     void setDetections(const QVariantList &detections);
 
-    void paint(QPainter *painter) override;
+    QSGNode *updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *) override;
 
 signals:
     void detectionsChanged();

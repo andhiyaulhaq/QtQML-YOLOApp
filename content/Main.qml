@@ -38,10 +38,57 @@ Window {
                 fillMode: VideoOutput.PreserveAspectFit
             }
 
-            // Optimized Bounding Box Overlay
+            // Optimized Bounding Box Overlay (C++ Scene Graph for Boxes)
             BoundingBoxItem {
+                id: bboxItem
                 anchors.fill: parent
                 detections: controller.detections
+
+                // Hybrid Approach: Use QML Repeater for Text Labels (High Performance & Easy Text Handling)
+                Repeater {
+                    model: bboxItem.detections
+                    
+                    Item {
+                        id: detectionDelegate
+                        // Bind to detection data
+                        // modelData is the Detection struct (Q_GADGET)
+                        property var det: modelData 
+                        
+                        x: det.x * parent.width
+                        y: det.y * parent.height
+                        width: det.w * parent.width
+                        height: det.h * parent.height
+                        
+                        // Label Background
+                        Rectangle {
+                            id: labelBg
+                            y: -height - 2
+                            width: labelText.width + 8
+                            height: labelText.height + 4
+                            color: {
+                                // Calculate color based on classId (same logic as C++)
+                                var hue = (det.classId * 60) % 360
+                                return Qt.hsla(hue / 360.0, 1.0, 0.5, 1.0)
+                            }
+                            radius: 2
+                            
+                            // Flip label if at top edge
+                            transform: Translate {
+                                // Check if label goes above top of the container (detectionDelegate.y is relative to BoundingBoxItem)
+                                y: (detectionDelegate.y + labelBg.y < 0) ? labelBg.height + 4 : 0
+                            }
+
+                            Text {
+                                id: labelText
+                                anchors.centerIn: parent
+                                text: det.label + " " + Math.round(det.confidence * 100) + "%"
+                                color: "black"
+                                font.pixelSize: 12
+                                font.bold: true
+                            }
+                        }
+                    }
+                }
             }
         
             // Performance Overlay
