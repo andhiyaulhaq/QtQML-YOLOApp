@@ -32,6 +32,7 @@ void BoundingBoxItem::setDetections(QObject *detections)
             connect(m_model, &QAbstractListModel::layoutChanged, this, &BoundingBoxItem::onModelUpdated);
             connect(m_model, &QAbstractListModel::rowsInserted, this, &BoundingBoxItem::onModelUpdated);
             connect(m_model, &QAbstractListModel::rowsRemoved, this, &BoundingBoxItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::dataChanged, this, &BoundingBoxItem::onModelUpdated);
             // qDebug() << "BoundingBoxItem: Model connected";
         }
         emit detectionsChanged();

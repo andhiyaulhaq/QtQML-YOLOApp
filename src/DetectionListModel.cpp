@@ -67,13 +67,7 @@ void DetectionListModel::updateDetections(const std::vector<DL_RESULT>& results,
     
     // qDebug() << "DetectionListModel::updateDetections count:" << results.size();
 
-    // Simplest strategy: full reset
-    // More complex: diffing (not worth it for <100 items usually)
-    beginResetModel();
-    m_detections.clear();
-    m_detections.reserve(results.size());
-
-    for (const auto& res : results) {
+    auto buildDetection = [&](const DL_RESULT& res) -> Detection {
         Detection det; 
         det.classId = res.classId;
         det.confidence = res.confidence;
@@ -86,8 +80,30 @@ void DetectionListModel::updateDetections(const std::vector<DL_RESULT>& results,
         det.y = res.box.y / (float)AppConfig::FrameHeight;
         det.w = w / (float)AppConfig::FrameWidth;
         det.h = h / (float)AppConfig::FrameHeight;
-        
-        m_detections.push_back(det);
+        return det;
+    };
+
+    int oldSize = m_detections.size();
+    int newSize = results.size();
+
+    // Update existing items in-place (no delegate destruction)
+    int updateCount = std::min(oldSize, newSize);
+    for (int i = 0; i < updateCount; ++i) {
+        m_detections[i] = buildDetection(results[i]);
+        emit dataChanged(index(i), index(i));
     }
-    endResetModel();
+
+    // Add new items if newSize > oldSize
+    if (newSize > oldSize) {
+        beginInsertRows(QModelIndex(), oldSize, newSize - 1);
+        for (int i = oldSize; i < newSize; ++i)
+            m_detections.push_back(buildDetection(results[i]));
+        endInsertRows();
+    }
+    // Remove excess items if newSize < oldSize
+    else if (newSize < oldSize) {
+        beginRemoveRows(QModelIndex(), newSize, oldSize - 1);
+        m_detections.resize(newSize);
+        endRemoveRows();
+    }
 }

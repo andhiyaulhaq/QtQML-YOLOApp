@@ -436,13 +436,13 @@ Expose class names from `YOLO_V8` and remove the duplicate:
 
 ## Summary — Priority Matrix
 
-| Priority | Issue | Memory Impact | FPS Impact | Effort |
-|:--------:|-------|:------------:|:----------:|:------:|
-| 🔴 P0 | Raw `new`/`delete` + buffer overflow | Leak risk | — | Low |
-| 🔴 P0 | Queued `cv::Mat` deep copy | ~27 MB/s | ~2-5 FPS | Medium |
-| 🟡 P1 | `QVideoFrame` per-frame allocation | ~1.2 MB/frame | ~1-2 FPS | Low |
-| 🟡 P1 | Class names copied per signal | Heap churn | < 1 FPS | Low |
-| 🟡 P1 | Model full reset every frame | QML churn | ~1-3 FPS | Medium |
-| 🟡 P1 | Scene graph node thrashing | GPU churn | < 1 FPS | Low |
-| 🟢 P2 | SystemMonitor string overhead | Trivial | — | Low |
-| 🟢 P2 | Duplicate class name storage | ~5 KB | — | Low |
+| No. | Priority | Issue | Memory Impact | FPS Impact | Effort | Resolved |
+|:---:|:--------:|-------|:------------:|:----------:|:------:|:--------:|
+| 1 | 🔴 P0 | Raw `new`/`delete` + buffer overflow | Leak risk | — | Low | ✅ Yes |
+| 2 | 🔴 P0 | Queued `cv::Mat` deep copy | ~27 MB/s | ~2-5 FPS | Medium | ✅ Yes |
+| 3 | 🟡 P1 | `QVideoFrame` per-frame allocation | ~1.2 MB/frame | ~1-2 FPS | Low | ✅ Yes |
+| 4 | 🟡 P1 | Class names copied per signal | Heap churn | < 1 FPS | Low | ✅ Yes |
+| 5 | 🟡 P1 | Model full reset every frame | QML churn | ~1-3 FPS | Medium | ✅ Yes |
+| 6 | 🟡 P1 | Scene graph node thrashing | GPU churn | < 1 FPS | Low | ❌ No |
+| 7 | 🟢 P2 | SystemMonitor string overhead | Trivial | — | Low | ❌ No |
+| 8 | 🟢 P2 | Duplicate class name storage | ~5 KB | — | Low | ❌ No |
