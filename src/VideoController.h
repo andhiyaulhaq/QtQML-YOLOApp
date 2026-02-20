@@ -75,7 +75,7 @@ signals:
 
 public slots:
     void updateFps(double fps);
-    void updateSystemStats(const QString &cpu, const QString &sysMem, const QString &procMem);
+    void updateSystemStats(const QString &formattedStats);
     void updateDetections(const std::vector<DL_RESULT>& results, const YOLO_V8::InferenceTiming& timing);
 
 private:

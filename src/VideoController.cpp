@@ -266,10 +266,9 @@ void VideoController::updateFps(double fps) {
     }
 }
 
-void VideoController::updateSystemStats(const QString &cpu, const QString &sysMem, const QString &procMem) {
-    QString stats = QString("CPU: %1 | RAM: %2").arg(cpu, procMem);
-    if (m_systemStats != stats) {
-        m_systemStats = stats;
+void VideoController::updateSystemStats(const QString &formattedStats) {
+    if (m_systemStats != formattedStats) {
+        m_systemStats = formattedStats;
         emit systemStatsChanged();
     }
 }

@@ -35,7 +35,7 @@ public slots:
     void stopMonitoring();
 
 signals:
-    void resourceUsageUpdated(QString cpuUsage, QString sysMemory, QString processMemory);
+    void resourceUsageUpdated(QString formattedStats);
 
 private slots:
     void updateMetrics();

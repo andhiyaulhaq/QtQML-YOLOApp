@@ -39,14 +39,11 @@ void SystemMonitor::updateMetrics()
     QString sysMemory = getSystemMemoryInfo();
     QString processMemory = getProcessMemoryInfo();
     
-    QString cpuStr = QString::number(cpuUsage, 'f', 1) + "%";
-    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
+    // Emit a single pre-formatted string to reduce cross-thread copies
+    QString formatted = QString("CPU: %1% | RAM: %2")
+        .arg(QString::number(cpuUsage, 'f', 1), processMemory);
     
-    QString message = QString("[%1] CPU: %2 | Sys Memory: %3 | Process Memory: %4")
-                     .arg(timestamp, cpuStr, sysMemory, processMemory);
-    
-    // qDebug() << message;
-    emit resourceUsageUpdated(cpuStr, sysMemory, processMemory);
+    emit resourceUsageUpdated(formatted);
 }
 
 // Platform-specific implementations
