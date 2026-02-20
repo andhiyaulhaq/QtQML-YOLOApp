@@ -115,7 +115,9 @@ The `frameReady` signal sends `const cv::Mat&`, but Qt's `QueuedConnection` **se
 At 30 FPS → 27 MB/s of unnecessary copying
 ```
 
-The ring buffer `m_framePool[3]` was designed to avoid `clone()`, but the queued connection negates this optimization because Qt's metatype system forces a deep copy on dispatch.
+### Secondary Problem (Event Loop Buildup)
+
+While the `std::shared_ptr` eliminated deep-copy payload overhead, it introduced a continuous memory buildup. Qt's Event Loop for the slower `InferenceWorker` (e.g. 5-10 FPS) couldn't keep up with `CaptureWorker` queuing frames at 30 FPS. This lead to unbound deep-cloning of `cv::Mat` instances trapped in `shared_ptr`s within the thread message queue.
 
 ### Improvement
 
@@ -125,19 +127,30 @@ Use `std::shared_ptr<cv::Mat>` to share ownership across threads without copying
  // Signal declaration
 -void frameReady(const cv::Mat& frame);
 +void frameReady(std::shared_ptr<cv::Mat> frame);
-
+ 
  // Capture loop — wrap the pool buffer
 -emit frameReady(currentFrame);
 +auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
 +emit frameReady(shared);
-
+ 
  // Inference slot
 -void processFrame(const cv::Mat& frame);
 +void processFrame(std::shared_ptr<cv::Mat> frame);
 ```
 
+To limit queue buildup, dynamically check if inference is busy _before_ emitting:
+
+```cpp
+// VideoController.cpp (CaptureWorker loop)
+// Check atomic flag BEFORE cloning and queueing
+if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
+    auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
+    emit frameReady(shared);
+}
+```
+
 > [!IMPORTANT]
-> This trades one explicit `clone()` in the producer for zero copies through the queue. The `shared_ptr` itself is lightweight (~16 bytes) to copy across the connection.
+> The atomic flag check completely avoids processing and allocating frames dropped due to an inference bottleneck, guaranteeing flat stable memory.
 
 ---
 

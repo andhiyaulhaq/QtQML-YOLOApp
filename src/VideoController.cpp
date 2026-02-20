@@ -61,7 +61,12 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
         // We emit the Mat. Qt copies the header, increasing the refcounter to the underlying data.
         // As long as we don't overwrite this specific m_framePool index before inference is done, we are safe.
         // With 3 buffers at 30fps, we have 100ms before overwrite. If inference < 100ms, correct.
-        emit frameReady(currentFrame);
+        // NEW MEMORY OPTIMIZATION: Only clone and emit if inference is currently NOT processing.
+        // Checking this BEFORE allocating avoiding sending memory over the Event Loop.
+        if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
+            auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
+            emit frameReady(shared);
+        }
         
         // Advance pool index
         m_poolIndex = (m_poolIndex + 1) % 3;
@@ -126,8 +131,8 @@ void InferenceWorker::stopInference() {
     m_running = false;
 }
 
-void InferenceWorker::processFrame(const cv::Mat& frame) {
-    if (!m_running || !m_yolo) return;
+void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
+    if (!m_running || !m_yolo || !frame) return;
 
     // Drop frame if already processing
     bool expected = false;
@@ -141,7 +146,7 @@ void InferenceWorker::processFrame(const cv::Mat& frame) {
     // We can use the input const reference directly if RunSession accepts it.
     // If not, we might need a const_cast or better, fix RunSession to take const cv::Mat&
     // For now, let's assume we will fix RunSession.
-    m_yolo->RunSession(frame, results, timing);
+    m_yolo->RunSession(*frame, results, timing);
 
     // Emit results
     emit detectionsReady(results, m_classNames, timing);
@@ -154,7 +159,7 @@ void InferenceWorker::processFrame(const cv::Mat& frame) {
 // =========================================================
 
 VideoController::VideoController(QObject *parent) : QObject(parent) {
-    qRegisterMetaType<cv::Mat>("cv::Mat");
+    qRegisterMetaType<std::shared_ptr<cv::Mat>>("std::shared_ptr<cv::Mat>");
     
     // Initialize Model
     m_detections = new DetectionListModel(this);
@@ -164,6 +169,9 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     
     auto inferenceWorker = std::make_unique<InferenceWorker>();
     m_inferenceWorker = inferenceWorker.get();
+    
+    // Link synchronization flags to avoid allocating and queuing frames during busy interference loop
+    m_captureWorker->setInferenceProcessingFlag(m_inferenceWorker->getProcessingFlag());
     
     captureWorker.release(); // Qt takes ownership via moveToThread logic expectation
     inferenceWorker.release();

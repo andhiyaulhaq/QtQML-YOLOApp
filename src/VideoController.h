@@ -110,16 +110,18 @@ public:
     CaptureWorker() = default;
 
 signals:
-    void frameReady(const cv::Mat& frame); // Send frame to Inference Worker
+    void frameReady(std::shared_ptr<cv::Mat> frame); // Send frame to Inference Worker
     void fpsUpdated(double fps);
     void cleanUp();
 
 public slots:
     void startCapturing(QVideoSink* sink);
     void stopCapturing();
+    void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
 
 private:
     std::atomic<bool> m_running{false};
+    std::atomic<bool>* m_inferenceProcessingFlag = nullptr;
     cv::VideoCapture m_capture;
     
     // Multi-buffer logic to avoid cloning
@@ -139,7 +141,8 @@ signals:
 public slots:
     void startInference(); // Initialize model
     void stopInference();
-    void processFrame(const cv::Mat& frame);
+    void processFrame(std::shared_ptr<cv::Mat> frame);
+    std::atomic<bool>* getProcessingFlag() { return &m_isProcessing; }
 
 private:
     std::atomic<bool> m_running{false};
@@ -149,5 +152,7 @@ private:
     // Drop frames if inference is too slow
     std::atomic<bool> m_isProcessing{false};
 };
+
+Q_DECLARE_METATYPE(std::shared_ptr<cv::Mat>)
 
 #endif // VIDEOCONTROLLER_H
