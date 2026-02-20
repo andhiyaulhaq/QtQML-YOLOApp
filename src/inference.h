@@ -80,6 +80,8 @@ public:
 
   char *PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat &oImg);
 
+  const std::vector<std::string>& getClassNames() const { return classes; }
+
   std::vector<std::string> classes{};
 
 private:

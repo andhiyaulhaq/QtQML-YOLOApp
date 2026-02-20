@@ -445,4 +445,4 @@ Expose class names from `YOLO_V8` and remove the duplicate:
 | 5 | 🟡 P1 | Model full reset every frame | QML churn | ~1-3 FPS | Medium | ✅ Yes |
 | 6 | 🟡 P1 | Scene graph node thrashing | GPU churn | < 1 FPS | Low | ✅ Yes |
 | 7 | 🟢 P2 | SystemMonitor string overhead | Trivial | — | Low | ✅ Yes |
-| 8 | 🟢 P2 | Duplicate class name storage | ~5 KB | — | Low | ❌ No |
+| 8 | 🟢 P2 | Duplicate class name storage | ~5 KB | — | Low | ✅ Yes |

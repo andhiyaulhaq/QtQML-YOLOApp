@@ -153,7 +153,7 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
     m_yolo->RunSession(*frame, results, timing);
 
     // Emit results
-    emit detectionsReady(results, timing);
+    emit detectionsReady(results, &m_yolo->getClassNames(), timing);
 
     m_isProcessing = false;
 }
@@ -164,14 +164,7 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
 
 VideoController::VideoController(QObject *parent) : QObject(parent) {
     qRegisterMetaType<std::shared_ptr<cv::Mat>>("std::shared_ptr<cv::Mat>");
-    
-    // Load Classes
-    std::ifstream file("inference/classes.txt");
-    std::string line;
-    while (std::getline(file, line)) {
-        m_classNames.push_back(line);
-    }
-    file.close();
+    qRegisterMetaType<const std::vector<std::string>*>("const std::vector<std::string>*");
     
     // Initialize Model
     m_detections = new DetectionListModel(this);
@@ -273,10 +266,10 @@ void VideoController::updateSystemStats(const QString &formattedStats) {
     }
 }
 
-void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const YOLO_V8::InferenceTiming& timing) {
+void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO_V8::InferenceTiming& timing) {
     // Update the model directly
-    if (m_detections) {
-        m_detections->updateDetections(results, m_classNames);
+    if (m_detections && classNames) {
+        m_detections->updateDetections(results, *classNames);
         emit detectionsChanged(); // Notify that the model object itself 'changed' (or just keeping signal for compatibility, mostly not needed if model internal signals fire)
         // Actually, for QAbstractListModel, the model emits rowsInserted/etc. 
         // emit detectionsChanged() is only needed if the pointer m_detections changed, which it doesn't.
