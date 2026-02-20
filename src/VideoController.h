@@ -127,6 +127,10 @@ private:
     // Multi-buffer logic to avoid cloning
     cv::Mat m_framePool[3]; 
     int m_poolIndex = 0;
+    
+    // UI double-buffering
+    QVideoFrame m_reusableFrames[2];
+    int m_reusableFrameIndex = 0;
 };
 
 class InferenceWorker : public QObject {

@@ -30,6 +30,12 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
     m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, AppConfig::FrameHeight);
     m_capture.set(cv::CAP_PROP_FPS, 30);
 
+    // Initialize UI double-buffer
+    QVideoFrameFormat format(QSize(AppConfig::FrameWidth, AppConfig::FrameHeight),
+                             QVideoFrameFormat::Format_RGBA8888);
+    m_reusableFrames[0] = QVideoFrame(format);
+    m_reusableFrames[1] = QVideoFrame(format);
+
     // cv::Mat rawFrame; // Replaced by pool
     int frames = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -44,9 +50,7 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
 
         // 1. Send to UI (Zero-copy optimization)
         if (sink) {
-            QVideoFrameFormat format(QSize(currentFrame.cols, currentFrame.rows),
-                                   QVideoFrameFormat::Format_RGBA8888);
-            QVideoFrame frame(format);
+            QVideoFrame& frame = m_reusableFrames[m_reusableFrameIndex];
             
             if (frame.map(QVideoFrame::WriteOnly)) {
                 cv::Mat wrapper(currentFrame.rows, currentFrame.cols, CV_8UC4, 
@@ -55,6 +59,7 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
                 frame.unmap();
                 sink->setVideoFrame(frame);
             }
+            m_reusableFrameIndex = (m_reusableFrameIndex + 1) % 2;
         }
 
         // 2. Send to Inference (Optimization: Ring Buffer instead of clone)
