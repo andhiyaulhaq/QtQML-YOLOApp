@@ -62,8 +62,11 @@ QSGNode *BoundingBoxItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData 
     // qDebug() << "BoundingBoxItem::updatePaintNode: detections=" << detectionCount;
 
     if (detectionCount == 0) {
-        if (node) delete node;
-        return nullptr;
+        if (node) {
+            node->geometry()->allocate(0);
+            node->markDirty(QSGNode::DirtyGeometry);
+        }
+        return node;
     }
 
     if (!node) {

@@ -443,6 +443,6 @@ Expose class names from `YOLO_V8` and remove the duplicate:
 | 3 | 🟡 P1 | `QVideoFrame` per-frame allocation | ~1.2 MB/frame | ~1-2 FPS | Low | ✅ Yes |
 | 4 | 🟡 P1 | Class names copied per signal | Heap churn | < 1 FPS | Low | ✅ Yes |
 | 5 | 🟡 P1 | Model full reset every frame | QML churn | ~1-3 FPS | Medium | ✅ Yes |
-| 6 | 🟡 P1 | Scene graph node thrashing | GPU churn | < 1 FPS | Low | ❌ No |
+| 6 | 🟡 P1 | Scene graph node thrashing | GPU churn | < 1 FPS | Low | ✅ Yes |
 | 7 | 🟢 P2 | SystemMonitor string overhead | Trivial | — | Low | ❌ No |
 | 8 | 🟢 P2 | Duplicate class name storage | ~5 KB | — | Low | ❌ No |
