@@ -11,6 +11,7 @@
 #include <QVariantList>
 #include <opencv2/opencv.hpp>
 #include <chrono>
+#include <memory>
 
 namespace AppConfig {
     static constexpr int FrameWidth = 640;
@@ -142,7 +143,7 @@ public slots:
 
 private:
     std::atomic<bool> m_running{false};
-    YOLO_V8* m_yolo = nullptr;
+    std::unique_ptr<YOLO_V8> m_yolo;
     std::vector<std::string> m_classNames;
     
     // Drop frames if inference is too slow

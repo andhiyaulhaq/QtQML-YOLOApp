@@ -182,17 +182,19 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     for (size_t i = 0; i < inputNodesNum; i++) {
       Ort::AllocatedStringPtr input_node_name =
           primary->GetInputNameAllocated(i, allocator);
-      char *temp_buf = new char[50];
-      strcpy(temp_buf, input_node_name.get());
-      inputNodeNames.push_back(temp_buf);
+      m_inputNodeNameStorage.push_back(std::string(input_node_name.get()));
+    }
+    for (const auto& name : m_inputNodeNameStorage) {
+      inputNodeNames.push_back(name.c_str());
     }
     size_t OutputNodesNum = primary->GetOutputCount();
     for (size_t i = 0; i < OutputNodesNum; i++) {
       Ort::AllocatedStringPtr output_node_name =
           primary->GetOutputNameAllocated(i, allocator);
-      char *temp_buf = new char[10];
-      strcpy(temp_buf, output_node_name.get());
-      outputNodeNames.push_back(temp_buf);
+      m_outputNodeNameStorage.push_back(std::string(output_node_name.get()));
+    }
+    for (const auto& name : m_outputNodeNameStorage) {
+      outputNodeNames.push_back(name.c_str());
     }
     options = Ort::RunOptions{nullptr};
     WarmUpSession();

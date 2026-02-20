@@ -90,6 +90,8 @@ private:
   // across sessions)
   std::vector<const char *> inputNodeNames;
   std::vector<const char *> outputNodeNames;
+  std::vector<std::string> m_inputNodeNameStorage;
+  std::vector<std::string> m_outputNodeNameStorage;
   bool cudaEnable;
   Ort::RunOptions options;
   // Input/output names are shared across sessions to avoid duplicating storage

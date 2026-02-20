@@ -93,11 +93,10 @@ InferenceWorker::InferenceWorker() {}
 
 InferenceWorker::~InferenceWorker() {
     stopInference();
-    if (m_yolo) delete m_yolo;
 }
 
 void InferenceWorker::startInference() {
-    m_yolo = new YOLO_V8;
+    m_yolo = std::make_unique<YOLO_V8>();
     
     // Load Classes
     std::ifstream file("inference/classes.txt");
@@ -160,8 +159,14 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     // Initialize Model
     m_detections = new DetectionListModel(this);
     // 1. Create Workers
-    m_captureWorker = new CaptureWorker();
-    m_inferenceWorker = new InferenceWorker();
+    auto captureWorker = std::make_unique<CaptureWorker>();
+    m_captureWorker = captureWorker.get();
+    
+    auto inferenceWorker = std::make_unique<InferenceWorker>();
+    m_inferenceWorker = inferenceWorker.get();
+    
+    captureWorker.release(); // Qt takes ownership via moveToThread logic expectation
+    inferenceWorker.release();
 
     m_captureWorker->moveToThread(&m_captureThread);
     m_inferenceWorker->moveToThread(&m_inferenceThread);
