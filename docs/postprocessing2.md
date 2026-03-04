@@ -1,6 +1,7 @@
 # Postprocessing Pipeline: Deep Analysis & Brutal Optimization Guide
 
-> **System Architect × Computer Vision Engineer Review — March 2026**
+> **System Architect × Computer Vision Engineer Review**
+> **Analyzed on:** March 4, 2026, 11:23:39 (+07:00)
 >
 > This document provides a surgical analysis of the current YOLOv8 postprocessing pipeline and proposes aggressive, no-compromise optimizations to minimize latency and memory overhead on every single frame.
 
