@@ -4,8 +4,10 @@
 #include <opencv2/dnn.hpp>
 #include <regex>
 
+#include <numeric>
+#include <algorithm>
+
 // #define benchmark
-#define min(a, b) (((a) < (b)) ? (a) : (b))
 YOLO_V8::YOLO_V8() {}
 
 YOLO_V8::~YOLO_V8() {
@@ -51,7 +53,7 @@ char *YOLO_V8::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize,
   case YOLO_DETECT_V8_HALF:
   case YOLO_POSE_V8_HALF: // LetterBox
   {
-    float r = min(target_w / (float)iImg.cols, target_h / (float)iImg.rows);
+    float r = std::min(target_w / (float)iImg.cols, target_h / (float)iImg.rows);
     int resized_w = static_cast<int>(iImg.cols * r);
     int resized_h = static_cast<int>(iImg.rows * r);
     resizeScales = 1.0f / r;
@@ -67,7 +69,7 @@ char *YOLO_V8::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize,
   {
     int h = iImg.rows;
     int w = iImg.cols;
-    int m = min(h, w);
+    int m = std::min(h, w);
     int top = (h - m) / 2;
     int left = (w - m) / 2;
     // Resize directly to output buffer
@@ -198,6 +200,25 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     }
     options = Ort::RunOptions{nullptr};
     WarmUpSession();
+
+    // Pre-allocate Two-Pass postprocessing buffers
+    {
+        int strideNum = 8400;
+        Ort::TypeInfo typeInfo = m_sessionPool.front()->GetOutputTypeInfo(0);
+        auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
+        auto shape = tensorInfo.GetShape();
+        if (shape.size() >= 3 && shape[2] > 0) {
+            strideNum = static_cast<int>(shape[2]);
+        }
+        m_bestScores.resize(strideNum);
+        m_bestClassIds.resize(strideNum);
+        m_classIds.reserve(256);
+        m_confidences.reserve(256);
+        m_boxes.reserve(256);
+        m_nmsIndices.reserve(64);
+        m_sortIndices.reserve(256);
+    }
+
     return RET_OK;
   } catch (const std::exception &e) {
     const char *str1 = "[YOLO_V8]:";
@@ -347,64 +368,96 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
   switch (modelType) {
   case YOLO_DETECT_V8:
   case YOLO_DETECT_V8_HALF: {
+    // ──────────────────────────────────────────────────────────
+    // DIMENSIONS
+    // ──────────────────────────────────────────────────────────
     int signalResultNum = outputNodeDims[1]; // 84
     int strideNum = outputNodeDims[2];       // 8400
-    std::vector<int> class_ids;
-    std::vector<float> confidences;
-    std::vector<cv::Rect> boxes;
-    cv::Mat rawData;
+    int numClasses = signalResultNum - 4;    // 80
+
+    // ──────────────────────────────────────────────────────────
+    // DATA POINTER (Zero-copy for FP32, conversion for FP16)
+    // ──────────────────────────────────────────────────────────
+    float* data;
+    cv::Mat rawData; // Only used for FP16 conversion; empty for FP32
     if (modelType == YOLO_DETECT_V8) {
-      // FP32
-      rawData = cv::Mat(signalResultNum, strideNum, CV_32F, output);
+        data = static_cast<float*>(output);  // Direct pointer — zero allocation
     } else {
-      // FP16
-      rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
-      rawData.convertTo(rawData, CV_32F);
+        rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
+        rawData.convertTo(rawData, CV_32F);  // FP16 → FP32 (allocates once)
+        data = reinterpret_cast<float*>(rawData.data);
     }
-    // Note:
-    // ultralytics add transpose operator to the output of yolov8 model.which
-    // make yolov8/v5/v7 has same shape
-    // https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt
-    rawData = rawData.t();
 
-    float *data = (float *)rawData.data;
+    // ══════════════════════════════════════════════════════════
+    // PASS 1: ROW-MAJOR SCORE SWEEP
+    // ══════════════════════════════════════════════════════════
+    // ── Step 1A: Initialize with class 0 ──
+    float* row0 = data + 4 * strideNum;
+    memcpy(m_bestScores.data(), row0, strideNum * sizeof(float));
+    memset(m_bestClassIds.data(), 0, strideNum * sizeof(int));
 
-    for (int i = 0; i < strideNum; ++i) {
-      float *classesScores = data + 4;
-      cv::Mat scores(1, this->classes.size(), CV_32FC1, classesScores);
-      cv::Point class_id;
-      double maxClassScore;
-      cv::minMaxLoc(scores, 0, &maxClassScore, 0, &class_id);
-      if (maxClassScore > rectConfidenceThreshold) {
-        confidences.push_back(maxClassScore);
-        class_ids.push_back(class_id.x);
-        float x = data[0];
-        float y = data[1];
-        float w = data[2];
-        float h = data[3];
+    // ── Step 1B: Sweep classes 1..79 ──
+    for (int c = 1; c < numClasses; ++c) {
+        const float* rowC = data + (4 + c) * strideNum;
+        float* bestS = m_bestScores.data();
+        int*   bestC = m_bestClassIds.data();
 
-        int left = int((x - 0.5 * w) * resizeScales);
-        int top = int((y - 0.5 * h) * resizeScales);
-
-        int width = int(w * resizeScales);
-        int height = int(h * resizeScales);
-
-        boxes.push_back(cv::Rect(left, top, width, height));
-      }
-      data += signalResultNum;
+        // Inner loop: 8400 contiguous float comparisons (auto-vectorizes)
+        for (int j = 0; j < strideNum; ++j) {
+            if (rowC[j] > bestS[j]) {
+                bestS[j] = rowC[j];
+                bestC[j] = c;
+            }
+        }
     }
-    // Draw detections removed. Rendering handled by QML.
-    
-    std::vector<int> nmsResult;
-    cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold,
-                      nmsResult);
-    for (int i = 0; i < nmsResult.size(); ++i) {
-      int idx = nmsResult[i];
-      DL_RESULT result;
-      result.classId = class_ids[idx];
-      result.confidence = confidences[idx];
-      result.box = boxes[idx];
-      oResult.push_back(result);
+
+    // ══════════════════════════════════════════════════════════
+    // PASS 2: THRESHOLD + BOX DECODE
+    // ══════════════════════════════════════════════════════════
+    m_classIds.clear();
+    m_confidences.clear();
+    m_boxes.clear();
+
+    const float* bestS = m_bestScores.data();
+    const int*   bestC = m_bestClassIds.data();
+
+    // Iterate through best scores to find survivors
+    for (int j = 0; j < strideNum; ++j) {
+        if (bestS[j] > rectConfidenceThreshold) {
+            m_confidences.push_back(bestS[j]);
+            m_classIds.push_back(bestC[j]);
+
+            // Decode coords
+            float cx = data[0 * strideNum + j];
+            float cy = data[1 * strideNum + j];
+            float bw = data[2 * strideNum + j];
+            float bh = data[3 * strideNum + j];
+
+            int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
+            int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
+            int width  = static_cast<int>(bw * resizeScales);
+            int height = static_cast<int>(bh * resizeScales);
+
+            m_boxes.emplace_back(left, top, width, height);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // PASS 3: NON-MAXIMUM SUPPRESSION
+    // ══════════════════════════════════════════════════════════
+    m_nmsIndices.clear();
+    greedyNMS(iouThreshold);
+
+    // ══════════════════════════════════════════════════════════
+    // RESULT ASSEMBLY
+    // ══════════════════════════════════════════════════════════
+    for (size_t i = 0; i < m_nmsIndices.size(); ++i) {
+        int idx = m_nmsIndices[i];
+        DL_RESULT result;
+        result.classId    = m_classIds[idx];
+        result.confidence = m_confidences[idx];
+        result.box        = m_boxes[idx];
+        oResult.push_back(result);
     }
 
     auto end_post = std::chrono::high_resolution_clock::now();
@@ -437,6 +490,64 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
     std::cout << "[YOLO_V8]: " << "Not support model type." << std::endl;
   }
   return RET_OK;
+}
+
+void YOLO_V8::greedyNMS(float iouThresh) {
+    // ─────────────────────────────────────────────────
+    // Greedy NMS — operates on m_confidences, m_boxes
+    // Outputs to m_nmsIndices
+    // ─────────────────────────────────────────────────
+    
+    int n = static_cast<int>(m_confidences.size());
+    if (n == 0) return;
+    
+    // Step 1: Build confidence-sorted index
+    // ALLOCATION: m_sortIndices.resize() is O(1) if n <= previous capacity.
+    m_sortIndices.resize(n);
+    std::iota(m_sortIndices.begin(), m_sortIndices.end(), 0);
+    std::sort(m_sortIndices.begin(), m_sortIndices.end(),
+              [this](int a, int b) {
+                  return m_confidences[a] > m_confidences[b];
+              });
+    
+    // Step 2: Greedy suppression
+    m_suppressed.assign(n, false);
+    
+    for (int i = 0; i < n; ++i) {
+        int idx = m_sortIndices[i];
+        if (m_suppressed[idx]) continue;    // Already suppressed
+        
+        m_nmsIndices.push_back(idx);        // This box survives
+        
+        const cv::Rect& a = m_boxes[idx];
+        float areaA = static_cast<float>(a.width * a.height);
+        
+        // Check all remaining lower-confidence boxes
+        for (int k = i + 1; k < n; ++k) {
+            int kidx = m_sortIndices[k];
+            if (m_suppressed[kidx]) continue;
+            
+            const cv::Rect& b = m_boxes[kidx];
+            
+            // ── Quick rejection ──
+            int x1 = std::max(a.x, b.x);
+            int y1 = std::max(a.y, b.y);
+            int x2 = std::min(a.x + a.width,  b.x + b.width);
+            int y2 = std::min(a.y + a.height, b.y + b.height);
+            
+            if (x2 <= x1 || y2 <= y1) continue;  // No overlap → skip
+            
+            // ── IoU computation ──
+            float intersection = static_cast<float>((x2 - x1) * (y2 - y1));
+            float areaB = static_cast<float>(b.width * b.height);
+            float unionArea = areaA + areaB - intersection;
+            float iou = intersection / unionArea;
+            
+            if (iou > iouThresh) {
+                m_suppressed[kidx] = true;  // Suppress this box
+            }
+        }
+    }
 }
 
 char *YOLO_V8::WarmUpSession() {

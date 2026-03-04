@@ -671,11 +671,11 @@ graph LR
 
 ## 9. Implementation Checklist
 
-- [ ] Add 8 member variables to `inference.h` (Step 1)
-- [ ] Add `greedyNMS` declaration to `inference.h` (Step 1)
-- [ ] Add buffer initialization in `CreateSession` (Step 2)
-- [ ] Add `greedyNMS` implementation in `inference.cpp` (Step 3)
-- [ ] Replace detection case in `TensorProcess` (Step 4)
+- [x] Add 8 member variables to `inference.h` (Step 1)
+- [x] Add `greedyNMS` declaration to `inference.h` (Step 1)
+- [x] Add buffer initialization in `CreateSession` (Step 2)
+- [x] Add `greedyNMS` implementation in `inference.cpp` (Step 3)
+- [x] Replace detection case in `TensorProcess` (Step 4)
 - [ ] Build in Release mode (`/O2`)
 - [ ] Run correctness comparison (before vs. after)
 - [ ] Run performance comparison (timing.postProcessTime)

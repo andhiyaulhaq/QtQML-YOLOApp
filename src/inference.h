@@ -109,4 +109,19 @@ private:
   cv::Mat m_commonBlob; 
   cv::Mat m_commonBlobHalf;
   cv::Mat m_letterboxBuffer;
+
+  void greedyNMS(float iouThreshold);
+
+  // ── Two-Pass Postprocessing Buffers ──
+  // Pass 1: Row-major sweep outputs
+  std::vector<float> m_bestScores;
+  std::vector<int>   m_bestClassIds;
+  // Pass 2: Filtered candidates
+  std::vector<int>      m_classIds;
+  std::vector<float>    m_confidences;
+  std::vector<cv::Rect> m_boxes;
+  // Pass 3: NMS working data
+  std::vector<int>  m_nmsIndices;
+  std::vector<int>  m_sortIndices;
+  std::vector<bool> m_suppressed;
 };
