@@ -56,7 +56,7 @@ graph LR
 
 ## 2. Current Implementation — Line-by-Line Audit
 
-The postprocessing code lives in [TensorProcess](file:///d:/najib/2_archived-projects/desktop/qt-qml/YOLOApp/src/inference.cpp#L348-L413) inside `inference.cpp`. Here is the exact current code with annotations:
+The postprocessing code lives in [TensorProcess](../src/inference.cpp#L348-L413) inside `inference.cpp`. Here is the exact current code with annotations:
 
 ```cpp
 // === STEP 1: DIMENSIONS ===
