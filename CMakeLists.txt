@@ -27,10 +27,10 @@ qt_add_executable(appCamera
     src/core/VideoController.h
     src/ui/BoundingBoxItem.cpp
     src/ui/BoundingBoxItem.h
-    src/inference/inference.cpp
-    src/inference/inference_preprocess.cpp
-    src/inference/inference_postprocess.cpp
-    src/inference/inference.h
+    src/pipeline/inference.cpp
+    src/pipeline/preprocess.cpp
+    src/pipeline/postprocess.cpp
+    src/pipeline/inference.h
     src/core/SystemMonitor.cpp
     src/core/SystemMonitor.h
     src/models/DetectionStruct.h
@@ -63,7 +63,7 @@ target_include_directories(appCamera PRIVATE
     ${CMAKE_SOURCE_DIR}/src/core
     ${CMAKE_SOURCE_DIR}/src/ui
     ${CMAKE_SOURCE_DIR}/src/models
-    ${CMAKE_SOURCE_DIR}/src/inference
+    ${CMAKE_SOURCE_DIR}/src/pipeline
 )
 
 # 6. Link Libraries
