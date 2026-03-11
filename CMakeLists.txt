@@ -23,17 +23,17 @@ link_directories("C:/onnxruntime/lib")
 # 3. Create Executable (Updated to use VideoController)
 qt_add_executable(appCamera
     main.cpp
-    src/VideoController.cpp
-    src/VideoController.h
-    src/BoundingBoxItem.cpp
-    src/BoundingBoxItem.h
-    src/inference.cpp
-    src/inference.h
-    src/SystemMonitor.cpp
-    src/SystemMonitor.h
-    src/DetectionStruct.h
-    src/DetectionListModel.cpp
-    src/DetectionListModel.h
+    src/core/VideoController.cpp
+    src/core/VideoController.h
+    src/ui/BoundingBoxItem.cpp
+    src/ui/BoundingBoxItem.h
+    src/inference/inference.cpp
+    src/inference/inference.h
+    src/core/SystemMonitor.cpp
+    src/core/SystemMonitor.h
+    src/models/DetectionStruct.h
+    src/models/DetectionListModel.cpp
+    src/models/DetectionListModel.h
 )
 
 # Optimization Flags for Release
@@ -58,6 +58,10 @@ qt_add_qml_module(appCamera
 target_include_directories(appCamera PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/core
+    ${CMAKE_SOURCE_DIR}/src/ui
+    ${CMAKE_SOURCE_DIR}/src/models
+    ${CMAKE_SOURCE_DIR}/src/inference
 )
 
 # 6. Link Libraries
