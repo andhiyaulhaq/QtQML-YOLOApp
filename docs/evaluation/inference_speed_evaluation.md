@@ -4,7 +4,7 @@
 
 > System Architect Review — Deep-Dive on ONNX Runtime Inference Latency
 
-This document focuses exclusively on the **inference call itself** (`sess->Run(...)` at [inference.cpp:353-354](../src/inference.cpp#L353-L354)). Pre-processing and post-processing are deliberately out of scope — those are addressed in [simd_optimization_evaluation.md](simd_optimization_evaluation.md).
+This document focuses exclusively on the **inference call itself** (`sess->Run(...)` at [inference.cpp:223-224](../src/pipeline/inference.cpp#L223-L224)). Pre-processing and post-processing are deliberately out of scope — those are addressed in [simd_optimization_evaluation.md](simd_optimization_evaluation.md).
 
 ---
 
@@ -15,14 +15,14 @@ This document focuses exclusively on the **inference call itself** (`sess->Run(.
 | **ONNX Runtime version** | API v23 (1.20.x) | `ORT_API_VERSION` in `onnxruntime_c_api.h` |
 | **Model** | `yolov8n.onnx` (12.7 MB, FP32) | `inference/yolov8n.onnx` |
 | **Execution Provider** | CPU (default) | `cudaEnable = false` |
-| **Graph Optimization** | `ORT_ENABLE_ALL` | [inference.cpp:113-114](../src/inference.cpp#L113-L114) |
-| **Execution Mode** | `ORT_SEQUENTIAL` | [inference.cpp:118](../src/inference.cpp#L118) |
+| **Graph Optimization** | `ORT_ENABLE_ALL` | [inference.cpp:76](../src/pipeline/inference.cpp#L76) |
+| **Execution Mode** | `ORT_SEQUENTIAL` | [inference.cpp:78](../src/pipeline/inference.cpp#L78) |
 | **Intra-op threads** | `min(4, hw_concurrency/2)` | [VideoController.cpp:127](../src/VideoController.cpp#L127) |
 | **Inter-op threads** | 1 | [VideoController.cpp:128](../src/VideoController.cpp#L128) |
 | **Memory pattern** | Default (enabled) | Not explicitly set |
 | **IO Binding** | Not used | Tensor created per-frame |
 | **Session pool** | 1 session | `sessionPoolSize = 1` (default) |
-| **OpenMP/KMP env** | Set (`KMP_AFFINITY=compact`, `KMP_BLOCKTIME=1`) | [inference.cpp:122-126](../src/inference.cpp#L122-L126) |
+| **OpenMP/KMP env** | Set (`KMP_AFFINITY=compact`, `KMP_BLOCKTIME=1`) | [inference.cpp:81-85](../src/pipeline/inference.cpp#L81-L85) |
 
 > [!IMPORTANT]
 > `Session::Run()` on **CPU with FP32 YOLOv8n** typically takes **15–30ms** depending on the CPU. This is the dominant cost (~85–90% of total frame time). Every millisecond saved here directly translates to FPS gain.
@@ -36,7 +36,7 @@ This document focuses exclusively on the **inference call itself** (`sess->Run(.
 Every frame, `TensorProcess` creates a **new `Ort::Value` input tensor** via `CreateTensor<float>(...)`:
 
 ```cpp
-// inference.cpp:339-343
+// inference.cpp:209-213
 Ort::Value inputTensor =
     Ort::Value::CreateTensor<float>(
         Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob,
@@ -215,7 +215,7 @@ The convolution kernels inside YOLOv8n account for **>95%** of `Session::Run()` 
 
 ### Problem
 
-The current KMP environment variable configuration at [inference.cpp:122-126](../src/inference.cpp#L122-L126):
+The current KMP environment variable configuration at [inference.cpp:81-85](../src/pipeline/inference.cpp#L81-L85):
 
 ```cpp
 SetEnvironmentVariableA("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0");
@@ -306,7 +306,7 @@ Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
 
 ### Problem
 
-The `Ort::RunOptions` at [inference.cpp:201](../src/inference.cpp#L201) is default-constructed:
+The `Ort::RunOptions` at [inference.cpp:153](../src/pipeline/inference.cpp#L153) is default-constructed:
 
 ```cpp
 options = Ort::RunOptions{nullptr};

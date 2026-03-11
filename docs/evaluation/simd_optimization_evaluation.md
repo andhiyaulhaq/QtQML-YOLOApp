@@ -6,6 +6,8 @@
 
 This document evaluates the YOLOApp inference pipeline for SIMD (Single Instruction Multiple Data) optimization opportunities. It identifies the hot paths, analyzes current auto-vectorization behavior, and proposes explicit SSE/AVX intrinsic replacements with technical rationale for each.
 
+*Note (Updated Mar 11, 2026): The inference pipeline was recently refactored from a monolithic `inference.cpp` into `pipeline/preprocess.cpp` and `pipeline/postprocess.cpp`, alongside model-specific processors (Detection, Pose, Segmentation). The SIMD targets identified below remain 100% relevant and unoptimized, though their locations have moved. A key new requirement is that SIMD intrinsics should be extracted into shared utility functions so they can be reused across the multiple post-processor classes.*
+
 ---
 
 ## 1. Executive Summary
@@ -68,7 +70,7 @@ graph LR
 
 ### Location
 
-[inference.cpp:267–283](../src/inference.cpp#L267-L283)
+[preprocess.cpp:47–60](../src/pipeline/preprocess.cpp#L47-L60)
 
 ### Current Code
 
@@ -138,7 +140,7 @@ This is the **single most impactful** SIMD target because:
 
 ### Location
 
-[inference.cpp:400–412](../src/inference.cpp#L400-L412)
+[postprocess.cpp:34–45](../src/pipeline/postprocess.cpp#L34-L45) (Also duplicated in `PosePostProcessor` and `SegmentationPostProcessor`)
 
 ### Current Code
 
@@ -216,7 +218,7 @@ For each class c (79 iterations):
 
 ### Location
 
-[inference.cpp:425–443](../src/inference.cpp#L425-L443)
+[postprocess.cpp:54–71](../src/pipeline/postprocess.cpp#L54-L71) (Also duplicated in `PosePostProcessor` and `SegmentationPostProcessor`)
 
 ### Current Code
 
@@ -284,7 +286,7 @@ The main win is not from vectorizing the decode (which is rare-path), but from *
 
 ### Location
 
-[inference.cpp:495–551](../src/inference.cpp#L495-L551)
+[postprocess.cpp:86–131](../src/pipeline/postprocess.cpp#L86-L131) (Also duplicated in `PosePostProcessor` and `SegmentationPostProcessor`)
 
 ### Current Code (Inner Loop)
 
@@ -387,10 +389,10 @@ OpenCV's `cvtColor` already uses **internal SIMD** (SSE4.2/AVX2 via OpenCV's HAL
 
 | Priority | Hot Path | Location | Est. Speedup | Risk | Effort |
 |:--------:|:---------|:---------|:------------:|:----:|:------:|
-| **P0** | #1 HWC→CHW Normalization | `inference.cpp:267-283` | 4–6× (SSE) / 6–10× (AVX2) | Low | Medium |
-| **P1** | #2 Score Sweep | `inference.cpp:400-412` | 3–4× (if not auto-vec) | Low | Low |
-| **P2** | #3 Threshold Scan | `inference.cpp:425-443` | 2–3× | Very Low | Low |
-| **P3** | #4 Greedy NMS | `inference.cpp:495-551` | ~2× | Medium | Medium |
+| **P0** | #1 HWC→CHW Normalization | `preprocess.cpp:47-60` | 4–6× (SSE) / 6–10× (AVX2) | Low | Medium |
+| **P1** | #2 Score Sweep | `postprocess.cpp:34-45` | 3–4× (if not auto-vec) | Low | Low |
+| **P2** | #3 Threshold Scan | `postprocess.cpp:54-71` | 2–3× | Very Low | Low |
+| **P3** | #4 Greedy NMS | `postprocess.cpp:86-131` | ~2× | Medium | Medium |
 | **Skip** | #5 BGR→RGBA | `VideoController.cpp:56-58` | Marginal | N/A | N/A |
 
 ---
