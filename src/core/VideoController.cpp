@@ -53,7 +53,13 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
             continue;
         }
 
-        // --- Segmentation Mask Overlay Blending ---
+        // 1. Send to Inference FIRST (un-blended frame)
+        if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
+            auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
+            emit frameReady(shared);
+        }
+
+        // 2. Blend latest available segmentation masks
         std::shared_ptr<std::vector<DL_RESULT>> currentDetections;
         {
             std::lock_guard<std::mutex> lock(m_detectionsMutex);
@@ -90,9 +96,8 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
                 }
             }
         }
-        // ------------------------------------------
 
-        // 1. Send to UI (Zero-copy optimization)
+        // 3. Send to UI (Zero-copy optimization)
         if (sink) {
             QVideoFrame& frame = m_reusableFrames[m_reusableFrameIndex];
             
@@ -105,22 +110,11 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
             }
             m_reusableFrameIndex = (m_reusableFrameIndex + 1) % 2;
         }
-
-        // 2. Send to Inference (Optimization: Ring Buffer instead of clone)
-        // We emit the Mat. Qt copies the header, increasing the refcounter to the underlying data.
-        // As long as we don't overwrite this specific m_framePool index before inference is done, we are safe.
-        // With 3 buffers at 30fps, we have 100ms before overwrite. If inference < 100ms, correct.
-        // NEW MEMORY OPTIMIZATION: Only clone and emit if inference is currently NOT processing.
-        // Checking this BEFORE allocating avoiding sending memory over the Event Loop.
-        if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
-            auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
-            emit frameReady(shared);
-        }
         
         // Advance pool index
         m_poolIndex = (m_poolIndex + 1) % 3;
 
-        // 3. FPS Calculation
+        // 4. FPS Calculation
         frames++;
         auto now = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
@@ -161,8 +155,8 @@ void InferenceWorker::startInference() {
     file.close();
 
     DL_INIT_PARAM params;
-    params.modelPath = "inference/yolov8n.onnx";
-    params.modelType = YOLO_DETECT;
+    params.modelPath = "inference/yolov8n-seg.onnx";
+    params.modelType = YOLO_SEG;
     params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
     params.cudaEnable = false; // CPU
     // Optimization: Cap threads to 4 for YOLOv8n (small model). 
@@ -242,7 +236,7 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame, Qt::QueuedConnection);
 
     // Inference -> Capture (Latest Segmentation Masks)
-    connect(m_inferenceWorker, &InferenceWorker::latestDetectionsReady, m_captureWorker, &CaptureWorker::updateLatestDetections, Qt::QueuedConnection);
+    connect(m_inferenceWorker, &InferenceWorker::latestDetectionsReady, m_captureWorker, &CaptureWorker::updateLatestDetections, Qt::DirectConnection);
 
     // Workers -> Main
     connect(m_captureWorker, &CaptureWorker::fpsUpdated, this, &VideoController::updateFps);
