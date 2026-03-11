@@ -42,7 +42,7 @@ cd build
 cmake -G "MinGW Makefiles" ..
 
 # 4. Build the application
-mingw32-make
+cmake --build . -j 4
 
 # 5. Run
 ./appCamera.exe
