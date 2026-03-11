@@ -28,6 +28,8 @@ qt_add_executable(appCamera
     src/ui/BoundingBoxItem.cpp
     src/ui/BoundingBoxItem.h
     src/inference/inference.cpp
+    src/inference/inference_preprocess.cpp
+    src/inference/inference_postprocess.cpp
     src/inference/inference.h
     src/core/SystemMonitor.cpp
     src/core/SystemMonitor.h

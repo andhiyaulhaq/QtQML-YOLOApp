@@ -79,6 +79,7 @@ public:
                       std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
 
   char *PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat &oImg);
+  void PreProcessImageToBlob(const cv::Mat &iImg, float* blob_data);
 
   const std::vector<std::string>& getClassNames() const { return classes; }
 
@@ -111,6 +112,7 @@ private:
   cv::Mat m_letterboxBuffer;
 
   void greedyNMS(float iouThreshold);
+  void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult);
 
   // ── Two-Pass Postprocessing Buffers ──
   // Pass 1: Row-major sweep outputs

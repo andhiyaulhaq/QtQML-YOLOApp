@@ -28,60 +28,8 @@ template <> struct TypeToTensorType<half> {
 } // namespace Ort
 #endif
 
-// BlobFromImage replaced by cv::dnn::blobFromImage in RunSession
+// BlobFromImage replaced by PreProcessImageToBlob in inference_preprocess.cpp
 
-
-char *YOLO_V8::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize,
-                          cv::Mat &oImg) {
-  // Optimization: Zero-copy resizing and letterboxing
-  // We write directly into oImg (which should be m_letterboxBuffer)
-  
-  int target_h = iImgSize.at(0);
-  int target_w = iImgSize.at(1);
-  
-  // Ensure buffer is allocated
-  if (oImg.size() != cv::Size(target_w, target_h) || oImg.type() != CV_8UC3) {
-      oImg.create(target_h, target_w, CV_8UC3);
-  }
-  
-  // Fill with padding color (usually 114 for YOLO, but 0 in original code)
-  oImg.setTo(cv::Scalar(0, 0, 0));
-
-  switch (modelType) {
-  case YOLO_DETECT_V8:
-  case YOLO_POSE:
-  case YOLO_DETECT_V8_HALF:
-  case YOLO_POSE_V8_HALF: // LetterBox
-  {
-    float r = std::min(target_w / (float)iImg.cols, target_h / (float)iImg.rows);
-    int resized_w = static_cast<int>(iImg.cols * r);
-    int resized_h = static_cast<int>(iImg.rows * r);
-    resizeScales = 1.0f / r;
-    
-    // Resize directly into the buffer's ROI (Optimization: Avoids temp allocation)
-    // Note: We keep BGR format here and use swapRB=true in blobFromImage later
-    cv::resize(iImg, oImg(cv::Rect(0, 0, resized_w, resized_h)), 
-               cv::Size(resized_w, resized_h));
-    
-    break;
-  }
-  case YOLO_CLS: // CenterCrop
-  {
-    int h = iImg.rows;
-    int w = iImg.cols;
-    int m = std::min(h, w);
-    int top = (h - m) / 2;
-    int left = (w - m) / 2;
-    // Resize directly to output buffer
-    cv::resize(iImg(cv::Rect(left, top, m, m)), oImg,
-               cv::Size(target_w, target_h));
-    break;
-  }
-  case YOLO_CLS_HALF:
-    break;
-  }
-  return RET_OK;
-}
 
 const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
   const char *Ret = RET_OK;
@@ -252,35 +200,8 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
       // OpenCV create() reuses buffer if size/type matches
       int sz[] = {1, channels, height, width};
       m_commonBlob.create(4, sz, CV_32F);
-      
       float* blob_data = m_commonBlob.ptr<float>();
-      const uint8_t* img_data = m_letterboxBuffer.data;
-      int step = width * channels; // bytes per row in source
-
-      // Manual loop: BGR -> RGB, /255.0, HWC -> CHW
-      // This is the "Hot Loop" for preprocessing
-      // Planar offsets
-      int plane_0 = 0;                  // R channel (dst)
-      int plane_1 = height * width;     // G channel (dst)
-      int plane_2 = 2 * height * width; // B channel (dst)
-      
-      for (int h = 0; h < height; ++h) {
-          const uint8_t* row_ptr = img_data + h * m_letterboxBuffer.step;
-          for (int w = 0; w < width; ++w) {
-              // Source is BGR (OpenCV default)
-              uint8_t b = row_ptr[w * 3 + 0];
-              uint8_t g = row_ptr[w * 3 + 1];
-              uint8_t r = row_ptr[w * 3 + 2];
-
-              // Dest is RGB Planar (CHW) + Normalize
-              // Access: blob_data[channel * H * W + y * W + x]
-              int offset = h * width + w;
-              
-              blob_data[plane_0 + offset] = r / 255.0f;
-              blob_data[plane_1 + offset] = g / 255.0f;
-              blob_data[plane_2 + offset] = b / 255.0f;
-          }
-      }
+      PreProcessImageToBlob(m_letterboxBuffer, blob_data);
 
       std::vector<int64_t> inputNodeDims = {1, 3, height, width};
       auto end_pre = std::chrono::high_resolution_clock::now();
@@ -290,32 +211,11 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
 
   } else { // FLOAT16 models (reuse same logic, convert at end or use half ptr)
 #ifdef USE_CUDA
-      // For simplicity in this phase, we do the same float conversion then convert to half
-      // A full optimization would write directly to half, but requires half-float logic
-      
       int sz[] = {1, channels, height, width};
       m_commonBlob.create(4, sz, CV_32F);
       
       float* blob_data = m_commonBlob.ptr<float>();
-      const uint8_t* img_data = m_letterboxBuffer.data;
-      
-      int plane_0 = 0;
-      int plane_1 = height * width;
-      int plane_2 = 2 * height * width;
-      
-       for (int h = 0; h < height; ++h) {
-          const uint8_t* row_ptr = img_data + h * m_letterboxBuffer.step;
-          for (int w = 0; w < width; ++w) {
-              uint8_t b = row_ptr[w * 3 + 0];
-              uint8_t g = row_ptr[w * 3 + 1];
-              uint8_t r = row_ptr[w * 3 + 2];
-
-              int offset = h * width + w;
-              blob_data[plane_0 + offset] = r / 255.0f;
-              blob_data[plane_1 + offset] = g / 255.0f;
-              blob_data[plane_2 + offset] = b / 255.0f;
-          }
-      }
+      PreProcessImageToBlob(m_letterboxBuffer, blob_data);
 
       // Convert to FP16
       m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
@@ -361,193 +261,14 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
   Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
   auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
   std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
-  auto output =
-      outputTensor.front()
-          .GetTensorMutableData<typename std::remove_pointer<N>::type>();
-  // delete[] blob; // Optimization: Removed deletion of managed blob
-  switch (modelType) {
-  case YOLO_DETECT_V8:
-  case YOLO_DETECT_V8_HALF: {
-    // ──────────────────────────────────────────────────────────
-    // DIMENSIONS
-    // ──────────────────────────────────────────────────────────
-    int signalResultNum = outputNodeDims[1]; // 84
-    int strideNum = outputNodeDims[2];       // 8400
-    int numClasses = signalResultNum - 4;    // 80
+  void* rawOutput = outputTensor.front().GetTensorMutableData<void>();
 
-    // ──────────────────────────────────────────────────────────
-    // DATA POINTER (Zero-copy for FP32, conversion for FP16)
-    // ──────────────────────────────────────────────────────────
-    float* data;
-    cv::Mat rawData; // Only used for FP16 conversion; empty for FP32
-    if (modelType == YOLO_DETECT_V8) {
-        data = static_cast<float*>(output);  // Direct pointer — zero allocation
-    } else {
-        rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
-        rawData.convertTo(rawData, CV_32F);  // FP16 → FP32 (allocates once)
-        data = reinterpret_cast<float*>(rawData.data);
-    }
+  PostProcess(rawOutput, outputNodeDims, oResult);
 
-    // ══════════════════════════════════════════════════════════
-    // PASS 1: ROW-MAJOR SCORE SWEEP
-    // ══════════════════════════════════════════════════════════
-    // ── Step 1A: Initialize with class 0 ──
-    float* row0 = data + 4 * strideNum;
-    memcpy(m_bestScores.data(), row0, strideNum * sizeof(float));
-    memset(m_bestClassIds.data(), 0, strideNum * sizeof(int));
+  auto end_post = std::chrono::high_resolution_clock::now();
+  timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
 
-    // ── Step 1B: Sweep classes 1..79 ──
-    for (int c = 1; c < numClasses; ++c) {
-        const float* rowC = data + (4 + c) * strideNum;
-        float* bestS = m_bestScores.data();
-        int*   bestC = m_bestClassIds.data();
-
-        // Inner loop: 8400 contiguous float comparisons (auto-vectorizes)
-        for (int j = 0; j < strideNum; ++j) {
-            if (rowC[j] > bestS[j]) {
-                bestS[j] = rowC[j];
-                bestC[j] = c;
-            }
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════
-    // PASS 2: THRESHOLD + BOX DECODE
-    // ══════════════════════════════════════════════════════════
-    m_classIds.clear();
-    m_confidences.clear();
-    m_boxes.clear();
-
-    const float* bestS = m_bestScores.data();
-    const int*   bestC = m_bestClassIds.data();
-
-    // Iterate through best scores to find survivors
-    for (int j = 0; j < strideNum; ++j) {
-        if (bestS[j] > rectConfidenceThreshold) {
-            m_confidences.push_back(bestS[j]);
-            m_classIds.push_back(bestC[j]);
-
-            // Decode coords
-            float cx = data[0 * strideNum + j];
-            float cy = data[1 * strideNum + j];
-            float bw = data[2 * strideNum + j];
-            float bh = data[3 * strideNum + j];
-
-            int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-            int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-            int width  = static_cast<int>(bw * resizeScales);
-            int height = static_cast<int>(bh * resizeScales);
-
-            m_boxes.emplace_back(left, top, width, height);
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════
-    // PASS 3: NON-MAXIMUM SUPPRESSION
-    // ══════════════════════════════════════════════════════════
-    m_nmsIndices.clear();
-    greedyNMS(iouThreshold);
-
-    // ══════════════════════════════════════════════════════════
-    // RESULT ASSEMBLY
-    // ══════════════════════════════════════════════════════════
-    for (size_t i = 0; i < m_nmsIndices.size(); ++i) {
-        int idx = m_nmsIndices[i];
-        DL_RESULT result;
-        result.classId    = m_classIds[idx];
-        result.confidence = m_confidences[idx];
-        result.box        = m_boxes[idx];
-        oResult.push_back(result);
-    }
-
-    auto end_post = std::chrono::high_resolution_clock::now();
-    timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
-
-    break;
-  }
-  case YOLO_CLS:
-  case YOLO_CLS_HALF: {
-    cv::Mat rawData;
-    if (modelType == YOLO_CLS) {
-      // FP32
-      rawData = cv::Mat(1, this->classes.size(), CV_32F, output);
-    } else {
-      // FP16
-      rawData = cv::Mat(1, this->classes.size(), CV_16F, output);
-      rawData.convertTo(rawData, CV_32F);
-    }
-    float *data = (float *)rawData.data;
-
-    DL_RESULT result;
-    for (int i = 0; i < this->classes.size(); i++) {
-      result.classId = i;
-      result.confidence = data[i];
-      oResult.push_back(result);
-    }
-    break;
-  }
-  default:
-    std::cout << "[YOLO_V8]: " << "Not support model type." << std::endl;
-  }
   return RET_OK;
-}
-
-void YOLO_V8::greedyNMS(float iouThresh) {
-    // ─────────────────────────────────────────────────
-    // Greedy NMS — operates on m_confidences, m_boxes
-    // Outputs to m_nmsIndices
-    // ─────────────────────────────────────────────────
-    
-    int n = static_cast<int>(m_confidences.size());
-    if (n == 0) return;
-    
-    // Step 1: Build confidence-sorted index
-    // ALLOCATION: m_sortIndices.resize() is O(1) if n <= previous capacity.
-    m_sortIndices.resize(n);
-    std::iota(m_sortIndices.begin(), m_sortIndices.end(), 0);
-    std::sort(m_sortIndices.begin(), m_sortIndices.end(),
-              [this](int a, int b) {
-                  return m_confidences[a] > m_confidences[b];
-              });
-    
-    // Step 2: Greedy suppression
-    m_suppressed.assign(n, false);
-    
-    for (int i = 0; i < n; ++i) {
-        int idx = m_sortIndices[i];
-        if (m_suppressed[idx]) continue;    // Already suppressed
-        
-        m_nmsIndices.push_back(idx);        // This box survives
-        
-        const cv::Rect& a = m_boxes[idx];
-        float areaA = static_cast<float>(a.width * a.height);
-        
-        // Check all remaining lower-confidence boxes
-        for (int k = i + 1; k < n; ++k) {
-            int kidx = m_sortIndices[k];
-            if (m_suppressed[kidx]) continue;
-            
-            const cv::Rect& b = m_boxes[kidx];
-            
-            // ── Quick rejection ──
-            int x1 = std::max(a.x, b.x);
-            int y1 = std::max(a.y, b.y);
-            int x2 = std::min(a.x + a.width,  b.x + b.width);
-            int y2 = std::min(a.y + a.height, b.y + b.height);
-            
-            if (x2 <= x1 || y2 <= y1) continue;  // No overlap → skip
-            
-            // ── IoU computation ──
-            float intersection = static_cast<float>((x2 - x1) * (y2 - y1));
-            float areaB = static_cast<float>(b.width * b.height);
-            float unionArea = areaA + areaB - intersection;
-            float iou = intersection / unionArea;
-            
-            if (iou > iouThresh) {
-                m_suppressed[kidx] = true;  // Suppress this box
-            }
-        }
-    }
 }
 
 char *YOLO_V8::WarmUpSession() {
