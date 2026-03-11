@@ -63,10 +63,6 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
         case YOLO_SEG_HALF:
             m_postProcessor = std::make_unique<SegmentationPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
             break;
-        case YOLO_CLS:
-        case YOLO_CLS_HALF:
-            m_postProcessor = std::make_unique<ClassificationPostProcessor>(modelType);
-            break;
         default:
             throw std::runtime_error("Unsupported model type.");
     }

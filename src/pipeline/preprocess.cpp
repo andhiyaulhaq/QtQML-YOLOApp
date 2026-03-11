@@ -18,6 +18,8 @@ char *ImagePreProcessor::PreProcess(const cv::Mat &iImg, cv::Mat &oImg) {
   case YOLO_POSE:
   case YOLO_DETECT_V8_HALF:
   case YOLO_POSE_V8_HALF:
+  case YOLO_SEG:
+  case YOLO_SEG_HALF:
   {
     float r = std::min(target_w / (float)iImg.cols, target_h / (float)iImg.rows);
     int resized_w = static_cast<int>(iImg.cols * r);
@@ -29,19 +31,6 @@ char *ImagePreProcessor::PreProcess(const cv::Mat &iImg, cv::Mat &oImg) {
     
     break;
   }
-  case YOLO_CLS:
-  {
-    int h = iImg.rows;
-    int w = iImg.cols;
-    int m = std::min(h, w);
-    int top = (h - m) / 2;
-    int left = (w - m) / 2;
-    cv::resize(iImg(cv::Rect(left, top, m, m)), oImg,
-               cv::Size(target_w, target_h));
-    break;
-  }
-  case YOLO_CLS_HALF:
-    break;
   }
   return RET_OK;
 }

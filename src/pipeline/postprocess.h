@@ -74,11 +74,4 @@ private:
     std::vector<bool> m_suppressed;
 };
 
-class ClassificationPostProcessor : public IPostProcessor {
-public:
-    ClassificationPostProcessor(MODEL_TYPE modelType);
-    void initBuffers(size_t strideNum) override {}
-    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
-private:
-    MODEL_TYPE modelType;
-};
+

@@ -138,29 +138,6 @@ void DetectionPostProcessor::greedyNMS(float iouThresh) {
     }
 }
 
-// ============================================================================
-// ClassificationPostProcessor
-// ============================================================================
-
-ClassificationPostProcessor::ClassificationPostProcessor(MODEL_TYPE modelType) : modelType(modelType) {}
-
-void ClassificationPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
-    cv::Mat rawData;
-    if (modelType == YOLO_CLS) {
-      rawData = cv::Mat(1, classes.size(), CV_32F, output);
-    } else {
-      rawData = cv::Mat(1, classes.size(), CV_16F, output);
-      rawData.convertTo(rawData, CV_32F);
-    }
-    float *data = (float *)rawData.data;
-
-    DL_RESULT result;
-    for (int i = 0; i < classes.size(); i++) {
-      result.classId = i;
-      result.confidence = data[i];
-      oResult.push_back(result);
-    }
-}
 
 // ============================================================================
 // PosePostProcessor
