@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QString>
+#include <QPointF>
+#include <QList>
 
 // =========================================================
 // Struct for efficient data passing to QML
@@ -16,6 +18,7 @@ struct Detection {
     Q_PROPERTY(float y MEMBER y)
     Q_PROPERTY(float w MEMBER w)
     Q_PROPERTY(float h MEMBER h)
+    Q_PROPERTY(QList<QPointF> keyPoints MEMBER keyPoints)
 
 public:
     int classId;
@@ -25,6 +28,7 @@ public:
     float y;
     float w;
     float h;
+    QList<QPointF> keyPoints;
 };
 Q_DECLARE_METATYPE(Detection)
 

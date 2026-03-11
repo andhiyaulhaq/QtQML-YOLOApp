@@ -80,6 +80,11 @@ void DetectionListModel::updateDetections(const std::vector<DL_RESULT>& results,
         det.y = res.box.y / (float)AppConfig::FrameHeight;
         det.w = w / (float)AppConfig::FrameWidth;
         det.h = h / (float)AppConfig::FrameHeight;
+        
+        for (const auto& kp : res.keyPoints) {
+            det.keyPoints.append(QPointF(kp.x / AppConfig::FrameWidth, kp.y / AppConfig::FrameHeight));
+        }
+        
         return det;
     };
 

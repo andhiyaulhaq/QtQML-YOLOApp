@@ -8,6 +8,11 @@
 // CAPTURE WORKER
 // =========================================================
 
+void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections) {
+    std::lock_guard<std::mutex> lock(m_detectionsMutex);
+    m_latestDetections = detections;
+}
+
 void CaptureWorker::startCapturing(QVideoSink* sink) {
     if (m_running) return;
     m_running = true;
@@ -47,6 +52,45 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
             QThread::msleep(10);
             continue;
         }
+
+        // --- Segmentation Mask Overlay Blending ---
+        std::shared_ptr<std::vector<DL_RESULT>> currentDetections;
+        {
+            std::lock_guard<std::mutex> lock(m_detectionsMutex);
+            currentDetections = m_latestDetections;
+        }
+
+        if (currentDetections) {
+            for (const auto& det : *currentDetections) {
+                if (!det.boxMask.empty()) {
+                    cv::Rect originalBox = det.box;
+                    cv::Rect displayBox = originalBox & cv::Rect(0, 0, currentFrame.cols, currentFrame.rows);
+                    if (displayBox.width > 0 && displayBox.height > 0) {
+                        int dx = displayBox.x - originalBox.x;
+                        int dy = displayBox.y - originalBox.y;
+                        cv::Rect maskRoi(dx, dy, displayBox.width, displayBox.height);
+                        maskRoi = maskRoi & cv::Rect(0, 0, det.boxMask.cols, det.boxMask.rows);
+                        
+                        if (maskRoi.width > 0 && maskRoi.height > 0) {
+                            cv::Mat roi = currentFrame(displayBox);
+                            int hue = (det.classId * 60) % 360;
+                            QColor color = QColor::fromHsl(hue, 255, 127);
+                            cv::Mat colorRoi(displayBox.size(), currentFrame.type(), cv::Scalar(color.blue(), color.green(), color.red()));
+                            
+                            cv::Mat blended;
+                            cv::addWeighted(roi, 0.5, colorRoi, 0.5, 0.0, blended);
+                            
+                            cv::Mat activeMask = det.boxMask(maskRoi).clone();
+                            if (activeMask.size() != roi.size()) {
+                                cv::resize(activeMask, activeMask, roi.size());
+                            }
+                            blended.copyTo(roi, activeMask);
+                        }
+                    }
+                }
+            }
+        }
+        // ------------------------------------------
 
         // 1. Send to UI (Zero-copy optimization)
         if (sink) {
@@ -154,6 +198,7 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
 
     // Emit results
     emit detectionsReady(results, &m_yolo->getClassNames(), timing);
+    emit latestDetectionsReady(std::make_shared<std::vector<DL_RESULT>>(results));
 
     m_isProcessing = false;
 }
@@ -165,6 +210,7 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
 VideoController::VideoController(QObject *parent) : QObject(parent) {
     qRegisterMetaType<std::shared_ptr<cv::Mat>>("std::shared_ptr<cv::Mat>");
     qRegisterMetaType<const std::vector<std::string>*>("const std::vector<std::string>*");
+    qRegisterMetaType<std::shared_ptr<std::vector<DL_RESULT>>>("std::shared_ptr<std::vector<DL_RESULT>>");
     
     // Initialize Model
     m_detections = new DetectionListModel(this);
@@ -194,6 +240,9 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     
     // Capture -> Inference
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame, Qt::QueuedConnection);
+
+    // Inference -> Capture (Latest Segmentation Masks)
+    connect(m_inferenceWorker, &InferenceWorker::latestDetectionsReady, m_captureWorker, &CaptureWorker::updateLatestDetections, Qt::QueuedConnection);
 
     // Workers -> Main
     connect(m_captureWorker, &CaptureWorker::fpsUpdated, this, &VideoController::updateFps);

@@ -9,6 +9,7 @@
 #include <QMutex>
 #include <QWaitCondition>
 #include <QVariantList>
+#include <mutex> // Added for std::mutex and std::lock_guard
 #include <opencv2/opencv.hpp>
 #include <chrono>
 #include <memory>
@@ -118,8 +119,11 @@ public slots:
     void startCapturing(QVideoSink* sink);
     void stopCapturing();
     void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
+    void updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections);
 
 private:
+    std::mutex m_detectionsMutex;
+    std::shared_ptr<std::vector<DL_RESULT>> m_latestDetections;
     std::atomic<bool> m_running{false};
     std::atomic<bool>* m_inferenceProcessingFlag = nullptr;
     cv::VideoCapture m_capture;
@@ -141,6 +145,7 @@ public:
 
 signals:
     void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO_V8::InferenceTiming& timing);
+    void latestDetectionsReady(std::shared_ptr<std::vector<DL_RESULT>> results);
 
 public slots:
     void startInference(); // Initialize model
@@ -157,5 +162,6 @@ private:
 };
 
 Q_DECLARE_METATYPE(std::shared_ptr<cv::Mat>)
+Q_DECLARE_METATYPE(std::shared_ptr<std::vector<DL_RESULT>>)
 
 #endif // VIDEOCONTROLLER_H
