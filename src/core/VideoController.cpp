@@ -155,8 +155,8 @@ void InferenceWorker::startInference() {
     file.close();
 
     DL_INIT_PARAM params;
-    params.modelPath = "inference/yolov8n-seg.onnx";
-    params.modelType = YOLO_SEG;
+    params.modelPath = "inference/yolov8n-pose.onnx";
+    params.modelType = YOLO_POSE;
     params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
     params.cudaEnable = false; // CPU
     // Optimization: Cap threads to 4 for YOLOv8n (small model). 
