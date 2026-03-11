@@ -22,12 +22,36 @@ Window {
         spacing: 15
 
         // Header Section
-        Text {
-            text: "Real-time AI Vision"
-            color: "#FFFFFF"
-            font.pixelSize: 28
-            font.bold: true
-            Layout.alignment: Qt.AlignLeft
+        RowLayout {
+            Layout.fillWidth: true
+            
+            Text {
+                text: "Real-time AI Vision"
+                color: "#FFFFFF"
+                font.pixelSize: 28
+                font.bold: true
+                Layout.alignment: Qt.AlignLeft
+            }
+            
+            Item { Layout.fillWidth: true } // Spacer
+            
+            Text {
+                text: "Task:"
+                color: "#FFFFFF"
+                font.pixelSize: 14
+            }
+            
+            ComboBox {
+                id: taskComboBox
+                model: ["Object Detection", "Pose Estimation", "Image Segmentation"]
+                currentIndex: 1 // Default is Pose Estimation
+                
+                onActivated: {
+                    if (currentIndex === 0) controller.currentTask = VideoController.TaskObjectDetection
+                    else if (currentIndex === 1) controller.currentTask = VideoController.TaskPoseEstimation
+                    else if (currentIndex === 2) controller.currentTask = VideoController.TaskImageSegmentation
+                }
+            }
         }
 
         // Main Content: Video Feed + Metrics Panel

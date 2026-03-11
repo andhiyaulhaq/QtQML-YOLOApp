@@ -144,6 +144,19 @@ InferenceWorker::~InferenceWorker() {
 }
 
 void InferenceWorker::startInference() {
+    changeModel(2); // Start with Pose Estimation by default
+    m_running = true;
+}
+
+void InferenceWorker::changeModel(int taskType) {
+    bool wasRunning = m_running;
+    m_running = false; // Pause processing
+    
+    // Wait until current processing is done
+    while (m_isProcessing.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    
     m_yolo = std::make_unique<YOLO>();
     
     // Load Classes
@@ -155,18 +168,32 @@ void InferenceWorker::startInference() {
     file.close();
 
     DL_INIT_PARAM params;
-    params.modelPath = "inference/yolov8n-pose.onnx";
-    params.modelType = YOLO_POSE;
+    
+    if (taskType == 1) { // Object Detection
+        params.modelPath = "inference/yolov8n.onnx";
+        params.modelType = YOLO_DETECT;
+    } else if (taskType == 2) { // Pose Estimation
+        params.modelPath = "inference/yolov8n-pose.onnx";
+        params.modelType = YOLO_POSE;
+    } else if (taskType == 3) { // Image Segmentation
+        params.modelPath = "inference/yolov8n-seg.onnx";
+        params.modelType = YOLO_SEG;
+    }
+
     params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
     params.cudaEnable = false; // CPU
-    // Optimization: Cap threads to 4 for YOLOv8n (small model). 
-    // More threads often increase overhead without performance gain for 'nano' models.
+    
     unsigned int threads = std::thread::hardware_concurrency() / 2;
     params.intraOpNumThreads = std::max(1u, std::min(4u, threads)); 
     params.interOpNumThreads = 1;
-    m_yolo->CreateSession(params);
     
-    m_running = true;
+    try {
+        m_yolo->CreateSession(params);
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to create session:" << e.what();
+    }
+    
+    m_running = wasRunning;
 }
 
 void InferenceWorker::stopInference() {
@@ -227,6 +254,7 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     // 2. Wiring
 
     // Main -> Workers
+    connect(this, &VideoController::taskChangedBus, m_inferenceWorker, &InferenceWorker::changeModel, Qt::QueuedConnection);
     connect(this, &VideoController::startWorkers, m_captureWorker, &CaptureWorker::startCapturing, Qt::QueuedConnection);
     connect(this, &VideoController::stopWorkers, m_captureWorker, &CaptureWorker::stopCapturing, Qt::DirectConnection); 
     connect(this, &VideoController::stopWorkers, m_inferenceWorker, &InferenceWorker::stopInference, Qt::DirectConnection); 
@@ -293,6 +321,13 @@ void VideoController::setVideoSink(QVideoSink* sink) {
         emit stopWorkers();
         // m_systemMonitor->stopMonitoring(); // Removed direct call
     }
+}
+
+void VideoController::setCurrentTask(TaskType task) {
+    if (m_currentTask == task) return;
+    m_currentTask = task;
+    emit currentTaskChanged();
+    emit taskChangedBus(static_cast<int>(m_currentTask));
 }
 
 void VideoController::updateFps(double fps) {

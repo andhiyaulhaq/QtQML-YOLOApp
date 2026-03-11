@@ -37,6 +37,16 @@ class VideoController : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
+
+public:
+    enum TaskType {
+        TaskObjectDetection = 1,
+        TaskPoseEstimation = 2,
+        TaskImageSegmentation = 3
+    };
+    Q_ENUM(TaskType)
+
+    Q_PROPERTY(TaskType currentTask READ currentTask WRITE setCurrentTask NOTIFY currentTaskChanged)
     Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
     Q_PROPERTY(double fps READ fps NOTIFY fpsChanged)
     Q_PROPERTY(QString systemStats READ systemStats NOTIFY systemStatsChanged)
@@ -61,8 +71,11 @@ public:
     double inferenceTime() const { return m_inferenceTime; }
     double postProcessTime() const { return m_postProcessTime; }
     double inferenceFps() const { return m_inferenceFps; }
+    TaskType currentTask() const { return m_currentTask; }
 
 signals:
+    void currentTaskChanged();
+    void taskChangedBus(int taskType);
     void videoSinkChanged();
     void fpsChanged();
     void inferenceFpsChanged();
@@ -75,6 +88,7 @@ signals:
     void stopWorkers();
 
 public slots:
+    void setCurrentTask(TaskType task);
     void updateFps(double fps);
     void updateSystemStats(const QString &formattedStats);
     void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing);
@@ -90,6 +104,7 @@ private:
     double m_postProcessTime = 0.0;
     double m_inferenceFps = 0.0;
     std::chrono::time_point<std::chrono::steady_clock> m_lastInferenceTime;
+    TaskType m_currentTask = TaskPoseEstimation;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;
@@ -150,6 +165,7 @@ signals:
 public slots:
     void startInference(); // Initialize model
     void stopInference();
+    void changeModel(int taskType);
     void processFrame(std::shared_ptr<cv::Mat> frame);
     std::atomic<bool>* getProcessingFlag() { return &m_isProcessing; }
 
