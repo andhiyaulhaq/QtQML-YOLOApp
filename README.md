@@ -11,7 +11,7 @@
 
 - **Live Object Detection**: Real-time bounding box visualization with class labels and confidence scores for 80 object classes (COCO dataset).
 - **High-Performance Multi-Threaded Architecture**: Three dedicated background threads (capture, inference, monitoring) ensure a smooth 60 FPS UI that never blocks.
-- **Hardware-Accelerated Rendering**: Bounding boxes are rendered via Qt's Scene Graph (`BoundingBoxItem`) for minimal GPU overhead, with QML-based text labels.
+- **Hardware-Accelerated Rendering**: Bounding boxes are rendered via Qt's Scene Graph (`DetectionOverlayItem`) for minimal GPU overhead, with QML-based text labels.
 - **Inference Timing**: Displays pre-process, inference, and post-process durations (ms precision) alongside camera and inference FPS.
 - **System Monitoring**: Built-in CPU and RAM usage tracking via platform-native APIs (PDH/PSAPI on Windows).
 - **Memory-Optimized Pipeline**: Multi-buffer frame pool, frame-drop logic, and reusable blob buffers minimize allocations in the hot path.
@@ -58,7 +58,7 @@ The project follows a **Multi-Threaded C++/QML Architecture** with three dedicat
 │  ┌──────────────────────────────────────────────┐           │
 │  │  QML UI (Main.qml)                           │           │
 │  │  ├── VideoOutput (raw camera feed)           │           │
-│  │  ├── BoundingBoxItem (Scene Graph overlay)   │           │
+│  │  ├── DetectionOverlayItem (Scene Graph overlay)   │           │
 │  │  │   └── Repeater (text labels per box)      │           │
 │  │  └── Performance Overlay (FPS, timing, CPU)  │           │
 │  └────────────────┬─────────────────────────────┘           │
@@ -88,7 +88,7 @@ The project follows a **Multi-Threaded C++/QML Architecture** with three dedicat
   └────────────────────────────────────────────────────────┘
 ```
 
--   **Frontend (QML)**: Renders the camera feed via `VideoOutput`, overlays bounding boxes using a custom Scene Graph item (`BoundingBoxItem`), and displays labels via a QML `Repeater`.
+-   **Frontend (QML)**: Renders the camera feed via `VideoOutput`, overlays bounding boxes using a custom Scene Graph item (`DetectionOverlayItem`), and displays labels via a QML `Repeater`.
 -   **Backend (C++)**:
     -   `VideoController`: Orchestrates thread lifecycle, bridges QML ↔ C++ via properties/signals, and owns the `DetectionListModel`.
     -   `CaptureWorker`: Runs the camera capture loop with a 3-frame ring buffer, pushes raw frames to `QVideoSink` and emits them to the inference pipeline.

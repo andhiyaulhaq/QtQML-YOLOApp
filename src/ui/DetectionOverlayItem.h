@@ -1,5 +1,5 @@
-#ifndef BOUNDINGBOXITEM_H
-#define BOUNDINGBOXITEM_H
+#ifndef DETECTIONOVERLAYITEM_H
+#define DETECTIONOVERLAYITEM_H
 
 #include <QQuickItem>
 #include <QSGNode>
@@ -9,14 +9,14 @@
 #include "VideoController.h"
 #include "DetectionListModel.h"
 
-class BoundingBoxItem : public QQuickItem
+class DetectionOverlayItem : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(QObject* detections READ detections WRITE setDetections NOTIFY detectionsChanged)
     QML_ELEMENT
 
 public:
-    BoundingBoxItem(QQuickItem *parent = nullptr);
+    DetectionOverlayItem(QQuickItem *parent = nullptr);
 
     QObject* detections() const;
     void setDetections(QObject *detections);
@@ -33,4 +33,4 @@ private:
     DetectionListModel* m_model = nullptr;
 };
 
-#endif // BOUNDINGBOXITEM_H
+#endif // DETECTIONOVERLAYITEM_H

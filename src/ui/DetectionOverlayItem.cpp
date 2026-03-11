@@ -1,23 +1,23 @@
-#include "BoundingBoxItem.h"
+#include "DetectionOverlayItem.h"
 #include <QFont>
 #include <QFontMetrics>
 #include <QSGVertexColorMaterial> // Added missing header
 #include <QSGGeometryNode>
 #include <QSGGeometry>
 
-BoundingBoxItem::BoundingBoxItem(QQuickItem *parent)
+DetectionOverlayItem::DetectionOverlayItem(QQuickItem *parent)
     : QQuickItem(parent)
 {
     // Important: We need this flag to participate in the scenegraph update loop
     setFlag(ItemHasContents, true);
 }
 
-QObject* BoundingBoxItem::detections() const
+QObject* DetectionOverlayItem::detections() const
 {
     return m_model;
 }
 
-void BoundingBoxItem::setDetections(QObject *detections)
+void DetectionOverlayItem::setDetections(QObject *detections)
 {
     DetectionListModel* newModel = qobject_cast<DetectionListModel*>(detections);
     // qDebug() << "BoundingBoxItem::setDetections called with ptr:" << detections << " casted:" << newModel;
@@ -28,25 +28,25 @@ void BoundingBoxItem::setDetections(QObject *detections)
         }
         m_model = newModel;
         if (m_model) {
-            connect(m_model, &QAbstractListModel::modelReset, this, &BoundingBoxItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::layoutChanged, this, &BoundingBoxItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::rowsInserted, this, &BoundingBoxItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::rowsRemoved, this, &BoundingBoxItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::dataChanged, this, &BoundingBoxItem::onModelUpdated);
-            // qDebug() << "BoundingBoxItem: Model connected";
+            connect(m_model, &QAbstractListModel::modelReset, this, &DetectionOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::layoutChanged, this, &DetectionOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::rowsInserted, this, &DetectionOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::rowsRemoved, this, &DetectionOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::dataChanged, this, &DetectionOverlayItem::onModelUpdated);
+            // qDebug() << "DetectionOverlayItem: Model connected";
         }
         emit detectionsChanged();
         update(); // Schedule a scene graph update
     }
 }
 
-void BoundingBoxItem::onModelUpdated()
+void DetectionOverlayItem::onModelUpdated()
 {
     // qDebug() << "BoundingBoxItem::onModelUpdated triggered"; // Noisy if frequent
     update();
 }
 
-QSGNode *BoundingBoxItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
+QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     QSGGeometryNode *node = static_cast<QSGGeometryNode *>(oldNode);
     

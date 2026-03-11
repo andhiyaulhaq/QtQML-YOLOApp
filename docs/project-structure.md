@@ -17,7 +17,7 @@ graph TD
   F --> I["YOLO_V8 (ONNX Runtime)"]
   F -->|detectionsReady signal| D
   D --> J["DetectionListModel"]
-  J --> K["BoundingBoxItem (Scene Graph)"]
+  J --> K["DetectionOverlayItem (Scene Graph)"]
   G -->|resourceUsageUpdated signal| D
 ```
 
@@ -41,7 +41,7 @@ root/
 │   └── classes.txt         # COCO class labels (80 classes)
 ├── src/                    # C++ Source Code
 │   ├── VideoController.h/cpp   # Controller + CaptureWorker + InferenceWorker
-│   ├── BoundingBoxItem.h/cpp   # Scene Graph overlay for bounding boxes
+│   ├── DetectionOverlayItem.h/cpp   # Scene Graph overlay for bounding boxes
 │   ├── DetectionListModel.h/cpp# QAbstractListModel for detection data
 │   ├── DetectionStruct.h       # Detection Q_GADGET struct
 │   ├── SystemMonitor.h/cpp     # CPU/RAM monitoring (platform-native)
@@ -58,13 +58,13 @@ root/
     - **`CaptureWorker`**: Runs on a dedicated thread. Opens the camera via `cv::VideoCapture`, pushes raw frames to `QVideoSink` for display, and emits frames to the inference pipeline. Uses a 3-frame ring buffer to avoid cloning.
     - **`InferenceWorker`**: Runs on a dedicated high-priority thread. Loads the YOLOv8 ONNX model, processes incoming frames with frame-drop logic (if inference is slower than capture), and emits detection results + timing metrics.
     - **`YOLO_V8` (inference)**: Wraps the ONNX Runtime C++ API. Handles session creation/pooling, letterbox preprocessing, blob generation, inference execution, and NMS postprocessing. Includes reusable memory buffers for the blob to minimize allocations.
-    - **`BoundingBoxItem`**: A custom `QQuickItem` that renders bounding box rectangles directly via Qt's Scene Graph for hardware-accelerated performance. Works alongside a QML `Repeater` for text labels.
+    - **`DetectionOverlayItem`**: A custom `QQuickItem` that renders bounding box rectangles directly via Qt's Scene Graph for hardware-accelerated performance. Works alongside a QML `Repeater` for text labels.
     - **`DetectionListModel`**: A `QAbstractListModel` that bridges detection data from C++ to QML. Stores normalized detection coordinates, class IDs, labels, and confidence scores.
     - **`DetectionStruct`**: A `Q_GADGET` struct defining the per-detection data (classId, confidence, label, x, y, w, h) for efficient C++ ↔ QML data passing.
     - **`SystemMonitor`**: Platform-native CPU and RAM monitoring. Uses PDH/PSAPI on Windows, `/proc` on Linux, and `sysctl`/`mach` on macOS. Runs on a low-priority background thread.
 
 - **`content/`**: Contains the QML files for the user interface.
-    - **`Main.qml`**: Defines the visual layout including `VideoOutput` for the camera feed, a `BoundingBoxItem` overlay with nested `Repeater` for labels, a performance HUD (camera FPS, inference FPS, timing, system stats), and a close button.
+    - **`Main.qml`**: Defines the visual layout including `VideoOutput` for the camera feed, a `DetectionOverlayItem` overlay with nested `Repeater` for labels, a performance HUD (camera FPS, inference FPS, timing, system stats), and a close button.
 
 - **`inference/`**: Stores the runtime assets needed for AI detection.
     - **`yolov8n.onnx`**: The pre-trained YOLOv8 Nano neural network model.

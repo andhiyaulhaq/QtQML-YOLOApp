@@ -68,7 +68,7 @@ classDiagram
         -vector~Detection~ m_detections
     }
 
-    class BoundingBoxItem {
+    class DetectionOverlayItem {
         +QObject* detections
         +setDetections(QObject*)
         +updatePaintNode(QSGNode*, UpdatePaintNodeData*)
@@ -85,14 +85,14 @@ classDiagram
 
     class MainQML {
         +VideoOutput
-        +BoundingBoxItem
+        +DetectionOverlayItem
         +Repeater (labels)
         +Performance HUD
         +Close Button
     }
 
     MainQML --> VideoController : owns (QML_ELEMENT)
-    MainQML --> BoundingBoxItem : owns (QML_ELEMENT)
+    MainQML --> DetectionOverlayItem : owns (QML_ELEMENT)
     VideoController --> CaptureWorker : manages (captureThread)
     VideoController --> InferenceWorker : manages (inferenceThread)
     VideoController --> SystemMonitor : manages (systemThread)
@@ -101,7 +101,7 @@ classDiagram
     InferenceWorker --> YOLO_V8 : uses
     InferenceWorker ..> VideoController : detectionsReady signal
     VideoController ..> DetectionListModel : updateDetections()
-    BoundingBoxItem --> DetectionListModel : reads
+    DetectionOverlayItem --> DetectionListModel : reads
 ```
 
 ## Threading Model
@@ -112,7 +112,7 @@ To ensure a responsive UI (60 FPS target), all blocking operations are offloaded
 - Handles QML rendering (Scene Graph updates).
 - Processes user input (clicks, key presses).
 - Receives signals from worker threads to update UI state.
-- Owns `VideoController`, `DetectionListModel`, and `BoundingBoxItem`.
+- Owns `VideoController`, `DetectionListModel`, and `DetectionOverlayItem`.
 - **Constraint**: Must never block for >16ms.
 
 ### Thread 2: Capture Thread (`CaptureWorker`, Normal Priority)
@@ -205,11 +205,11 @@ sequenceDiagram
     - `InferenceTiming` struct returning per-phase millisecond timings.
     - Non-Maximum Suppression (NMS) postprocessing.
 
-### 5. BoundingBoxItem (`src/BoundingBoxItem.h/cpp`)
+### 5. DetectionOverlayItem (`src/DetectionOverlayItem.h/cpp`)
 - **Type**: `QQuickItem` + `QML_ELEMENT`.
 - **Responsibility**: Renders bounding box rectangles at the Scene Graph level for hardware-accelerated performance.
 - **Rendering**: Uses `QSGGeometry` with `DrawLines` mode and `QSGVertexColorMaterial` for per-class color-coded boxes.
-- **Label Rendering**: Handled by a QML `Repeater` nested inside the `BoundingBoxItem` in `Main.qml`, providing easy text rendering without Scene Graph complexity.
+- **Label Rendering**: Handled by a QML `Repeater` nested inside the `DetectionOverlayItem` in `Main.qml`, providing easy text rendering without Scene Graph complexity.
 
 ### 6. DetectionListModel (`src/DetectionListModel.h/cpp`)
 - **Type**: `QAbstractListModel` + `QML_ELEMENT`.
@@ -243,7 +243,7 @@ sequenceDiagram
    - Timing captured for pre-process, inference, and post-process phases.
 4. **Display** (Main Thread):
    - `DetectionListModel` updated with normalized coordinates + labels.
-   - `BoundingBoxItem` re-renders bounding box geometry via Scene Graph.
+   - `DetectionOverlayItem` re-renders bounding box geometry via Scene Graph.
    - QML `Repeater` re-creates label overlays.
    - Performance HUD updated (camera FPS, inference FPS, timing, CPU/RAM).
 5. **Output**: Live annotated video feed with real-time performance metrics.

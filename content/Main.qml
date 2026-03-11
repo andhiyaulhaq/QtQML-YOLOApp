@@ -51,8 +51,8 @@ Window {
                     fillMode: VideoOutput.PreserveAspectFit
                 }
 
-                // Bounding Box Overlay
-                BoundingBoxItem {
+                // Detection Overlay
+                DetectionOverlayItem {
                     id: bboxItem
                     anchors.fill: parent
                     detections: controller.detections

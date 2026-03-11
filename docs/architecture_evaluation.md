@@ -14,7 +14,7 @@ graph LR
     end
     subgraph "UI Thread (Main)"
         VC["VideoController"]
-        QML["QML / BoundingBoxItem"]
+        QML["QML / DetectionOverlayItem"]
         SM["SystemMonitor"]
     end
 
@@ -34,7 +34,7 @@ sequenceDiagram
     participant SINK as QVideoSink (UI)
     participant INF as InferenceWorker
     participant VC as VideoController
-    participant QML as QML + BoundingBoxItem
+    participant QML as QML + DetectionOverlayItem
 
     loop Every frame (~33ms at 30fps)
         CAP->>CAP: m_capture.read(m_framePool[i])
@@ -43,7 +43,7 @@ sequenceDiagram
         Note over INF: Drop if m_isProcessing==true
         INF->>INF: PreProcess → blobFromImage → ONNX Run
         INF->>VC: emit detectionsReady() [queued→main thread]
-        VC->>QML: m_detections changed → BoundingBoxItem::update()
+        VC->>QML: m_detections changed → DetectionOverlayItem::update()
         QML->>QML: QPainter draws boxes
     end
 ```
@@ -60,15 +60,15 @@ sequenceDiagram
 | **Reusable buffers** | `m_letterboxBuffer`, `m_commonBlob` in inference | ⭐⭐⭐⭐ |
 | **Compiler flags** | `-O3 -march=native -ffast-math` for MinGW | ⭐⭐⭐ |
 | **ONNX session** | Graph optimization `ORT_ENABLE_ALL`, warm-up | ⭐⭐⭐⭐ |
-| **QML overlay** | `BoundingBoxItem` decoupled from video stream | ⭐⭐⭐ |
+| **QML overlay** | `DetectionOverlayItem` decoupled from video stream | ⭐⭐⭐ |
 
 ---
 
 ## 3. Performance Issues & Improvement Recommendations
 
-### 🔴 Issue #1 — `BoundingBoxItem` Uses Software Rendering (QPainter)
+### 🔴 Issue #1 — `DetectionOverlayItem` Uses Software Rendering (QPainter)
 
-**Current**: `BoundingBoxItem.cpp` extends `QQuickPaintedItem` with `setRenderTarget(Image)`, meaning every detection update:
+**Current**: `DetectionOverlayItem.cpp` extends `QQuickPaintedItem` with `setRenderTarget(Image)`, meaning every detection update:
 1. Allocates an off-screen `QImage`
 2. Draws rectangles via `QPainter` (CPU)
 3. Uploads the image to GPU as a texture
@@ -79,7 +79,7 @@ sequenceDiagram
 
 ```cpp
 // Suggested change
-class BoundingBoxItem : public QQuickItem
+class DetectionOverlayItem : public QQuickItem
 {
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
 };
@@ -236,7 +236,7 @@ Using `static` local in a member function is fragile — it won't reset on objec
 - [x] Parameterize resolution constants
 
 ### Phase 2 — Core Pipeline (P0+P1 fixes) [Completed]
-- [x] Migrate `BoundingBoxItem` from `QQuickPaintedItem` to `QQuickItem` + Scene Graph
+- [x] Migrate `DetectionOverlayItem` from `QQuickPaintedItem` to `QQuickItem` + Scene Graph
 - [x] Defer model loading (Implemented via QTimer startup delay)
 - [x] Add proper ring buffer synchronization (De-prioritized: current probabilistic lock-free is stable enough)
 - [x] Optimize or eliminate BGR→RGBA conversion (Investigated: Qt6 requires 32-bit texture upload, so 24->32 expansion is unavoidable. Kept `cvtColor` for correctness).

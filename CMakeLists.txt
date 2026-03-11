@@ -25,8 +25,8 @@ qt_add_executable(appCamera
     main.cpp
     src/core/VideoController.cpp
     src/core/VideoController.h
-    src/ui/BoundingBoxItem.cpp
-    src/ui/BoundingBoxItem.h
+    src/ui/DetectionOverlayItem.cpp
+    src/ui/DetectionOverlayItem.h
     src/pipeline/inference.cpp
     src/pipeline/preprocess.cpp
     src/pipeline/postprocess.cpp

@@ -24,7 +24,7 @@
 | **Inference** | `InferenceWorker` | High | YOLO model loading, inference execution, frame-drop logic |
 | **Monitor** | `SystemMonitor` | Low | CPU/RAM polling via platform-native APIs |
 
-- **Rendering**: Hybrid approach — `BoundingBoxItem` (C++ Scene Graph) for box geometry + QML `Repeater` for text labels.
+- **Rendering**: Hybrid approach — `DetectionOverlayItem` (C++ Scene Graph) for box geometry + QML `Repeater` for text labels.
 - **Memory Management**: RAII for C++ resources, parent-child ownership for Qt objects, multi-buffer frame pool to minimize allocations.
 - **Data Bridge**: `DetectionListModel` (`QAbstractListModel`) + `Detection` (`Q_GADGET`) struct for efficient C++ → QML data binding.
 

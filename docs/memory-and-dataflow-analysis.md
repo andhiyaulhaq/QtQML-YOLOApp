@@ -20,7 +20,7 @@ graph LR
     subgraph "UI Thread"
         VC[VideoController]
         DM[DetectionListModel]
-        BB[BoundingBoxItem]
+        BB[DetectionOverlayItem]
     end
     subgraph "Monitor Thread"
         SM[SystemMonitor]
@@ -261,7 +261,7 @@ endResetModel();
 
 - Each reset triggers **QObject allocation + property binding** for every delegate
 - Scene graph nodes are destroyed and rebuilt
-- The `BoundingBoxItem` also gets its `onModelUpdated()` triggered, causing geometry reallocation
+- The `DetectionOverlayItem` also gets its `onModelUpdated()` triggered, causing geometry reallocation
 
 ### Improvement
 
@@ -308,11 +308,11 @@ Use **in-place updates** when the detection count stays stable:
 
 ---
 
-## Issue 6: Scene Graph Node Thrashing in `BoundingBoxItem`
+## Issue 6: Scene Graph Node Thrashing in `DetectionOverlayItem`
 
 | Severity | Impact | Files |
 |:--------:|--------|-------|
-| 🟡 Medium | `new`/`delete` of `QSGGeometryNode` every time detections go 0→N or N→0 | [BoundingBoxItem.cpp](file:///d:/najib/2_archived-projects/desktop/qt-qml/YOLOApp/src/BoundingBoxItem.cpp#L48-L66) |
+| 🟡 Medium | `new`/`delete` of `QSGGeometryNode` every time detections go 0→N or N→0 | [DetectionOverlayItem.cpp](file:///d:/najib/2_archived-projects/desktop/qt-qml/YOLOApp/src/DetectionOverlayItem.cpp#L48-L66) |
 
 ### Problem
 
