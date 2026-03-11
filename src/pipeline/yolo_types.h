@@ -17,7 +17,11 @@ enum MODEL_TYPE {
   // FLOAT16 MODEL
   YOLO_DETECT_V8_HALF = 4,
   YOLO_POSE_V8_HALF = 5,
-  YOLO_CLS_HALF = 6
+  YOLO_CLS_HALF = 6,
+
+  // SEGMENTATION MODEL
+  YOLO_SEG = 7,
+  YOLO_SEG_HALF = 8
 };
 
 typedef struct _DL_INIT_PARAM {
@@ -39,4 +43,5 @@ typedef struct _DL_RESULT {
   float confidence;
   cv::Rect box;
   std::vector<cv::Point2f> keyPoints;
+  cv::Mat boxMask;
 } DL_RESULT;

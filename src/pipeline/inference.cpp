@@ -49,7 +49,27 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     cudaEnable = iParams.cudaEnable;
 
     m_preProcessor = std::make_unique<ImagePreProcessor>(modelType, imgSize);
-    m_postProcessor = std::make_unique<YoloPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+    
+    switch (modelType) {
+        case YOLO_DETECT_V8:
+        case YOLO_DETECT_V8_HALF:
+            m_postProcessor = std::make_unique<DetectionPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+            break;
+        case YOLO_POSE:
+        case YOLO_POSE_V8_HALF:
+            m_postProcessor = std::make_unique<PosePostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+            break;
+        case YOLO_SEG:
+        case YOLO_SEG_HALF:
+            m_postProcessor = std::make_unique<SegmentationPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+            break;
+        case YOLO_CLS:
+        case YOLO_CLS_HALF:
+            m_postProcessor = std::make_unique<ClassificationPostProcessor>(modelType);
+            break;
+        default:
+            throw std::runtime_error("Unsupported model type.");
+    }
     env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "Yolo");
     Ort::SessionOptions sessionOption;
     if (iParams.cudaEnable) {
@@ -260,8 +280,17 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
   std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
   void* rawOutput = outputTensor.front().GetTensorMutableData<void>();
 
-  m_postProcessor->PostProcess(rawOutput, outputNodeDims, oResult, m_preProcessor->getResizeScales(), classes);
+  void* secondaryOutput = nullptr;
+  std::vector<int64_t> secondaryDims;
 
+  if (outputTensor.size() > 1) {
+      Ort::TypeInfo secondaryTypeInfo = outputTensor[1].GetTypeInfo();
+      auto secondary_tensor_info = secondaryTypeInfo.GetTensorTypeAndShapeInfo();
+      secondaryDims = secondary_tensor_info.GetShape();
+      secondaryOutput = outputTensor[1].GetTensorMutableData<void>();
+  }
+
+  m_postProcessor->PostProcess(rawOutput, outputNodeDims, oResult, m_preProcessor->getResizeScales(), classes, secondaryOutput, secondaryDims);
   auto end_post = std::chrono::high_resolution_clock::now();
   timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
 

@@ -19,7 +19,7 @@
 #endif
 
 class ImagePreProcessor;
-class YoloPostProcessor;
+class IPostProcessor;
 
 class YOLO_V8 {
 public:
@@ -75,5 +75,5 @@ private:
   cv::Mat m_letterboxBuffer;
 
   std::unique_ptr<ImagePreProcessor> m_preProcessor;
-  std::unique_ptr<YoloPostProcessor> m_postProcessor;
+  std::unique_ptr<IPostProcessor> m_postProcessor;
 };
