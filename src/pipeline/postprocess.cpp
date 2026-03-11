@@ -25,15 +25,7 @@ void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t
     int strideNum = outputNodeDims[2];       // 8400
     int numClasses = signalResultNum - 4;    // 80
 
-    float* data;
-    cv::Mat rawData; 
-    if (modelType == YOLO_DETECT_V8) {
-        data = static_cast<float*>(output);  
-    } else {
-        rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
-        rawData.convertTo(rawData, CV_32F);  
-        data = reinterpret_cast<float*>(rawData.data);
-    }
+    float* data = static_cast<float*>(output);
 
     float* row0 = data + 4 * strideNum;
     memcpy(m_bestScores.data(), row0, strideNum * sizeof(float));
@@ -162,15 +154,7 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
     int signalResultNum = outputNodeDims[1]; 
     int strideNum = outputNodeDims[2];       
 
-    float* data;
-    cv::Mat rawData; 
-    if (modelType == YOLO_POSE) {
-        data = static_cast<float*>(output);  
-    } else {
-        rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
-        rawData.convertTo(rawData, CV_32F);  
-        data = reinterpret_cast<float*>(rawData.data);
-    }
+    float* data = static_cast<float*>(output);
 
     // Usually Pose is 56 (4 box + 1 conf + 17*3 keypoints). Adjust based on exact tensor size!
     int numClasses = 1;
@@ -290,7 +274,7 @@ void SegmentationPostProcessor::initBuffers(size_t strideNum) {
 
 void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     if (!secondaryOutput) {
-        std::cout << "[YOLO_V8]: Segmentation requires secondary output tensor!" << std::endl;
+        std::cout << "[YOLO]: Segmentation requires secondary output tensor!" << std::endl;
         return;
     }
 
@@ -298,15 +282,7 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
     int strideNum = outputNodeDims[2];       // 8400
     int numClasses = signalResultNum - 4 - 32; // 80
 
-    float* data;
-    cv::Mat rawData; 
-    if (modelType == YOLO_SEG) {
-        data = static_cast<float*>(output);  
-    } else {
-        rawData = cv::Mat(signalResultNum, strideNum, CV_16F, output);
-        rawData.convertTo(rawData, CV_32F);  
-        data = reinterpret_cast<float*>(rawData.data);
-    }
+    float* data = static_cast<float*>(output);
 
     float* row0 = data + 4 * strideNum;
     memcpy(m_bestScores.data(), row0, strideNum * sizeof(float));
@@ -372,15 +348,7 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
         int maskH = secondaryDims[2];        // 160
         int maskW = secondaryDims[3];        // 160
 
-        float* protoData;
-        cv::Mat rawProtoData;
-        if (modelType == YOLO_SEG) {
-            protoData = static_cast<float*>(secondaryOutput);
-        } else {
-            rawProtoData = cv::Mat(maskChannels, maskH * maskW, CV_16F, secondaryOutput);
-            rawProtoData.convertTo(rawProtoData, CV_32F);
-            protoData = reinterpret_cast<float*>(rawProtoData.data);
-        }
+        float* protoData = static_cast<float*>(secondaryOutput);
 
         // Reshape to [32, 25600]
         cv::Mat protoMat(maskChannels, maskH * maskW, CV_32F, protoData);

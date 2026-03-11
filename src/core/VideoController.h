@@ -77,7 +77,7 @@ signals:
 public slots:
     void updateFps(double fps);
     void updateSystemStats(const QString &formattedStats);
-    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO_V8::InferenceTiming& timing);
+    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing);
 
 private:
     QVideoSink* m_sink = nullptr;
@@ -144,7 +144,7 @@ public:
     ~InferenceWorker();
 
 signals:
-    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO_V8::InferenceTiming& timing);
+    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing);
     void latestDetectionsReady(std::shared_ptr<std::vector<DL_RESULT>> results);
 
 public slots:
@@ -155,7 +155,7 @@ public slots:
 
 private:
     std::atomic<bool> m_running{false};
-    std::unique_ptr<YOLO_V8> m_yolo;
+    std::unique_ptr<YOLO> m_yolo;
     
     // Drop frames if inference is too slow
     std::atomic<bool> m_isProcessing{false};

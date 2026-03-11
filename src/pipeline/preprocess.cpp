@@ -14,12 +14,9 @@ char *ImagePreProcessor::PreProcess(const cv::Mat &iImg, cv::Mat &oImg) {
   oImg.setTo(cv::Scalar(0, 0, 0));
 
   switch (modelType) {
-  case YOLO_DETECT_V8:
+  case YOLO_DETECT:
   case YOLO_POSE:
-  case YOLO_DETECT_V8_HALF:
-  case YOLO_POSE_V8_HALF:
   case YOLO_SEG:
-  case YOLO_SEG_HALF:
   {
     float r = std::min(target_w / (float)iImg.cols, target_h / (float)iImg.rows);
     int resized_w = static_cast<int>(iImg.cols * r);

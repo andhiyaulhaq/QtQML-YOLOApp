@@ -9,22 +9,14 @@
 #include <opencv2/opencv.hpp>
 
 enum MODEL_TYPE {
-  // FLOAT32 MODEL
-  YOLO_DETECT_V8 = 1,
+  YOLO_DETECT = 1,
   YOLO_POSE = 2,
-
-  // FLOAT16 MODEL
-  YOLO_DETECT_V8_HALF = 4,
-  YOLO_POSE_V8_HALF = 5,
-
-  // SEGMENTATION MODEL
-  YOLO_SEG = 7,
-  YOLO_SEG_HALF = 8
+  YOLO_SEG = 3
 };
 
 typedef struct _DL_INIT_PARAM {
   std::string modelPath;
-  MODEL_TYPE modelType = YOLO_DETECT_V8;
+  MODEL_TYPE modelType = YOLO_DETECT;
   std::vector<int> imgSize = {640, 640};
   float rectConfidenceThreshold = 0.4;
   float iouThreshold = 0.5;

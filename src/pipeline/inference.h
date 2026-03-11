@@ -14,18 +14,16 @@
 #include "onnxruntime_cxx_api.h"
 #include <atomic>
 
-#ifdef USE_CUDA
-#include <cuda_fp16.h>
-#endif
+
 
 class ImagePreProcessor;
 class IPostProcessor;
 
-class YOLO_V8 {
+class YOLO {
 public:
-  YOLO_V8();
+  YOLO();
 
-  ~YOLO_V8();
+  ~YOLO();
 
 public:
   const char *CreateSession(DL_INIT_PARAM &iParams);
@@ -71,7 +69,6 @@ private:
   
   // Optimization: Reusable memory for blob to avoid reallocations
   cv::Mat m_commonBlob; 
-  cv::Mat m_commonBlobHalf;
   cv::Mat m_letterboxBuffer;
 
   std::unique_ptr<ImagePreProcessor> m_preProcessor;

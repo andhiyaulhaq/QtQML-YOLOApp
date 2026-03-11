@@ -150,7 +150,7 @@ InferenceWorker::~InferenceWorker() {
 }
 
 void InferenceWorker::startInference() {
-    m_yolo = std::make_unique<YOLO_V8>();
+    m_yolo = std::make_unique<YOLO>();
     
     // Load Classes
     std::ifstream file("inference/classes.txt");
@@ -162,7 +162,7 @@ void InferenceWorker::startInference() {
 
     DL_INIT_PARAM params;
     params.modelPath = "inference/yolov8n.onnx";
-    params.modelType = YOLO_DETECT_V8;
+    params.modelType = YOLO_DETECT;
     params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
     params.cudaEnable = false; // CPU
     // Optimization: Cap threads to 4 for YOLOv8n (small model). 
@@ -190,7 +190,7 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
 
     // Run Inference
     std::vector<DL_RESULT> results;
-    YOLO_V8::InferenceTiming timing;
+    YOLO::InferenceTiming timing;
     // We can use the input const reference directly if RunSession accepts it.
     // If not, we might need a const_cast or better, fix RunSession to take const cv::Mat&
     // For now, let's assume we will fix RunSession.
@@ -315,7 +315,7 @@ void VideoController::updateSystemStats(const QString &formattedStats) {
     }
 }
 
-void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO_V8::InferenceTiming& timing) {
+void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing) {
     // Update the model directly
     if (m_detections && classNames) {
         m_detections->updateDetections(results, *classNames);
