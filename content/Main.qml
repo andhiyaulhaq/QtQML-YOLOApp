@@ -44,7 +44,7 @@ Window {
             ComboBox {
                 id: taskComboBox
                 model: ["Object Detection", "Pose Estimation", "Image Segmentation"]
-                currentIndex: 1 // Default is Pose Estimation
+                currentIndex: 0 // Default is Object Detection
                 
                 onActivated: {
                     if (currentIndex === 0) controller.currentTask = VideoController.TaskObjectDetection

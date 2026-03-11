@@ -144,7 +144,7 @@ InferenceWorker::~InferenceWorker() {
 }
 
 void InferenceWorker::startInference() {
-    changeModel(2); // Start with Pose Estimation by default
+    changeModel(1); // Start with Object Detection by default
     m_running = true;
 }
 

@@ -104,7 +104,7 @@ private:
     double m_postProcessTime = 0.0;
     double m_inferenceFps = 0.0;
     std::chrono::time_point<std::chrono::steady_clock> m_lastInferenceTime;
-    TaskType m_currentTask = TaskPoseEstimation;
+    TaskType m_currentTask = TaskObjectDetection;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;
