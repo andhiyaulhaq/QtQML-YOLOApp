@@ -1,9 +1,11 @@
-#include "inference.h"
+#include "preprocess.h"
 
-char *YOLO_V8::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize,
-                          cv::Mat &oImg) {
-  int target_h = iImgSize.at(0);
-  int target_w = iImgSize.at(1);
+ImagePreProcessor::ImagePreProcessor(MODEL_TYPE modelType, const std::vector<int>& imgSize)
+    : modelType(modelType), imgSize(imgSize), resizeScales(1.0f) {}
+
+char *ImagePreProcessor::PreProcess(const cv::Mat &iImg, cv::Mat &oImg) {
+  int target_h = imgSize.at(0);
+  int target_w = imgSize.at(1);
   
   if (oImg.size() != cv::Size(target_w, target_h) || oImg.type() != CV_8UC3) {
       oImg.create(target_h, target_w, CV_8UC3);
@@ -44,7 +46,7 @@ char *YOLO_V8::PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize,
   return RET_OK;
 }
 
-void YOLO_V8::PreProcessImageToBlob(const cv::Mat& iImg, float* blob_data) {
+void ImagePreProcessor::PreProcessImageToBlob(const cv::Mat& iImg, float* blob_data) {
     int channels = 3;
     int height = imgSize.at(0);
     int width = imgSize.at(1);

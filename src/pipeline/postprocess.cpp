@@ -1,9 +1,22 @@
-#include "inference.h"
+#include "postprocess.h"
 #include <numeric>
 #include <algorithm>
 #include <iostream>
 
-void YOLO_V8::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult) {
+YoloPostProcessor::YoloPostProcessor(MODEL_TYPE modelType, float rectConfidenceThreshold, float iouThreshold)
+    : modelType(modelType), rectConfidenceThreshold(rectConfidenceThreshold), iouThreshold(iouThreshold) {}
+
+void YoloPostProcessor::initBuffers(size_t strideNum) {
+    m_bestScores.resize(strideNum);
+    m_bestClassIds.resize(strideNum);
+    m_classIds.reserve(256);
+    m_confidences.reserve(256);
+    m_boxes.reserve(256);
+    m_nmsIndices.reserve(64);
+    m_sortIndices.reserve(256);
+}
+
+void YoloPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, float resizeScales, const std::vector<std::string>& classes) {
   switch (modelType) {
   case YOLO_DETECT_V8:
   case YOLO_DETECT_V8_HALF: {
@@ -82,15 +95,15 @@ void YOLO_V8::PostProcess(void* output, const std::vector<int64_t>& outputNodeDi
   case YOLO_CLS_HALF: {
     cv::Mat rawData;
     if (modelType == YOLO_CLS) {
-      rawData = cv::Mat(1, this->classes.size(), CV_32F, output);
+      rawData = cv::Mat(1, classes.size(), CV_32F, output);
     } else {
-      rawData = cv::Mat(1, this->classes.size(), CV_16F, output);
+      rawData = cv::Mat(1, classes.size(), CV_16F, output);
       rawData.convertTo(rawData, CV_32F);
     }
     float *data = (float *)rawData.data;
 
     DL_RESULT result;
-    for (int i = 0; i < this->classes.size(); i++) {
+    for (int i = 0; i < classes.size(); i++) {
       result.classId = i;
       result.confidence = data[i];
       oResult.push_back(result);
@@ -102,7 +115,7 @@ void YOLO_V8::PostProcess(void* output, const std::vector<int64_t>& outputNodeDi
   }
 }
 
-void YOLO_V8::greedyNMS(float iouThresh) {
+void YoloPostProcessor::greedyNMS(float iouThresh) {
     int n = static_cast<int>(m_confidences.size());
     if (n == 0) return;
     

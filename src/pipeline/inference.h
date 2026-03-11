@@ -2,7 +2,8 @@
 
 #pragma once
 
-#define RET_OK nullptr
+#include "yolo_types.h"
+#include <memory>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -12,47 +13,13 @@
 
 #include "onnxruntime_cxx_api.h"
 #include <atomic>
-#include <opencv2/opencv.hpp>
-#include <string>
-#include <thread>
-#include <vector>
 
 #ifdef USE_CUDA
 #include <cuda_fp16.h>
 #endif
 
-enum MODEL_TYPE {
-  // FLOAT32 MODEL
-  YOLO_DETECT_V8 = 1,
-  YOLO_POSE = 2,
-  YOLO_CLS = 3,
-
-  // FLOAT16 MODEL
-  YOLO_DETECT_V8_HALF = 4,
-  YOLO_POSE_V8_HALF = 5,
-  YOLO_CLS_HALF = 6
-};
-
-typedef struct _DL_INIT_PARAM {
-  std::string modelPath;
-  MODEL_TYPE modelType = YOLO_DETECT_V8;
-  std::vector<int> imgSize = {640, 640};
-  float rectConfidenceThreshold = 0.4;
-  float iouThreshold = 0.5;
-  int keyPointsNum = 2; // Note:kpt number for pose
-  bool cudaEnable = false;
-  int logSeverityLevel = 3;
-  int intraOpNumThreads = std::max(1u, std::thread::hardware_concurrency() / 2);
-  int interOpNumThreads = 1;
-  int sessionPoolSize = 1;
-} DL_INIT_PARAM;
-
-typedef struct _DL_RESULT {
-  int classId;
-  float confidence;
-  cv::Rect box;
-  std::vector<cv::Point2f> keyPoints;
-} DL_RESULT;
+class ImagePreProcessor;
+class YoloPostProcessor;
 
 class YOLO_V8 {
 public:
@@ -78,8 +45,7 @@ public:
                       std::vector<int64_t> &inputNodeDims,
                       std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
 
-  char *PreProcess(const cv::Mat &iImg, std::vector<int> iImgSize, cv::Mat &oImg);
-  void PreProcessImageToBlob(const cv::Mat &iImg, float* blob_data);
+
 
   const std::vector<std::string>& getClassNames() const { return classes; }
 
@@ -101,9 +67,6 @@ private:
 
   MODEL_TYPE modelType;
   std::vector<int> imgSize;
-  float rectConfidenceThreshold;
-  float iouThreshold;
-  float resizeScales; // letterbox scale
   std::atomic<size_t> m_sessionIndex{0};
   
   // Optimization: Reusable memory for blob to avoid reallocations
@@ -111,19 +74,6 @@ private:
   cv::Mat m_commonBlobHalf;
   cv::Mat m_letterboxBuffer;
 
-  void greedyNMS(float iouThreshold);
-  void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult);
-
-  // ── Two-Pass Postprocessing Buffers ──
-  // Pass 1: Row-major sweep outputs
-  std::vector<float> m_bestScores;
-  std::vector<int>   m_bestClassIds;
-  // Pass 2: Filtered candidates
-  std::vector<int>      m_classIds;
-  std::vector<float>    m_confidences;
-  std::vector<cv::Rect> m_boxes;
-  // Pass 3: NMS working data
-  std::vector<int>  m_nmsIndices;
-  std::vector<int>  m_sortIndices;
-  std::vector<bool> m_suppressed;
+  std::unique_ptr<ImagePreProcessor> m_preProcessor;
+  std::unique_ptr<YoloPostProcessor> m_postProcessor;
 };

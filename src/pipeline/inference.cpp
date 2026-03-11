@@ -1,6 +1,8 @@
 // Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
 
 #include "inference.h"
+#include "preprocess.h"
+#include "postprocess.h"
 #include <opencv2/dnn.hpp>
 #include <regex>
 
@@ -42,11 +44,12 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
     return Ret;
   }
   try {
-    rectConfidenceThreshold = iParams.rectConfidenceThreshold;
-    iouThreshold = iParams.iouThreshold;
     imgSize = iParams.imgSize;
     modelType = iParams.modelType;
     cudaEnable = iParams.cudaEnable;
+
+    m_preProcessor = std::make_unique<ImagePreProcessor>(modelType, imgSize);
+    m_postProcessor = std::make_unique<YoloPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
     env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "Yolo");
     Ort::SessionOptions sessionOption;
     if (iParams.cudaEnable) {
@@ -158,13 +161,7 @@ const char *YOLO_V8::CreateSession(DL_INIT_PARAM &iParams) {
         if (shape.size() >= 3 && shape[2] > 0) {
             strideNum = static_cast<int>(shape[2]);
         }
-        m_bestScores.resize(strideNum);
-        m_bestClassIds.resize(strideNum);
-        m_classIds.reserve(256);
-        m_confidences.reserve(256);
-        m_boxes.reserve(256);
-        m_nmsIndices.reserve(64);
-        m_sortIndices.reserve(256);
+        m_postProcessor->initBuffers(strideNum);
     }
 
     return RET_OK;
@@ -187,7 +184,7 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
 
   // Use member buffer instead of local stack generic variable
   // Optimization: Zero allocation if size matches
-  PreProcess(iImg, imgSize, m_letterboxBuffer);
+  m_preProcessor->PreProcess(iImg, m_letterboxBuffer);
 
   // Manual pre-processing (replacing cv::dnn::blobFromImage)
   // 1. Ensure output blob buffer is allocated with correct dimensions (NCHW)
@@ -201,7 +198,7 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
       int sz[] = {1, channels, height, width};
       m_commonBlob.create(4, sz, CV_32F);
       float* blob_data = m_commonBlob.ptr<float>();
-      PreProcessImageToBlob(m_letterboxBuffer, blob_data);
+      m_preProcessor->PreProcessImageToBlob(m_letterboxBuffer, blob_data);
 
       std::vector<int64_t> inputNodeDims = {1, 3, height, width};
       auto end_pre = std::chrono::high_resolution_clock::now();
@@ -215,7 +212,7 @@ char *YOLO_V8::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, 
       m_commonBlob.create(4, sz, CV_32F);
       
       float* blob_data = m_commonBlob.ptr<float>();
-      PreProcessImageToBlob(m_letterboxBuffer, blob_data);
+      m_preProcessor->PreProcessImageToBlob(m_letterboxBuffer, blob_data);
 
       // Convert to FP16
       m_commonBlob.convertTo(m_commonBlobHalf, CV_16F);
@@ -263,7 +260,7 @@ char *YOLO_V8::TensorProcess(std::chrono::high_resolution_clock::time_point &sta
   std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
   void* rawOutput = outputTensor.front().GetTensorMutableData<void>();
 
-  PostProcess(rawOutput, outputNodeDims, oResult);
+  m_postProcessor->PostProcess(rawOutput, outputNodeDims, oResult, m_preProcessor->getResizeScales(), classes);
 
   auto end_post = std::chrono::high_resolution_clock::now();
   timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
@@ -275,7 +272,7 @@ char *YOLO_V8::WarmUpSession() {
   clock_t starttime_1 = clock();
   cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(1), imgSize.at(0)), CV_8UC3);
   cv::Mat processedImg;
-  PreProcess(iImg, imgSize, processedImg);
+  m_preProcessor->PreProcess(iImg, processedImg);
   if (modelType < 4) {
     for (auto s : m_sessionPool) {
       cv::Mat blobMat;
