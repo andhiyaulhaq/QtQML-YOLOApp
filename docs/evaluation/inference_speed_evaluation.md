@@ -13,7 +13,7 @@ This document focuses exclusively on the **inference call itself** (`sess->Run(.
 | Parameter | Current Value | Source |
 |:----------|:-------------|:-------|
 | **ONNX Runtime version** | API v23 (1.20.x) | `ORT_API_VERSION` in `onnxruntime_c_api.h` |
-| **Model** | `yolov8n.onnx` (12.7 MB, FP32) | `inference/yolov8n.onnx` |
+| **Model** | `yolov8n.onnx` (12.7 MB, FP32) | `assets/onnx/yolov8n.onnx` |
 | **Execution Provider** | CPU (default) | `cudaEnable = false` |
 | **Graph Optimization** | `ORT_ENABLE_ALL` | [inference.cpp:76](../src/pipeline/inference.cpp#L76) |
 | **Execution Mode** | `ORT_SEQUENTIAL` | [inference.cpp:78](../src/pipeline/inference.cpp#L78) |
@@ -105,14 +105,14 @@ Low. IO Binding is a stable, well-documented ORT API. The main caveat is that dy
 // One-time: save optimized model
 Ort::SessionOptions opts;
 opts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-opts.SetOptimizedModelFilePath(L"inference/yolov8n_optimized.onnx");
-Ort::Session tempSession(env, L"inference/yolov8n.onnx", opts);
+opts.SetOptimizedModelFilePath(L"assets/onnx/yolov8n_optimized.onnx");
+Ort::Session tempSession(env, L"assets/onnx/yolov8n.onnx", opts);
 // This writes the optimized graph to disk. Then at runtime:
 
 // Runtime: load pre-optimized model with NO further optimization
 Ort::SessionOptions runtimeOpts;
 runtimeOpts.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL);
-Ort::Session session(env, L"inference/yolov8n_optimized.onnx", runtimeOpts);
+Ort::Session session(env, L"assets/onnx/yolov8n_optimized.onnx", runtimeOpts);
 ```
 
 ### Expected Impact
@@ -148,8 +148,8 @@ pip install onnxruntime onnx
 
 # Dynamic quantization (simplest, no calibration data needed)
 python -m onnxruntime.quantization.quantize \
-    --input inference/yolov8n.onnx \
-    --output inference/yolov8n_int8.onnx \
+    --input assets/onnx/yolov8n.onnx \
+    --output assets/onnx/yolov8n_int8.onnx \
     --quant_format QDQ \
     --per_channel \
     --activation_type QInt8 \
@@ -175,8 +175,8 @@ class YoloCalibrationReader(CalibrationDataReader):
             return None
 
 quantize_static(
-    model_input="inference/yolov8n.onnx",
-    model_output="inference/yolov8n_int8.onnx",
+    model_input="assets/onnx/yolov8n.onnx",
+    model_output="assets/onnx/yolov8n_int8.onnx",
     calibration_data_reader=YoloCalibrationReader(images),
     quant_format=QuantFormat.QDQ,
     per_channel=True,
@@ -386,7 +386,7 @@ Convert to ORT's native Flatbuffer format (`.ort`):
 ```bash
 python -m onnxruntime.tools.convert_onnx_models_to_ort \
     --optimization_level all \
-    inference/yolov8n.onnx
+    assets/onnx/yolov8n.onnx
 ```
 
 This produces `yolov8n.ort` which loads **2–5× faster** than `.onnx`.

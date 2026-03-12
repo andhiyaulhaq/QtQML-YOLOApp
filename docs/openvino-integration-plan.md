@@ -10,7 +10,7 @@ Integrate OpenVINO as the **default** inference runtime for all 3 YOLO tasks (de
 > ovc yolov8n-pose.onnx
 > ovc yolov8n-seg.onnx
 > ```
-> Place the exported `.xml`/`.bin` files in the `inference/` directory alongside the existing `.onnx` files.
+> Place the exported `.xml`/`.bin` files in the `assets/openvino/` directory.
 
 > [!WARNING]
 > **Compiler Migration**: OpenVINO on Windows requires MSVC. The current project uses MinGW (`C:/opencv/build_mingw`). We must switch to MSVC before integrating OpenVINO. See [Step 0](#step-0-msvc-migration) below.

@@ -49,14 +49,13 @@ classDiagram
         -atomic~bool~ m_isProcessing
     }
 
-    class YOLO {
+    class YoloPipeline {
         +CreateSession(DL_INIT_PARAM&)
         +RunSession(const cv::Mat&, vector~DL_RESULT~&, InferenceTiming&)
         +WarmUpSession()
-        +PreProcess(const cv::Mat&, vector~int~, cv::Mat&)
-        -vector~Ort::Session*~ m_sessionPool
-        -cv::Mat m_commonBlob
-        -cv::Mat m_letterboxBuffer
+        -std::unique_ptr~IInferenceBackend~ m_backend
+        -std::unique_ptr~ImagePreProcessor~ m_preProcessor
+        -std::unique_ptr~IPostProcessor~ m_postProcessor
     }
 
     class DetectionListModel {
@@ -98,7 +97,7 @@ classDiagram
     VideoController --> SystemMonitor : manages (systemThread)
     VideoController --> DetectionListModel : owns
     CaptureWorker ..> InferenceWorker : frameReady signal
-    InferenceWorker --> YOLO : uses
+    InferenceWorker --> YoloPipeline : uses
     InferenceWorker ..> VideoController : detectionsReady signal
     VideoController ..> DetectionListModel : updateDetections()
     DetectionOverlayItem --> DetectionListModel : reads
@@ -128,12 +127,12 @@ To ensure a responsive UI (60 FPS target), all blocking operations are offloaded
 ### Thread 3: Inference Thread (`InferenceWorker`, High Priority)
 - **Role**: Loads the YOLO model at startup, then responds to incoming frames.
 - **Initialization** (`startInference()`):
-    1. Creates `YOLO` instance.
-    2. Loads `classes.txt` for class names.
+    1. Creates `YoloPipeline` instance.
+    2. Loads `assets/classes.txt` for class names.
     3. Creates ONNX session with optimized thread count (`min(4, hw_concurrency/2)`).
 - **Frame Processing** (`processFrame()`):
     1. **Frame Drop**: Uses `atomic<bool> m_isProcessing` with `compare_exchange_strong` to skip frames if inference is still ongoing (prevents queue buildup).
-    2. Runs `YOLO::RunSession()` which performs preprocessing, inference, and postprocessing.
+    2. Runs `YoloPipeline::RunSession()` which performs preprocessing, inference, and postprocessing.
     3. Emits `detectionsReady(results, classNames, timing)` to the main thread.
 - **Synchronization**: Uses `QueuedConnection` for thread-safe signal delivery.
 
@@ -195,15 +194,14 @@ sequenceDiagram
 - **Responsibility**: AI inference pipeline.
 - **Key Optimization**: Atomic frame-drop mechanism. If a new frame arrives while inference is still running, the frame is silently dropped instead of accumulating in the event queue.
 
-### 4. YOLO (`src/pipeline/inference.h/cpp`)
+### 4. YoloPipeline (`src/pipeline/YoloPipeline.h/cpp`)
 - **Type**: Pure C++ Class (no QObject).
-- **Responsibility**: Full ONNX Runtime wrapper for YOLO inference.
+- **Responsibility**: High-level orchestrator for the AI pipeline.
 - **Features**:
-    - Session Pooling (`m_sessionPool`) for potential multi-session strategies.
-    - Letterbox Preprocessing with reusable `m_letterboxBuffer`.
-    - Reusable blob memory (`m_commonBlob`) to avoid per-frame allocations.
+    - Strategy pattern for backends (`OpenVinoBackend` / `OnnxRuntimeBackend`).
+    - Delegated Preprocessing (`ImagePreProcessor`) and Postprocessing (`IPostProcessor`).
     - `InferenceTiming` struct returning per-phase millisecond timings.
-    - Non-Maximum Suppression (NMS) postprocessing.
+    - Integrated NMS via the post-processor.
 
 ### 5. DetectionOverlayItem (`src/ui/DetectionOverlayItem.h/cpp`)
 - **Type**: `QQuickItem` + `QML_ELEMENT`.

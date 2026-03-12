@@ -166,7 +166,7 @@ void InferenceWorker::changeModel(int taskType) {
     m_pipeline = std::make_unique<YoloPipeline>();
     
     // Load Classes
-    std::ifstream file("inference/classes.txt");
+    std::ifstream file("assets/classes.txt");
     std::string line;
     while (std::getline(file, line)) {
         m_pipeline->classes.push_back(line);
@@ -178,13 +178,13 @@ void InferenceWorker::changeModel(int taskType) {
 
     auto getModelPath = [&](const std::string& baseName) {
         if (params.runtimeType == RUNTIME_OPENVINO) {
-            std::string xmlPath = "inference/" + baseName + ".xml";
+            std::string xmlPath = "assets/openvino/" + baseName + ".xml";
             std::ifstream f(xmlPath.c_str());
             if (f.good()) return xmlPath;
             // Fallback to onnx for OpenVINO if xml is missing
-            return "inference/" + baseName + ".onnx";
+            return "assets/onnx/" + baseName + ".onnx";
         }
-        return "inference/" + baseName + ".onnx";
+        return "assets/onnx/" + baseName + ".onnx";
     };
 
     if (taskType == 1) { // Object Detection

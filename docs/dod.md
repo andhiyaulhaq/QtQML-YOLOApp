@@ -35,4 +35,4 @@ For a feature or task to be considered "Done" in the **QtOpenCVCamera** project,
 ## 6. Build & Deployment
 - [ ] CMake config updated and successfully builds with `cmake -G "MinGW Makefiles"`.
 - [ ] Required DLLs (ONNX Runtime, OpenCV) are copied to the build output directory via `add_custom_command`.
-- [ ] Model files (`inference/`) are copied to the build output directory.
+- [ ] Model files (`assets/`) are copied to the build output directory.
