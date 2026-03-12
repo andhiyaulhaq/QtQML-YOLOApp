@@ -92,6 +92,7 @@ signals:
     void systemStatsChanged();
     void detectionsChanged();
     void timingChanged();
+    void errorOccurred(const QString& title, const QString& message);
     
     // Signals to workers
     void startWorkers(QVideoSink* sink);
@@ -104,6 +105,10 @@ public slots:
     void updateSystemStats(const QString &formattedStats);
     void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
 
+private slots:
+    void handleInferenceError(const QString& title, const QString& message);
+    void handleModelLoaded(int task, int runtime);
+
 private:
     QVideoSink* m_sink = nullptr;
     double m_fps = 0.0;
@@ -115,8 +120,11 @@ private:
     double m_postProcessTime = 0.0;
     double m_inferenceFps = 0.0;
     std::chrono::time_point<std::chrono::steady_clock> m_lastInferenceTime;
+    
     TaskType m_currentTask = TaskObjectDetection;
     RuntimeType m_currentRuntime = RuntimeOpenVINO;
+    TaskType m_lastGoodTask = TaskObjectDetection;
+    RuntimeType m_lastGoodRuntime = RuntimeOpenVINO;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;
@@ -173,6 +181,8 @@ public:
 signals:
     void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
     void latestDetectionsReady(std::shared_ptr<std::vector<DL_RESULT>> results);
+    void modelLoaded(int taskType, int runtimeType);
+    void errorOccurred(const QString& title, const QString& message);
 
 public slots:
     void startInference(); // Initialize model

@@ -14,6 +14,81 @@ Window {
     VideoController {
         id: controller
         videoSink: videoOutput.videoSink
+        onErrorOccurred: (title, message) => {
+            errorDialog.title = title
+            errorText.text = message
+            errorDialog.open()
+        }
+    }
+
+    Dialog {
+        id: errorDialog
+        anchors.centerIn: parent
+        width: 400
+        modal: true
+        title: "Error"
+        
+        background: Rectangle {
+            color: "#1e1e1e"
+            border.color: "#FF5252"
+            border.width: 1
+            radius: 8
+        }
+
+        header: Rectangle {
+            width: parent.width
+            height: 40
+            color: "#FF5252"
+            radius: 8
+            
+            // Mask top corners
+            Rectangle {
+                width: parent.width
+                height: 10
+                color: "#FF5252"
+                anchors.bottom: parent.bottom
+            }
+
+            Text {
+                text: errorDialog.title
+                anchors.centerIn: parent
+                color: "white"
+                font.bold: true
+            }
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 20
+            Text {
+                id: errorText
+                Layout.fillWidth: true
+                color: "white"
+                wrapMode: Text.Wrap
+                font.pixelSize: 14
+                horizontalAlignment: Text.AlignHCenter
+            }
+            
+            Button {
+                text: "OK"
+                Layout.alignment: Qt.AlignHCenter
+                onClicked: errorDialog.close()
+                
+                background: Rectangle {
+                    implicitWidth: 80
+                    implicitHeight: 32
+                    color: parent.hovered ? "#333333" : "#222222"
+                    radius: 4
+                    border.color: "#444444"
+                }
+                contentItem: Text {
+                    text: "OK"
+                    color: "white"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.bold: true
+                }
+            }
+        }
     }
 
     ColumnLayout {
@@ -44,7 +119,7 @@ Window {
             ComboBox {
                 id: taskComboBox
                 model: ["Object Detection", "Pose Estimation", "Image Segmentation"]
-                currentIndex: 0 // Default is Object Detection
+                currentIndex: controller.currentTask - 1
                 
                 onActivated: {
                     if (currentIndex === 0) controller.currentTask = VideoController.TaskObjectDetection
@@ -64,7 +139,7 @@ Window {
             ComboBox {
                 id: runtimeComboBox
                 model: ["OpenVINO", "ONNX Runtime"]
-                currentIndex: 0 // Default is OpenVINO
+                currentIndex: controller.currentRuntime
                 
                 onActivated: {
                     if (currentIndex === 0) controller.currentRuntime = VideoController.RuntimeOpenVINO

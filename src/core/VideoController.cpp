@@ -145,16 +145,23 @@ InferenceWorker::~InferenceWorker() {
 
 void InferenceWorker::startInference() {
     changeModel(1); // Start with Object Detection by default
-    m_running = true;
+    // m_running is handled inside changeModel or set hereafter if successful
+    if (m_pipeline) {
+        m_running = true;
+    }
 }
 
 void InferenceWorker::changeRuntime(int runtimeType) {
-    m_currentRuntimeType = runtimeType;
-    changeModel(m_currentTaskType);
+    int oldRuntime = m_currentRuntimeType;
+    m_currentRuntimeType = runtimeType; 
+    
+    // If we have an existing pipeline, we need to reload it with the new runtime
+    if (m_pipeline) {
+        changeModel(m_currentTaskType);
+    }
 }
 
 void InferenceWorker::changeModel(int taskType) {
-    m_currentTaskType = taskType;
     bool wasRunning = m_running;
     m_running = false; // Pause processing
     
@@ -163,55 +170,88 @@ void InferenceWorker::changeModel(int taskType) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     
-    m_pipeline = std::make_unique<YoloPipeline>();
+    int oldRuntime = m_currentRuntimeType;
+    DL_INIT_PARAM params;
+    params.runtimeType = (m_currentRuntimeType == 0) ? RUNTIME_OPENVINO : RUNTIME_ONNXRUNTIME;
+
+    auto getModelPath = [&](const std::string& baseName) {
+        std::string path;
+        if (params.runtimeType == RUNTIME_OPENVINO) {
+            std::string xmlPath = "assets/openvino/" + baseName + ".xml";
+            std::ifstream f(xmlPath.c_str());
+            if (f.good()) {
+                path = xmlPath;
+            } else {
+                emit errorOccurred("Model Not Found", QString("OpenVINO model not found: %1.xml").arg(QString::fromStdString(baseName)));
+                return std::string("");
+            }
+        } else {
+            path = "assets/onnx/" + baseName + ".onnx";
+            std::ifstream f(path.c_str());
+            if (!f.good()) {
+                emit errorOccurred("Model Not Found", QString("ONNX model not found: %1.onnx").arg(QString::fromStdString(baseName)));
+                return std::string("");
+            }
+        }
+        return path;
+    };
+
+    if (taskType == 1) { // Object Detection
+        params.modelPath = getModelPath("yolov8n");
+    } else if (taskType == 2) { // Pose Estimation
+        params.modelPath = getModelPath("yolov8n-pose");
+    } else if (taskType == 3) { // Image Segmentation
+        params.modelPath = getModelPath("yolov8n-seg");
+    } else {
+        emit errorOccurred("Unsupported Task", QString("Task type %1 is not supported.").arg(taskType));
+    }
+
+    if (params.modelPath.empty()) {
+        m_currentRuntimeType = oldRuntime; // Revert runtime if changeModel fails
+        m_running = wasRunning;
+        return;
+    }
+
+    params.modelType = (taskType == 1) ? YOLO_DETECT : (taskType == 2) ? YOLO_POSE : YOLO_SEG;
+    params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
+    params.cudaEnable = false; 
+    
+    unsigned int threads = std::thread::hardware_concurrency() / 2;
+    params.intraOpNumThreads = std::max(1u, std::min(4u, threads)); 
+    params.interOpNumThreads = 1;
+
+    // Create a temporary pipeline to avoid breaking the current one if initialization fails
+    auto tempPipeline = std::make_unique<YoloPipeline>();
     
     // Load Classes
     std::ifstream file("assets/classes.txt");
     std::string line;
     while (std::getline(file, line)) {
-        m_pipeline->classes.push_back(line);
+        tempPipeline->classes.push_back(line);
     }
     file.close();
 
-    DL_INIT_PARAM params;
-    params.runtimeType = (m_currentRuntimeType == 0) ? RUNTIME_OPENVINO : RUNTIME_ONNXRUNTIME;
-
-    auto getModelPath = [&](const std::string& baseName) {
-        if (params.runtimeType == RUNTIME_OPENVINO) {
-            std::string xmlPath = "assets/openvino/" + baseName + ".xml";
-            std::ifstream f(xmlPath.c_str());
-            if (f.good()) return xmlPath;
-            // Fallback to onnx for OpenVINO if xml is missing
-            return "assets/onnx/" + baseName + ".onnx";
-        }
-        return "assets/onnx/" + baseName + ".onnx";
-    };
-
-    if (taskType == 1) { // Object Detection
-        params.modelPath = getModelPath("yolov8n");
-        params.modelType = YOLO_DETECT;
-    } else if (taskType == 2) { // Pose Estimation
-        params.modelPath = getModelPath("yolov8n-pose");
-        params.modelType = YOLO_POSE;
-    } else if (taskType == 3) { // Image Segmentation
-        params.modelPath = getModelPath("yolov8n-seg");
-        params.modelType = YOLO_SEG;
-    }
-
-    params.imgSize = {AppConfig::ModelWidth, AppConfig::ModelHeight};
-    params.cudaEnable = false; // CPU
-    
-    unsigned int threads = std::thread::hardware_concurrency() / 2;
-    params.intraOpNumThreads = std::max(1u, std::min(4u, threads)); 
-    params.interOpNumThreads = 1;
-    
     try {
-        m_pipeline->CreateSession(params);
+        const char* status = tempPipeline->CreateSession(params);
+        if (status != RET_OK) {
+            emit errorOccurred("Initialization Error", QString("[YoloPipeline]: %1").arg(status));
+            m_running = wasRunning;
+            // Revert runtime if this was triggered by changeRuntime
+            return;
+        }
+        
+        // Success! Atomic swap
+        m_pipeline = std::move(tempPipeline);
+        m_currentTaskType = taskType; // Update state ONLY on success
+        m_currentRuntimeType = params.runtimeType == RUNTIME_OPENVINO ? 0 : 1;
+        
+        m_running = true; 
+        emit modelLoaded(m_currentTaskType, m_currentRuntimeType);
     } catch (const std::exception& e) {
         qWarning() << "Failed to create session:" << e.what();
+        emit errorOccurred("Critical Error", QString("Exception during session creation: %1").arg(e.what()));
+        m_running = wasRunning;
     }
-    
-    m_running = wasRunning;
 }
 
 void InferenceWorker::stopInference() {
@@ -288,6 +328,8 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     // Workers -> Main
     connect(m_captureWorker, &CaptureWorker::fpsUpdated, this, &VideoController::updateFps);
     connect(m_inferenceWorker, &InferenceWorker::detectionsReady, this, &VideoController::updateDetections);
+    connect(m_inferenceWorker, &InferenceWorker::errorOccurred, this, &VideoController::handleInferenceError);
+    connect(m_inferenceWorker, &InferenceWorker::modelLoaded, this, &VideoController::handleModelLoaded);
 
     // System Monitor
     m_systemMonitor = new SystemMonitor(nullptr); // No parent to allow moveToThread
@@ -405,4 +447,24 @@ void VideoController::updateDetections(const std::vector<DL_RESULT>& results, co
         emit inferenceFpsChanged();
     }
     m_lastInferenceTime = now;
+}
+
+void VideoController::handleInferenceError(const QString& title, const QString& message) {
+    // Revert selection if it changed
+    if (m_currentTask != m_lastGoodTask) {
+        m_currentTask = m_lastGoodTask;
+        emit currentTaskChanged();
+    }
+    if (m_currentRuntime != m_lastGoodRuntime) {
+        m_currentRuntime = m_lastGoodRuntime;
+        emit currentRuntimeChanged();
+    }
+    
+    // Forward original error signal to QML
+    emit errorOccurred(title, message);
+}
+
+void VideoController::handleModelLoaded(int task, int runtime) {
+    m_lastGoodTask = static_cast<TaskType>(task);
+    m_lastGoodRuntime = static_cast<RuntimeType>(runtime);
 }
