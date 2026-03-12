@@ -52,6 +52,25 @@ Window {
                     else if (currentIndex === 2) controller.currentTask = VideoController.TaskImageSegmentation
                 }
             }
+
+            Item { Layout.preferredWidth: 10 } // Small spacer
+
+            Text {
+                text: "Runtime:"
+                color: "#FFFFFF"
+                font.pixelSize: 14
+            }
+            
+            ComboBox {
+                id: runtimeComboBox
+                model: ["OpenVINO", "ONNX Runtime"]
+                currentIndex: 0 // Default is OpenVINO
+                
+                onActivated: {
+                    if (currentIndex === 0) controller.currentRuntime = VideoController.RuntimeOpenVINO
+                    else if (currentIndex === 1) controller.currentRuntime = VideoController.RuntimeONNXRuntime
+                }
+            }
         }
 
         // Main Content: Video Feed + Metrics Panel

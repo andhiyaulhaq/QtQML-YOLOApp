@@ -46,7 +46,14 @@ public:
     };
     Q_ENUM(TaskType)
 
+    enum RuntimeType {
+        RuntimeOpenVINO = 0,
+        RuntimeONNXRuntime = 1
+    };
+    Q_ENUM(RuntimeType)
+
     Q_PROPERTY(TaskType currentTask READ currentTask WRITE setCurrentTask NOTIFY currentTaskChanged)
+    Q_PROPERTY(RuntimeType currentRuntime READ currentRuntime WRITE setCurrentRuntime NOTIFY currentRuntimeChanged)
     Q_PROPERTY(QVideoSink* videoSink READ videoSink WRITE setVideoSink NOTIFY videoSinkChanged)
     Q_PROPERTY(double fps READ fps NOTIFY fpsChanged)
     Q_PROPERTY(QString systemStats READ systemStats NOTIFY systemStatsChanged)
@@ -72,10 +79,13 @@ public:
     double postProcessTime() const { return m_postProcessTime; }
     double inferenceFps() const { return m_inferenceFps; }
     TaskType currentTask() const { return m_currentTask; }
+    RuntimeType currentRuntime() const { return m_currentRuntime; }
 
 signals:
     void currentTaskChanged();
+    void currentRuntimeChanged();
     void taskChangedBus(int taskType);
+    void runtimeChangedBus(int runtimeType);
     void videoSinkChanged();
     void fpsChanged();
     void inferenceFpsChanged();
@@ -89,6 +99,7 @@ signals:
 
 public slots:
     void setCurrentTask(TaskType task);
+    void setCurrentRuntime(RuntimeType runtime);
     void updateFps(double fps);
     void updateSystemStats(const QString &formattedStats);
     void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing);
@@ -105,6 +116,7 @@ private:
     double m_inferenceFps = 0.0;
     std::chrono::time_point<std::chrono::steady_clock> m_lastInferenceTime;
     TaskType m_currentTask = TaskObjectDetection;
+    RuntimeType m_currentRuntime = RuntimeOpenVINO;
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;
@@ -166,6 +178,7 @@ public slots:
     void startInference(); // Initialize model
     void stopInference();
     void changeModel(int taskType);
+    void changeRuntime(int runtimeType);
     void processFrame(std::shared_ptr<cv::Mat> frame);
     std::atomic<bool>* getProcessingFlag() { return &m_isProcessing; }
 
@@ -173,6 +186,9 @@ private:
     std::atomic<bool> m_running{false};
     std::unique_ptr<YOLO> m_yolo;
     
+    int m_currentTaskType = 1;
+    int m_currentRuntimeType = 0; // RuntimeOpenVINO
+
     // Drop frames if inference is too slow
     std::atomic<bool> m_isProcessing{false};
 };

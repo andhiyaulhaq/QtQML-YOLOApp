@@ -1,110 +1,71 @@
 # QtOpenCVCamera (YOLOApp)
 
-**QtOpenCVCamera** is a high-performance desktop application that demonstrates real-time object detection using **YOLOv8** (via ONNX Runtime) integrated with a modern **Qt Quick (QML)** user interface. The application features a fully asynchronous, multi-threaded architecture that decouples video capture, AI inference, and UI rendering for maximum throughput.
+**QtOpenCVCamera** is a high-performance desktop application that demonstrates real-time object detection, image segmentation, and pose estimation using **YOLOv8**. It supports dual inference runtimes—**OpenVINO** (default) and **ONNX Runtime**—integrated with a modern **Qt Quick (QML)** user interface.
 
 ![Modern C++](https://img.shields.io/badge/C++-17-blue.svg)
-![Qt](https://img.shields.io/badge/Qt-6.8-green.svg)
-![OpenCV](https://img.shields.io/badge/OpenCV-4.x-red.svg)
+![Qt](https://img.shields.io/badge/Qt-6.8.3-green.svg)
+![OpenVINO](https://img.shields.io/badge/OpenVINO-2024-blue.svg)
 ![ONNX Runtime](https://img.shields.io/badge/ONNX-Runtime-orange.svg)
 
 ## 🚀 Features
 
-- **Live Object Detection**: Real-time bounding box visualization with class labels and confidence scores for 80 object classes (COCO dataset).
-- **High-Performance Multi-Threaded Architecture**: Three dedicated background threads (capture, inference, monitoring) ensure a smooth 60 FPS UI that never blocks.
-- **Hardware-Accelerated Rendering**: Bounding boxes are rendered via Qt's Scene Graph (`DetectionOverlayItem`) for minimal GPU overhead, with QML-based text labels.
-- **Inference Timing**: Displays pre-process, inference, and post-process durations (ms precision) alongside camera and inference FPS.
-- **System Monitoring**: Built-in CPU and RAM usage tracking via platform-native APIs (PDH/PSAPI on Windows).
-- **Memory-Optimized Pipeline**: Multi-buffer frame pool, frame-drop logic, and reusable blob buffers minimize allocations in the hot path.
+- **Multi-Task Support**: Switch between **Object Detection**, **Pose Estimation**, and **Image Segmentation** at runtime.
+- **Dual Inference Backends**: Choose between **OpenVINO** (optimized for Intel hardware) and **ONNX Runtime** (CPU/CUDA) via the UI.
+- **High-Performance Architecture**: Decoupled background threads for capture, inference, and system monitoring ensure a smooth 60+ FPS UI.
+- **Hardware-Accelerated Rendering**: Custom Scene Graph implementation (`DetectionOverlayItem`) for low-latency visualization of masks, skeletons, and boxes.
+- **Real-time Metrics**: Live tracking of inference timing (pre/inf/post), FPS, and system resource (CPU/RAM) usage.
 
 ## 🛠️ Prerequisites
 
-To build this project, you need the following tools installed:
+To build this project on Windows, you need:
 
-1.  **C++ Compiler**: MSVC 2019+ (Windows) or GCC 8+ (Linux).
-2.  **CMake**: Version 3.16 or higher.
-3.  **Qt 6 SDK**: Including `Qt Multimedia` and `Qt Quick` modules.
-4.  **OpenCV**: Version 4.x.
-5.  **ONNX Runtime**: Version 1.16+ (Shared library).
+1.  **C++ Compiler**: [MSVC 2022](https://visualstudio.microsoft.com/vs/community/) (v143).
+2.  **Qt 6.8.3 SDK**: Specifically the **MSVC 2022 64-bit** component.
+3.  **OpenVINO Toolkit**: Version 2024.x (installed in `C:/intel/openvino_toolkit`).
+4.  **OpenCV**: Version 4.12.0 (installed in `C:/opencv`).
+5.  **ONNX Runtime**: Version 1.16+ (installed in `C:/onnxruntime`).
+6.  **CMake**: Version 3.16 or higher.
 
-## 📦 Build Instructions
+## 📦 Build Instructions (MSVC)
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/andhiyaulhaq/QtQML-YOLOApp.git
 cd QtQML-YOLOApp
 
-# 2. Create a build directory
-mkdir build
-cd build
+# 2. Configure via CMake using MSVC 2022
+# Note: Ensure CMAKE_PREFIX_PATH points to your MSVC Qt installation
+cmake -G "Visual Studio 17 2022" -B build -S . -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/msvc2022_64"
 
-# 3. Configure via CMake (MinGW Makefiles)
-# Note: Ensure OpenCV and ONNX Runtime are in your PATH or provide -DOpenCV_DIR and -DOnnxRuntime_ROOT
-cmake -G "MinGW Makefiles" ..
+# 3. Build the application (Release)
+cmake --build build --config Release --target appCamera
+```
 
-# 4. Build the application
-cmake --build . -j 4
+## 🚀 Deployment & Running
 
-# 5. Run
+To run the application outside of an IDE, you must deploy the Qt dependencies:
+
+```bash
+# 1. Run windeployqt to copy Qt DLLs and plugins
+C:/Qt/6.8.3/msvc2022_64/bin/windeployqt.exe --release --qmldir content --qmldir . build/Release/appCamera.exe
+
+# 2. Run the application
+cd build/Release
 ./appCamera.exe
 ```
 
+*Note: The build system automatically copies OpenCV, OpenVINO, and ONNX Runtime DLLs to the Release folder after compilation.*
+
 ## 🏗️ Architecture
 
-The project follows a **Multi-Threaded C++/QML Architecture** with three dedicated background threads:
+The project uses a **Strategy Pattern** for inference backends and a **Multi-Threaded C++/QML Bridge**:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Main Thread (GUI)                                          │
-│  ┌──────────────────────────────────────────────┐           │
-│  │  QML UI (Main.qml)                           │           │
-│  │  ├── VideoOutput (raw camera feed)           │           │
-│  │  ├── DetectionOverlayItem (Scene Graph overlay)   │           │
-│  │  │   └── Repeater (text labels per box)      │           │
-│  │  └── Performance Overlay (FPS, timing, CPU)  │           │
-│  └────────────────┬─────────────────────────────┘           │
-│                   │ Signals/Slots                            │
-│  ┌────────────────┴─────────────────────────────┐           │
-│  │  VideoController (C++ ↔ QML Bridge)          │           │
-│  │  ├── DetectionListModel (QAbstractListModel) │           │
-│  │  └── Thread lifecycle management             │           │
-│  └────────────────┬─────────────────────────────┘           │
-└───────────────────┼─────────────────────────────────────────┘
-                    │ QueuedConnection
-  ┌─────────────────┼──────────────────────────────────────┐
-  │                 ▼                                      │
-  │  ┌──────────────────────┐    ┌─────────────────────┐   │
-  │  │  Capture Thread      │───▶│  Inference Thread   │   │
-  │  │  (CaptureWorker)     │    │  (InferenceWorker)  │   │
-  │  │  ├ cv::VideoCapture  │    │  ├ YOLO_V8 engine   │   │
-  │  │  ├ Frame Pool [3]    │    │  ├ Frame drop logic │   │
-  │  │  └ FPS calculation   │    │  └ Timing metrics   │   │
-  │  └──────────────────────┘    └─────────────────────┘   │
-  │                                                        │
-  │  ┌──────────────────────┐                              │
-  │  │  Monitor Thread      │                              │
-  │  │  (SystemMonitor)     │                              │
-  │  │  └ CPU / RAM stats   │                              │
-  │  └──────────────────────┘                              │
-  └────────────────────────────────────────────────────────┘
-```
-
--   **Frontend (QML)**: Renders the camera feed via `VideoOutput`, overlays bounding boxes using a custom Scene Graph item (`DetectionOverlayItem`), and displays labels via a QML `Repeater`.
--   **Backend (C++)**:
-    -   `VideoController`: Orchestrates thread lifecycle, bridges QML ↔ C++ via properties/signals, and owns the `DetectionListModel`.
-    -   `CaptureWorker`: Runs the camera capture loop with a 3-frame ring buffer, pushes raw frames to `QVideoSink` and emits them to the inference pipeline.
-    -   `InferenceWorker`: Loads the YOLO model, processes frames with frame-drop logic, and emits detection results + timing back to the main thread.
-    -   `YOLO_V8`: ONNX Runtime wrapper with session pooling, letterbox preprocessing, and NMS postprocessing.
-    -   `SystemMonitor`: Platform-native CPU/RAM monitoring on a low-priority thread.
-
-For more details, check the **[Documentation Suite](docs/)**:
--   [Project Structure](docs/project-structure.md)
--   [Tech Stack](docs/tech-stack.md)
--   [Design Specifications](docs/design-spec.md)
--   [Product Requirements](docs/prd.md)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please see the `CONTRIBUTING.md` (coming soon) for details.
+- **Frontend (QML)**: Modern UI with a sidebar for task and runtime switching.
+- **Backend (C++)**:
+    - `VideoController`: QML Bridge and thread orchestrator.
+    - `IInferenceBackend`: Abstract interface for `OpenVinoBackend` and `OnnxRuntimeBackend`.
+    - `YOLO`: Main inference engine delegating to the selected backend.
+    - `DetectionOverlayItem`: High-performance custom item for rendering AI results.
 
 ## 📄 License
 

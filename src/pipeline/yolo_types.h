@@ -14,9 +14,15 @@ enum MODEL_TYPE {
   YOLO_SEG = 3
 };
 
+enum RUNTIME_TYPE {
+  RUNTIME_OPENVINO = 0,
+  RUNTIME_ONNXRUNTIME = 1
+};
+
 typedef struct _DL_INIT_PARAM {
   std::string modelPath;
   MODEL_TYPE modelType = YOLO_DETECT;
+  RUNTIME_TYPE runtimeType = RUNTIME_OPENVINO;
   std::vector<int> imgSize = {640, 640};
   float rectConfidenceThreshold = 0.4;
   float iouThreshold = 0.5;

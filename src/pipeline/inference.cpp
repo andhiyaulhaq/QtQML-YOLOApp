@@ -1,282 +1,106 @@
-// Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
-
 #include "inference.h"
 #include "preprocess.h"
 #include "postprocess.h"
-#include <opencv2/dnn.hpp>
+#include "onnxruntime_backend.h"
+#include "openvino_backend.h"
 #include <regex>
 
-#include <numeric>
-#include <algorithm>
-
-// #define benchmark
 YOLO::YOLO() {}
 
-YOLO::~YOLO() {
-  // Clean up pooled sessions if any
-  for (auto s : m_sessionPool) {
-    if (s)
-      delete s;
-  }
-  m_sessionPool.clear();
-}
-
-#ifdef USE_CUDA
-namespace Ort {
-template <> struct TypeToTensorType<half> {
-  static constexpr ONNXTensorElementDataType type =
-      ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT16;
-};
-} // namespace Ort
-#endif
-
-// BlobFromImage replaced by PreProcessImageToBlob in inference_preprocess.cpp
-
+YOLO::~YOLO() {}
 
 const char *YOLO::CreateSession(DL_INIT_PARAM &iParams) {
-  const char *Ret = RET_OK;
-  std::regex pattern("[\u4e00-\u9fa5]");
-  bool result = std::regex_search(iParams.modelPath, pattern);
-  if (result) {
-    Ret = "[YOLO]:Your model path is error.Change your model path without "
-          "chinese characters.";
-    std::cout << Ret << std::endl;
-    return Ret;
-  }
-  try {
-    imgSize = iParams.imgSize;
-    modelType = iParams.modelType;
-    cudaEnable = iParams.cudaEnable;
-
-    m_preProcessor = std::make_unique<ImagePreProcessor>(modelType, imgSize);
-    
-    switch (modelType) {
-        case YOLO_DETECT:
-            m_postProcessor = std::make_unique<DetectionPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
-            break;
-        case YOLO_POSE:
-            m_postProcessor = std::make_unique<PosePostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
-            break;
-        case YOLO_SEG:
-            m_postProcessor = std::make_unique<SegmentationPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
-            break;
-        default:
-            throw std::runtime_error("Unsupported model type.");
+    const char *Ret = RET_OK;
+    std::regex pattern("[\u4e00-\u9fa5]");
+    if (std::regex_search(iParams.modelPath, pattern)) {
+        return "[YOLO]: Model path cannot contain Chinese characters.";
     }
-    env = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "Yolo");
-    Ort::SessionOptions sessionOption;
-    if (iParams.cudaEnable) {
-      OrtCUDAProviderOptions cudaOption;
-      cudaOption.device_id = 0;
-      sessionOption.AppendExecutionProvider_CUDA(cudaOption);
-    }
-
-    sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
-    sessionOption.SetInterOpNumThreads(iParams.interOpNumThreads);
-    sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-    sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
-    sessionOption.SetExecutionMode(ORT_SEQUENTIAL);
-
-#ifdef _WIN32
-    std::string ompThreads = std::to_string(iParams.intraOpNumThreads);
-    SetEnvironmentVariableA("OMP_NUM_THREADS", ompThreads.c_str());
-    SetEnvironmentVariableA("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0");
-    SetEnvironmentVariableA("KMP_BLOCKTIME", "1");
-    SetEnvironmentVariableA("KMP_SETTINGS", "1");
-#else
-    setenv("OMP_NUM_THREADS", std::to_string(iParams.intraOpNumThreads).c_str(), 1);
-    setenv("KMP_AFFINITY", "granularity=fine,verbose,compact,1,0", 1);
-    setenv("KMP_BLOCKTIME", "1", 1);
-    setenv("KMP_SETTINGS", "1", 1);
-#endif
-
-#ifdef _WIN32
-    int ModelPathSize = MultiByteToWideChar(
-        CP_UTF8, 0, iParams.modelPath.c_str(),
-        static_cast<int>(iParams.modelPath.length()), nullptr, 0);
-    wchar_t *wide_cstr = new wchar_t[ModelPathSize + 1];
-    MultiByteToWideChar(CP_UTF8, 0, iParams.modelPath.c_str(),
-                        static_cast<int>(iParams.modelPath.length()), wide_cstr,
-                        ModelPathSize);
-    wide_cstr[ModelPathSize] = L'\0';
-    const wchar_t *modelPath = wide_cstr;
-#else
-    const char *modelPath = iParams.modelPath.c_str();
-#endif // _WIN32
 
     try {
-        Ort::Session *firstSession = new Ort::Session(env, modelPath, sessionOption);
-        m_sessionPool.push_back(firstSession);
-    } catch (const std::exception &e) {
-        if (iParams.cudaEnable) {
-            std::cout << "[YOLO]: CUDA initialization failed (" << e.what() << "). Falling back to CPU." << std::endl;
-            iParams.cudaEnable = false;
-            cudaEnable = false;
-            sessionOption = Ort::SessionOptions();
-            sessionOption.SetIntraOpNumThreads(iParams.intraOpNumThreads);
-            sessionOption.SetInterOpNumThreads(iParams.interOpNumThreads);
-            sessionOption.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-            sessionOption.SetLogSeverityLevel(iParams.logSeverityLevel);
-            sessionOption.SetExecutionMode(ORT_SEQUENTIAL);
-            
-            Ort::Session *firstSession = new Ort::Session(env, modelPath, sessionOption);
-            m_sessionPool.push_back(firstSession);
+        imgSize = iParams.imgSize;
+        modelType = iParams.modelType;
+
+        m_preProcessor = std::make_unique<ImagePreProcessor>(modelType, imgSize);
+
+        switch (modelType) {
+            case YOLO_DETECT:
+                m_postProcessor = std::make_unique<DetectionPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+                break;
+            case YOLO_POSE:
+                m_postProcessor = std::make_unique<PosePostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+                break;
+            case YOLO_SEG:
+                m_postProcessor = std::make_unique<SegmentationPostProcessor>(modelType, iParams.rectConfidenceThreshold, iParams.iouThreshold);
+                break;
+            default:
+                throw std::runtime_error("Unsupported model type.");
+        }
+
+        // Strategy Pattern: Instantiate backend
+        if (iParams.runtimeType == RUNTIME_ONNXRUNTIME) {
+            m_backend = std::make_unique<OnnxRuntimeBackend>();
         } else {
-            throw e; 
+            m_backend = std::make_unique<OpenVinoBackend>();
         }
-    }
 
-    for (int i = 1; i < iParams.sessionPoolSize; ++i) {
-      Ort::Session *s = new Ort::Session(env, modelPath, sessionOption);
-      m_sessionPool.push_back(s);
-    }
-    Ort::AllocatorWithDefaultOptions allocator;
-    Ort::Session *primary = m_sessionPool.front();
-    size_t inputNodesNum = primary->GetInputCount();
-    for (size_t i = 0; i < inputNodesNum; i++) {
-      Ort::AllocatedStringPtr input_node_name =
-          primary->GetInputNameAllocated(i, allocator);
-      m_inputNodeNameStorage.push_back(std::string(input_node_name.get()));
-    }
-    for (const auto& name : m_inputNodeNameStorage) {
-      inputNodeNames.push_back(name.c_str());
-    }
-    size_t OutputNodesNum = primary->GetOutputCount();
-    for (size_t i = 0; i < OutputNodesNum; i++) {
-      Ort::AllocatedStringPtr output_node_name =
-          primary->GetOutputNameAllocated(i, allocator);
-      m_outputNodeNameStorage.push_back(std::string(output_node_name.get()));
-    }
-    for (const auto& name : m_outputNodeNameStorage) {
-      outputNodeNames.push_back(name.c_str());
-    }
-    options = Ort::RunOptions{nullptr};
-    WarmUpSession();
+        const char* backendStatus = m_backend->createSession(iParams);
+        if (backendStatus != RET_OK) return backendStatus;
 
-    {
-        int strideNum = 8400;
-        Ort::TypeInfo typeInfo = m_sessionPool.front()->GetOutputTypeInfo(0);
-        auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
-        auto shape = tensorInfo.GetShape();
-        if (shape.size() >= 3 && shape[2] > 0) {
-            strideNum = static_cast<int>(shape[2]);
+        // Initialize post-processor buffers
+        std::vector<int64_t> outShape = m_backend->getOutputShape();
+        if (!outShape.empty() && outShape.size() >= 3) {
+            m_postProcessor->initBuffers(static_cast<size_t>(outShape[2]));
+        } else {
+            m_postProcessor->initBuffers(8400); // Fallback
         }
-        m_postProcessor->initBuffers(strideNum);
-    }
 
-    return RET_OK;
-  } catch (const std::exception &e) {
-    const char *str1 = "[YOLO]:";
-    const char *str2 = e.what();
-    std::string result = std::string(str1) + std::string(str2);
-    char *merged = new char[result.length() + 1];
-    std::strcpy(merged, result.c_str());
-    std::cout << merged << std::endl;
-    delete[] merged;
-    return "[YOLO]:Create session failed.";
-  }
+        WarmUpSession();
+        return RET_OK;
+    } catch (const std::exception &e) {
+        std::cerr << "[YOLO]: " << e.what() << std::endl;
+        return "[YOLO]: Create session failed.";
+    }
 }
 
 char *YOLO::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
-  auto start_pre = std::chrono::high_resolution_clock::now();
+    auto start_pre = std::chrono::high_resolution_clock::now();
 
-  char *Ret = RET_OK;
+    // Step 1: Letterbox Resize (CPU)
+    m_preProcessor->PreProcess(iImg, m_letterboxBuffer);
 
-  m_preProcessor->PreProcess(iImg, m_letterboxBuffer);
+    int height = imgSize.at(0);
+    int width = imgSize.at(1);
+    
+    // Step 2: NCHW + Normalization (Optimized)
+    int sz[] = {1, 3, height, width};
+    m_commonBlob.create(4, sz, CV_32F);
+    float* blob_data = m_commonBlob.ptr<float>();
+    m_preProcessor->PreProcessImageToBlob(m_letterboxBuffer, blob_data);
 
-  int channels = 3;
-  int height = imgSize.at(0);
-  int width = imgSize.at(1);
-  
-  int sz[] = {1, channels, height, width};
-  m_commonBlob.create(4, sz, CV_32F);
-  float* blob_data = m_commonBlob.ptr<float>();
-  m_preProcessor->PreProcessImageToBlob(m_letterboxBuffer, blob_data);
+    std::vector<int64_t> inputNodeDims = {1, 3, (int64_t)height, (int64_t)width};
+    auto end_pre = std::chrono::high_resolution_clock::now();
+    timing.preProcessTime = std::chrono::duration<double, std::milli>(end_pre - start_pre).count();
 
-  std::vector<int64_t> inputNodeDims = {1, 3, height, width};
-  auto end_pre = std::chrono::high_resolution_clock::now();
-  timing.preProcessTime = std::chrono::duration<double, std::milli>(end_pre - start_pre).count();
+    // Inference
+    auto start_infer = std::chrono::high_resolution_clock::now();
+    InferenceOutput out = m_backend->runInference(blob_data, inputNodeDims);
+    auto end_infer = std::chrono::high_resolution_clock::now();
+    timing.inferenceTime = std::chrono::duration<double, std::milli>(end_infer - start_infer).count();
 
-  TensorProcess(start_pre, iImg, blob_data, inputNodeDims, oResult, timing); 
+    // Post-processing
+    auto start_post = std::chrono::high_resolution_clock::now();
+    m_postProcessor->PostProcess(out.primaryData, out.primaryShape, oResult, 
+                                 m_preProcessor->getResizeScales(), classes, 
+                                 out.secondaryData, out.secondaryShape);
+    auto end_post = std::chrono::high_resolution_clock::now();
+    timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
 
-  return Ret;
-}
-
-template <typename N>
-char *YOLO::TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, const cv::Mat &iImg, N &blob,
-                             std::vector<int64_t> &inputNodeDims,
-                             std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
-  Ort::Value inputTensor =
-      Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
-          Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob,
-          3 * imgSize.at(0) * imgSize.at(1), inputNodeDims.data(),
-          inputNodeDims.size());
-
-  auto start_infer = std::chrono::high_resolution_clock::now();
-  
-  size_t poolSize = m_sessionPool.size();
-  Ort::Session *sess = m_sessionPool.front();
-  if (poolSize > 0) {
-    size_t idx = m_sessionIndex.fetch_add(1) % poolSize;
-    sess = m_sessionPool[idx];
-  }
-  auto outputTensor = sess->Run(options, inputNodeNames.data(), &inputTensor, 1,
-                                outputNodeNames.data(), outputNodeNames.size());
-
-  auto end_infer = std::chrono::high_resolution_clock::now();
-  timing.inferenceTime = std::chrono::duration<double, std::milli>(end_infer - start_infer).count();
-  
-  auto start_post = std::chrono::high_resolution_clock::now();
-
-  Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
-  auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
-  std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
-  void* rawOutput = outputTensor.front().GetTensorMutableData<void>();
-
-  void* secondaryOutput = nullptr;
-  std::vector<int64_t> secondaryDims;
-
-  if (outputTensor.size() > 1) {
-      Ort::TypeInfo secondaryTypeInfo = outputTensor[1].GetTypeInfo();
-      auto secondary_tensor_info = secondaryTypeInfo.GetTensorTypeAndShapeInfo();
-      secondaryDims = secondary_tensor_info.GetShape();
-      secondaryOutput = outputTensor[1].GetTensorMutableData<void>();
-  }
-
-  m_postProcessor->PostProcess(rawOutput, outputNodeDims, oResult, m_preProcessor->getResizeScales(), classes, secondaryOutput, secondaryDims);
-  auto end_post = std::chrono::high_resolution_clock::now();
-  timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();
-
-  return RET_OK;
+    return RET_OK;
 }
 
 char *YOLO::WarmUpSession() {
-  clock_t starttime_1 = clock();
-  cv::Mat iImg = cv::Mat(cv::Size(imgSize.at(1), imgSize.at(0)), CV_8UC3);
-  cv::Mat processedImg;
-  m_preProcessor->PreProcess(iImg, processedImg);
-  for (auto s : m_sessionPool) {
-    cv::Mat blobMat;
-    cv::dnn::blobFromImage(processedImg, blobMat, 1.0 / 255.0, cv::Size(),
-                           cv::Scalar(), false, false);
-    float *blob = (float *)blobMat.data;
-    std::vector<int64_t> YOLO_input_node_dims = {1, 3, imgSize.at(0),
-                                                 imgSize.at(1)};
-    Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob,
-        3 * imgSize.at(0) * imgSize.at(1), YOLO_input_node_dims.data(),
-        YOLO_input_node_dims.size());
-    auto output_tensors =
-        s->Run(options, inputNodeNames.data(), &input_tensor, 1,
-               outputNodeNames.data(), outputNodeNames.size());
-    
-    clock_t starttime_4 = clock();
-    double post_process_time =
-        (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-    if (cudaEnable) {
-      std::cout << "[YOLO(CUDA)]: " << "Cuda warm-up cost "
-                << post_process_time << " ms. " << std::endl;
+    if (m_backend) {
+        m_backend->warmUp(imgSize);
     }
-  }
-  return RET_OK;
+    return RET_OK;
 }

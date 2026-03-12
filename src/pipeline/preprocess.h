@@ -12,6 +12,7 @@ public:
     void PreProcessImageToBlob(const cv::Mat& iImg, float* blob_data);
 
     float getResizeScales() const { return resizeScales; }
+    void setResizeScales(float s) { resizeScales = s; }
 
 private:
     MODEL_TYPE modelType;

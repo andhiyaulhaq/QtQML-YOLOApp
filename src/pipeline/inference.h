@@ -11,18 +11,13 @@
 #include <io.h>
 #endif
 
-#include "onnxruntime_cxx_api.h"
-#include <atomic>
-
-
-
+class IInferenceBackend;
 class ImagePreProcessor;
 class IPostProcessor;
 
 class YOLO {
 public:
   YOLO();
-
   ~YOLO();
 
 public:
@@ -35,37 +30,17 @@ public:
   } InferenceTiming;
 
   char *RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
-
   char *WarmUpSession();
-
-  template <typename N>
-  char *TensorProcess(std::chrono::high_resolution_clock::time_point &start_pre, const cv::Mat &iImg, N &blob,
-                      std::vector<int64_t> &inputNodeDims,
-                      std::vector<DL_RESULT> &oResult, InferenceTiming &timing);
-
-
 
   const std::vector<std::string>& getClassNames() const { return classes; }
 
   std::vector<std::string> classes{};
 
 private:
-  Ort::Env env;
-  // Session pool for multi-session inference (Phase 1 completion)
-  std::vector<Ort::Session *> m_sessionPool; // owned sessions
-  // Shared input/output node names for all sessions (assumes IO is identical
-  // across sessions)
-  std::vector<const char *> inputNodeNames;
-  std::vector<const char *> outputNodeNames;
-  std::vector<std::string> m_inputNodeNameStorage;
-  std::vector<std::string> m_outputNodeNameStorage;
-  bool cudaEnable;
-  Ort::RunOptions options;
-  // Input/output names are shared across sessions to avoid duplicating storage
-
+  std::unique_ptr<IInferenceBackend> m_backend;
+  
   MODEL_TYPE modelType;
   std::vector<int> imgSize;
-  std::atomic<size_t> m_sessionIndex{0};
   
   // Optimization: Reusable memory for blob to avoid reallocations
   cv::Mat m_commonBlob; 

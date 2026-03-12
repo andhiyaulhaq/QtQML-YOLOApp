@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(MSVC)
+    add_compile_options(/Zc:__cplusplus /permissive- /utf-8)
+    add_definitions(-DNOMINMAX)
+endif()
+
 # 1. Setup Qt6 (Added Multimedia component)
 find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia QuickControls2)
 
@@ -13,10 +18,14 @@ qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
 # 2. Setup OpenCV
-set(OpenCV_DIR "C:/opencv/build_mingw")
+set(OpenCV_DIR "C:/opencv/build")
 find_package(OpenCV REQUIRED)
 
-# 3. Setup ONNX Runtime
+# 3. Setup OpenVINO
+set(OpenVINO_DIR "C:/intel/openvino_toolkit/runtime/cmake")
+find_package(OpenVINO REQUIRED)
+
+# 4. Setup ONNX Runtime
 include_directories("C:/onnxruntime/include")
 link_directories("C:/onnxruntime/lib")
 
@@ -30,7 +39,12 @@ qt_add_executable(appCamera
     src/pipeline/inference.cpp
     src/pipeline/preprocess.cpp
     src/pipeline/postprocess.cpp
+    src/pipeline/onnxruntime_backend.cpp
+    src/pipeline/openvino_backend.cpp
     src/pipeline/inference.h
+    src/pipeline/inference_backend.h
+    src/pipeline/onnxruntime_backend.h
+    src/pipeline/openvino_backend.h
     src/core/SystemMonitor.cpp
     src/core/SystemMonitor.h
     src/models/DetectionStruct.h
@@ -73,6 +87,7 @@ target_link_libraries(appCamera
     Qt6::QuickControls2
     Qt6::Multimedia
     ${OpenCV_LIBS}
+    openvino::runtime
     onnxruntime
     onnxruntime_providers_shared
 )
@@ -82,12 +97,20 @@ if(WIN32)
     target_link_libraries(appCamera PRIVATE pdh psapi)
 endif()
 
-# 8. Copy ONNX Runtime DLLs to build directory
+# 8. Copy Runtime DLLs to build directory
+file(GLOB OPENCV_DLLS "C:/opencv/build/x64/vc16/bin/*.dll")
+file(GLOB OPENVINO_DLLS "C:/intel/openvino_toolkit/runtime/bin/intel64/Release/*.dll")
+file(GLOB TBB_DLLS "C:/intel/openvino_toolkit/runtime/3rdparty/tbb/bin/*.dll")
+
 add_custom_command(TARGET appCamera POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         C:/onnxruntime/lib/onnxruntime.dll
         C:/onnxruntime/lib/onnxruntime_providers_shared.dll
+        ${OPENCV_DLLS}
+        ${OPENVINO_DLLS}
+        ${TBB_DLLS}
         $<TARGET_FILE_DIR:appCamera>
+    COMMENT "Copying Runtime DLLs to the build directory..."
 )
 
 # 9. Copy model files to build directory

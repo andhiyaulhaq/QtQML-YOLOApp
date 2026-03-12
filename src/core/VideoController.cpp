@@ -148,7 +148,13 @@ void InferenceWorker::startInference() {
     m_running = true;
 }
 
+void InferenceWorker::changeRuntime(int runtimeType) {
+    m_currentRuntimeType = runtimeType;
+    changeModel(m_currentTaskType);
+}
+
 void InferenceWorker::changeModel(int taskType) {
+    m_currentTaskType = taskType;
     bool wasRunning = m_running;
     m_running = false; // Pause processing
     
@@ -168,15 +174,27 @@ void InferenceWorker::changeModel(int taskType) {
     file.close();
 
     DL_INIT_PARAM params;
-    
+    params.runtimeType = (m_currentRuntimeType == 0) ? RUNTIME_OPENVINO : RUNTIME_ONNXRUNTIME;
+
+    auto getModelPath = [&](const std::string& baseName) {
+        if (params.runtimeType == RUNTIME_OPENVINO) {
+            std::string xmlPath = "inference/" + baseName + ".xml";
+            std::ifstream f(xmlPath.c_str());
+            if (f.good()) return xmlPath;
+            // Fallback to onnx for OpenVINO if xml is missing
+            return "inference/" + baseName + ".onnx";
+        }
+        return "inference/" + baseName + ".onnx";
+    };
+
     if (taskType == 1) { // Object Detection
-        params.modelPath = "inference/yolov8n.onnx";
+        params.modelPath = getModelPath("yolov8n");
         params.modelType = YOLO_DETECT;
     } else if (taskType == 2) { // Pose Estimation
-        params.modelPath = "inference/yolov8n-pose.onnx";
+        params.modelPath = getModelPath("yolov8n-pose");
         params.modelType = YOLO_POSE;
     } else if (taskType == 3) { // Image Segmentation
-        params.modelPath = "inference/yolov8n-seg.onnx";
+        params.modelPath = getModelPath("yolov8n-seg");
         params.modelType = YOLO_SEG;
     }
 
@@ -255,6 +273,7 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
 
     // Main -> Workers
     connect(this, &VideoController::taskChangedBus, m_inferenceWorker, &InferenceWorker::changeModel, Qt::QueuedConnection);
+    connect(this, &VideoController::runtimeChangedBus, m_inferenceWorker, &InferenceWorker::changeRuntime, Qt::QueuedConnection);
     connect(this, &VideoController::startWorkers, m_captureWorker, &CaptureWorker::startCapturing, Qt::QueuedConnection);
     connect(this, &VideoController::stopWorkers, m_captureWorker, &CaptureWorker::stopCapturing, Qt::DirectConnection); 
     connect(this, &VideoController::stopWorkers, m_inferenceWorker, &InferenceWorker::stopInference, Qt::DirectConnection); 
@@ -328,6 +347,13 @@ void VideoController::setCurrentTask(TaskType task) {
     m_currentTask = task;
     emit currentTaskChanged();
     emit taskChangedBus(static_cast<int>(m_currentTask));
+}
+
+void VideoController::setCurrentRuntime(RuntimeType runtime) {
+    if (m_currentRuntime == runtime) return;
+    m_currentRuntime = runtime;
+    emit currentRuntimeChanged();
+    emit runtimeChangedBus(static_cast<int>(m_currentRuntime));
 }
 
 void VideoController::updateFps(double fps) {
