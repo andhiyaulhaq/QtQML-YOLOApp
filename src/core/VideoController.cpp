@@ -174,22 +174,22 @@ void InferenceWorker::changeModel(int taskType) {
     DL_INIT_PARAM params;
     params.runtimeType = (m_currentRuntimeType == 0) ? RUNTIME_OPENVINO : RUNTIME_ONNXRUNTIME;
 
-    auto getModelPath = [&](const std::string& baseName) {
+    auto getModelPath = [&](const std::string& baseName, const std::string& taskDir) {
         std::string path;
         if (params.runtimeType == RUNTIME_OPENVINO) {
-            std::string xmlPath = "assets/openvino/" + baseName + ".xml";
+            std::string xmlPath = "assets/openvino/" + taskDir + "/" + baseName + ".xml";
             std::ifstream f(xmlPath.c_str());
             if (f.good()) {
                 path = xmlPath;
             } else {
-                emit errorOccurred("Model Not Found", QString("OpenVINO model not found: %1.xml").arg(QString::fromStdString(baseName)));
+                emit errorOccurred("Model Not Found", QString("OpenVINO model not found: %1.xml in %2").arg(QString::fromStdString(baseName), QString::fromStdString(taskDir)));
                 return std::string("");
             }
         } else {
-            path = "assets/onnx/" + baseName + ".onnx";
+            path = "assets/onnx/" + taskDir + "/" + baseName + ".onnx";
             std::ifstream f(path.c_str());
             if (!f.good()) {
-                emit errorOccurred("Model Not Found", QString("ONNX model not found: %1.onnx").arg(QString::fromStdString(baseName)));
+                emit errorOccurred("Model Not Found", QString("ONNX model not found: %1.onnx in %2").arg(QString::fromStdString(baseName), QString::fromStdString(taskDir)));
                 return std::string("");
             }
         }
@@ -197,11 +197,11 @@ void InferenceWorker::changeModel(int taskType) {
     };
 
     if (taskType == 1) { // Object Detection
-        params.modelPath = getModelPath("yolov8n");
+        params.modelPath = getModelPath("yolov8n", "detection");
     } else if (taskType == 2) { // Pose Estimation
-        params.modelPath = getModelPath("yolov8n-pose");
+        params.modelPath = getModelPath("yolov8n-pose", "pose");
     } else if (taskType == 3) { // Image Segmentation
-        params.modelPath = getModelPath("yolov8n-seg");
+        params.modelPath = getModelPath("yolov8n-seg", "segmentation");
     } else {
         emit errorOccurred("Unsupported Task", QString("Task type %1 is not supported.").arg(taskType));
     }
