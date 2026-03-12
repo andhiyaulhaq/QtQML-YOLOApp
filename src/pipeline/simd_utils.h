@@ -67,4 +67,46 @@ inline void hwc_to_chw_bgr_to_rgb_sse41(const uint8_t* src, float* dst, int widt
     }
 }
 
+/**
+ * @brief Update best scores and class IDs branchlessly using SSE4.1.
+ * Processes 4 anchors per iteration.
+ */
+inline void update_best_scores_sse41(const float* current_scores, float* best_scores, int* best_class_ids, int class_id, int n) {
+    __m128 v_class_id = _mm_castsi128_ps(_mm_set1_epi32(class_id));
+    for (int i = 0; i <= n - 4; i += 4) {
+        __m128 v_curr = _mm_loadu_ps(current_scores + i);
+        __m128 v_best = _mm_loadu_ps(best_scores + i);
+        
+        // Compare: curr > best
+        __m128 v_mask = _mm_cmpgt_ps(v_curr, v_best);
+        
+        // Blend scores: curr where mask is 1, best where 0
+        __m128 v_new_best = _mm_blendv_ps(v_best, v_curr, v_mask);
+        _mm_storeu_ps(best_scores + i, v_new_best);
+        
+        // Blend class IDs: current class_id where mask is 1, old class_id where 0
+        __m128i v_best_ids = _mm_loadu_si128((__m128i*)(best_class_ids + i));
+        __m128i v_new_ids = _mm_castps_si128(_mm_blendv_ps(_mm_castsi128_ps(v_best_ids), v_class_id, v_mask));
+        _mm_storeu_si128((__m128i*)(best_class_ids + i), v_new_ids);
+    }
+    
+    // Tail
+    for (int i = (n & ~3); i < n; ++i) {
+        if (current_scores[i] > best_scores[i]) {
+            best_scores[i] = current_scores[i];
+            best_class_ids[i] = class_id;
+        }
+    }
+}
+
+/**
+ * @brief Fast check if any of the 4 scores in a vector are above threshold.
+ */
+inline int check_threshold_sse41(const float* scores, float threshold) {
+    __m128 v_scores = _mm_loadu_ps(scores);
+    __m128 v_thresh = _mm_set1_ps(threshold);
+    __m128 v_mask = _mm_cmpgt_ps(v_scores, v_thresh);
+    return _mm_movemask_ps(v_mask);
+}
+
 } // namespace simd

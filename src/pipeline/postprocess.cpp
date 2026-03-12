@@ -1,4 +1,5 @@
 #include "postprocess.h"
+#include "simd_utils.h"
 #include <numeric>
 #include <algorithm>
 #include <iostream>
@@ -31,17 +32,8 @@ void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t
     memcpy(m_bestScores.data(), row0, strideNum * sizeof(float));
     memset(m_bestClassIds.data(), 0, strideNum * sizeof(int));
 
-    for (int c = 1; c < numClasses; ++c) {
-        const float* rowC = data + (4 + c) * strideNum;
-        float* bestS = m_bestScores.data();
-        int*   bestC = m_bestClassIds.data();
-
-        for (int j = 0; j < strideNum; ++j) {
-            if (rowC[j] > bestS[j]) {
-                bestS[j] = rowC[j];
-                bestC[j] = c;
-            }
-        }
+        for (int c = 1; c < numClasses; ++c) {
+        simd::update_best_scores_sse41(data + (4 + c) * strideNum, m_bestScores.data(), m_bestClassIds.data(), c, strideNum);
     }
 
     m_classIds.clear();
@@ -51,7 +43,34 @@ void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t
     const float* bestS = m_bestScores.data();
     const int*   bestC = m_bestClassIds.data();
 
-    for (int j = 0; j < strideNum; ++j) {
+    int j = 0;
+    for (; j <= strideNum - 4; j += 4) {
+        int mask = simd::check_threshold_sse41(bestS + j, rectConfidenceThreshold);
+        if (mask == 0) continue; // Skip all 4
+
+        for (int k = 0; k < 4; ++k) {
+            if (mask & (1 << k)) {
+                int idx = j + k;
+                m_confidences.push_back(bestS[idx]);
+                m_classIds.push_back(bestC[idx]);
+
+                float cx = data[0 * strideNum + idx];
+                float cy = data[1 * strideNum + idx];
+                float bw = data[2 * strideNum + idx];
+                float bh = data[3 * strideNum + idx];
+
+                int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
+                int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
+                int width  = static_cast<int>(bw * resizeScales);
+                int height = static_cast<int>(bh * resizeScales);
+
+                m_boxes.emplace_back(left, top, width, height);
+            }
+        }
+    }
+
+    // Tail
+    for (; j < strideNum; ++j) {
         if (bestS[j] > rectConfidenceThreshold) {
             m_confidences.push_back(bestS[j]);
             m_classIds.push_back(bestC[j]);
@@ -164,12 +183,47 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
     m_boxes.clear();
     m_keypoints.clear();
 
-    for (int j = 0; j < strideNum; ++j) {
+    int j = 0;
+    for (; j <= strideNum - 4; j += 4) {
+        int mask = simd::check_threshold_sse41(data + 4 * strideNum + j, rectConfidenceThreshold);
+        if (mask == 0) continue;
+
+        for (int k = 0; k < 4; ++k) {
+            if (mask & (1 << k)) {
+                int idx = j + k;
+                float score = data[4 * strideNum + idx];
+                m_confidences.push_back(score);
+                m_classIds.push_back(0);
+
+                float cx = data[0 * strideNum + idx];
+                float cy = data[1 * strideNum + idx];
+                float bw = data[2 * strideNum + idx];
+                float bh = data[3 * strideNum + idx];
+
+                int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
+                int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
+                int width  = static_cast<int>(bw * resizeScales);
+                int height = static_cast<int>(bh * resizeScales);
+
+                m_boxes.emplace_back(left, top, width, height);
+                
+                std::vector<cv::Point2f> kpts;
+                for(int kp=0; kp<17; kp++) {
+                    float kx = data[(5 + kp*3) * strideNum + idx];
+                    float ky = data[(5 + kp*3 + 1) * strideNum + idx];
+                    kpts.push_back(cv::Point2f(kx * resizeScales, ky * resizeScales));
+                }
+                m_keypoints.push_back(kpts);
+            }
+        }
+    }
+
+    for (; j < strideNum; ++j) {
         float score = data[4 * strideNum + j];
         if (score > rectConfidenceThreshold) {
             m_confidences.push_back(score);
-            m_classIds.push_back(0); // Pose only has 1 class (Person)
-
+            m_classIds.push_back(0); 
+// ...
             float cx = data[0 * strideNum + j];
             float cy = data[1 * strideNum + j];
             float bw = data[2 * strideNum + j];
@@ -182,12 +236,10 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
 
             m_boxes.emplace_back(left, top, width, height);
             
-            // Extract 17 keypoints (x, y, conf)
             std::vector<cv::Point2f> kpts;
             for(int k=0; k<17; k++) {
                 float kx = data[(5 + k*3) * strideNum + j];
                 float ky = data[(5 + k*3 + 1) * strideNum + j];
-                float kconf = data[(5 + k*3 + 2) * strideNum + j];
                 kpts.push_back(cv::Point2f(kx * resizeScales, ky * resizeScales));
             }
             m_keypoints.push_back(kpts);
@@ -288,17 +340,8 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
     memcpy(m_bestScores.data(), row0, strideNum * sizeof(float));
     memset(m_bestClassIds.data(), 0, strideNum * sizeof(int));
 
-    for (int c = 1; c < numClasses; ++c) {
-        const float* rowC = data + (4 + c) * strideNum;
-        float* bestS = m_bestScores.data();
-        int*   bestC = m_bestClassIds.data();
-
-        for (int j = 0; j < strideNum; ++j) {
-            if (rowC[j] > bestS[j]) {
-                bestS[j] = rowC[j];
-                bestC[j] = c;
-            }
-        }
+        for (int c = 1; c < numClasses; ++c) {
+        simd::update_best_scores_sse41(data + (4 + c) * strideNum, m_bestScores.data(), m_bestClassIds.data(), c, strideNum);
     }
 
     m_classIds.clear();
@@ -312,7 +355,40 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
     // Box offset and Mask coeff offset
     int coeffOffset = 4 + numClasses; // 84
 
-    for (int j = 0; j < strideNum; ++j) {
+    int j = 0;
+    for (; j <= strideNum - 4; j += 4) {
+        int mask = simd::check_threshold_sse41(bestS + j, rectConfidenceThreshold);
+        if (mask == 0) continue;
+
+        for (int k = 0; k < 4; ++k) {
+            if (mask & (1 << k)) {
+                int idx = j + k;
+                m_confidences.push_back(bestS[idx]);
+                m_classIds.push_back(bestC[idx]);
+
+                float cx = data[0 * strideNum + idx];
+                float cy = data[1 * strideNum + idx];
+                float bw = data[2 * strideNum + idx];
+                float bh = data[3 * strideNum + idx];
+
+                int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
+                int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
+                int width  = static_cast<int>(bw * resizeScales);
+                int height = static_cast<int>(bh * resizeScales);
+
+                m_boxes.emplace_back(left, top, width, height);
+
+                // Extract 32 mask coefficients
+                std::vector<float> coeffs(32);
+                for (int m = 0; m < 32; ++m) {
+                    coeffs[m] = data[(coeffOffset + m) * strideNum + idx];
+                }
+                m_maskCoeffs.push_back(coeffs);
+            }
+        }
+    }
+
+    for (; j < strideNum; ++j) {
         if (bestS[j] > rectConfidenceThreshold) {
             m_confidences.push_back(bestS[j]);
             m_classIds.push_back(bestC[j]);
