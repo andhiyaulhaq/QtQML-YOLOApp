@@ -1,6 +1,6 @@
 #pragma once
 
-#include "yolo_types.h"
+#include "../YoloTypes.h"
 #include <vector>
 
 struct InferenceOutput {

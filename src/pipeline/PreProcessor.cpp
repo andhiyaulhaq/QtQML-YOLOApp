@@ -1,5 +1,5 @@
-#include "preprocess.h"
-#include "simd_utils.h"
+#include "PreProcessor.h"
+#include "SimdUtils.h"
 
 ImagePreProcessor::ImagePreProcessor(MODEL_TYPE modelType, const std::vector<int>& imgSize)
     : modelType(modelType), imgSize(imgSize), resizeScales(1.0f) {}

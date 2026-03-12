@@ -1,6 +1,6 @@
 #pragma once
 
-#include "yolo_types.h"
+#include "YoloTypes.h"
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <string>

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "yolo_types.h"
+#include "YoloTypes.h"
 #include <memory>
 
 #ifdef _WIN32
@@ -11,14 +11,15 @@
 #include <io.h>
 #endif
 
+// Forward declarations
 class IInferenceBackend;
 class ImagePreProcessor;
 class IPostProcessor;
 
-class YOLO {
+class YoloPipeline {
 public:
-  YOLO();
-  ~YOLO();
+  YoloPipeline();
+  ~YoloPipeline();
 
 public:
   const char *CreateSession(DL_INIT_PARAM &iParams);

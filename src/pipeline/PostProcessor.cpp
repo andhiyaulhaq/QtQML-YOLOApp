@@ -1,5 +1,5 @@
-#include "postprocess.h"
-#include "simd_utils.h"
+#include "PostProcessor.h"
+#include "SimdUtils.h"
 #include <numeric>
 #include <algorithm>
 #include <iostream>

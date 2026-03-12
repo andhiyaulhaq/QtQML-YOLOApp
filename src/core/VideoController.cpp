@@ -163,13 +163,13 @@ void InferenceWorker::changeModel(int taskType) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
     
-    m_yolo = std::make_unique<YOLO>();
+    m_pipeline = std::make_unique<YoloPipeline>();
     
     // Load Classes
     std::ifstream file("inference/classes.txt");
     std::string line;
     while (std::getline(file, line)) {
-        m_yolo->classes.push_back(line);
+        m_pipeline->classes.push_back(line);
     }
     file.close();
 
@@ -206,7 +206,7 @@ void InferenceWorker::changeModel(int taskType) {
     params.interOpNumThreads = 1;
     
     try {
-        m_yolo->CreateSession(params);
+        m_pipeline->CreateSession(params);
     } catch (const std::exception& e) {
         qWarning() << "Failed to create session:" << e.what();
     }
@@ -219,7 +219,7 @@ void InferenceWorker::stopInference() {
 }
 
 void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
-    if (!m_running || !m_yolo || !frame) return;
+    if (!m_running || !m_pipeline || !frame) return;
 
     // Drop frame if already processing
     bool expected = false;
@@ -229,14 +229,14 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
 
     // Run Inference
     std::vector<DL_RESULT> results;
-    YOLO::InferenceTiming timing;
+    YoloPipeline::InferenceTiming timing;
     // We can use the input const reference directly if RunSession accepts it.
     // If not, we might need a const_cast or better, fix RunSession to take const cv::Mat&
     // For now, let's assume we will fix RunSession.
-    m_yolo->RunSession(*frame, results, timing);
+    m_pipeline->RunSession(*frame, results, timing);
 
     // Emit results
-    emit detectionsReady(results, &m_yolo->getClassNames(), timing);
+    emit detectionsReady(results, &m_pipeline->getClassNames(), timing);
     emit latestDetectionsReady(std::make_shared<std::vector<DL_RESULT>>(results));
 
     m_isProcessing = false;
@@ -370,7 +370,7 @@ void VideoController::updateSystemStats(const QString &formattedStats) {
     }
 }
 
-void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing) {
+void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing) {
     // Update the model directly
     if (m_detections && classNames) {
         m_detections->updateDetections(results, *classNames);

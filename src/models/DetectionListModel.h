@@ -5,7 +5,7 @@
 #include <QVideoSink>
 #include <QQmlEngine>
 #include "DetectionStruct.h"
-#include "inference.h" 
+#include "YoloTypes.h" 
 
 class DetectionListModel : public QAbstractListModel
 {

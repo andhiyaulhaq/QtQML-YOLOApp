@@ -1,6 +1,6 @@
 #pragma once
 
-#include "inference_backend.h"
+#include "IInferenceBackend.h"
 #include "onnxruntime_cxx_api.h"
 #include <atomic>
 #include <memory>

@@ -21,7 +21,7 @@ namespace AppConfig {
     static constexpr int ModelHeight = 640;
 }
 
-#include "inference.h"
+#include "YoloPipeline.h"
 #include "SystemMonitor.h"
 #include "DetectionStruct.h"
 #include "DetectionListModel.h"
@@ -102,7 +102,7 @@ public slots:
     void setCurrentRuntime(RuntimeType runtime);
     void updateFps(double fps);
     void updateSystemStats(const QString &formattedStats);
-    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing);
+    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
 
 private:
     QVideoSink* m_sink = nullptr;
@@ -171,7 +171,7 @@ public:
     ~InferenceWorker();
 
 signals:
-    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YOLO::InferenceTiming& timing);
+    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
     void latestDetectionsReady(std::shared_ptr<std::vector<DL_RESULT>> results);
 
 public slots:
@@ -184,7 +184,7 @@ public slots:
 
 private:
     std::atomic<bool> m_running{false};
-    std::unique_ptr<YOLO> m_yolo;
+    std::unique_ptr<YoloPipeline> m_pipeline;
     
     int m_currentTaskType = 1;
     int m_currentRuntimeType = 0; // RuntimeOpenVINO

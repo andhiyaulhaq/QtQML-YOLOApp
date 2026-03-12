@@ -1,19 +1,19 @@
-#include "inference.h"
-#include "preprocess.h"
-#include "postprocess.h"
-#include "onnxruntime_backend.h"
-#include "openvino_backend.h"
+#include "YoloPipeline.h"
+#include "PreProcessor.h"
+#include "PostProcessor.h"
+#include "backends/OnnxRuntimeBackend.h"
+#include "backends/OpenVinoBackend.h"
 #include <regex>
 
-YOLO::YOLO() {}
+YoloPipeline::YoloPipeline() {}
 
-YOLO::~YOLO() {}
+YoloPipeline::~YoloPipeline() {}
 
-const char *YOLO::CreateSession(DL_INIT_PARAM &iParams) {
+const char *YoloPipeline::CreateSession(DL_INIT_PARAM &iParams) {
     const char *Ret = RET_OK;
     std::regex pattern("[\u4e00-\u9fa5]");
     if (std::regex_search(iParams.modelPath, pattern)) {
-        return "[YOLO]: Model path cannot contain Chinese characters.";
+        return "[YoloPipeline]: Model path cannot contain Chinese characters.";
     }
 
     try {
@@ -57,12 +57,12 @@ const char *YOLO::CreateSession(DL_INIT_PARAM &iParams) {
         WarmUpSession();
         return RET_OK;
     } catch (const std::exception &e) {
-        std::cerr << "[YOLO]: " << e.what() << std::endl;
-        return "[YOLO]: Create session failed.";
+        std::cerr << "[YoloPipeline]: " << e.what() << std::endl;
+        return "[YoloPipeline]: Create session failed.";
     }
 }
 
-char *YOLO::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
+char *YoloPipeline::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, InferenceTiming &timing) {
     auto start_pre = std::chrono::high_resolution_clock::now();
 
     // Step 1: Letterbox Resize (CPU)
@@ -98,7 +98,7 @@ char *YOLO::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oResult, Inf
     return RET_OK;
 }
 
-char *YOLO::WarmUpSession() {
+char *YoloPipeline::WarmUpSession() {
     if (m_backend) {
         m_backend->warmUp(imgSize);
     }

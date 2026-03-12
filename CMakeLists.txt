@@ -36,15 +36,17 @@ qt_add_executable(appCamera
     src/core/VideoController.h
     src/ui/DetectionOverlayItem.cpp
     src/ui/DetectionOverlayItem.h
-    src/pipeline/inference.cpp
-    src/pipeline/preprocess.cpp
-    src/pipeline/postprocess.cpp
-    src/pipeline/onnxruntime_backend.cpp
-    src/pipeline/openvino_backend.cpp
-    src/pipeline/inference.h
-    src/pipeline/inference_backend.h
-    src/pipeline/onnxruntime_backend.h
-    src/pipeline/openvino_backend.h
+    src/pipeline/YoloPipeline.cpp
+    src/pipeline/PreProcessor.cpp
+    src/pipeline/PostProcessor.cpp
+    src/pipeline/backends/OnnxRuntimeBackend.cpp
+    src/pipeline/backends/OpenVinoBackend.cpp
+    src/pipeline/YoloPipeline.h
+    src/pipeline/backends/IInferenceBackend.h
+    src/pipeline/backends/OnnxRuntimeBackend.h
+    src/pipeline/backends/OpenVinoBackend.h
+    src/pipeline/YoloTypes.h
+    src/pipeline/SimdUtils.h
     src/core/SystemMonitor.cpp
     src/core/SystemMonitor.h
     src/models/DetectionStruct.h
