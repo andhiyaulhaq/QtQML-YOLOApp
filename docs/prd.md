@@ -11,7 +11,7 @@ The **QtOpenCVCamera** is a high-performance desktop application designed to dem
 - **High Performance**: Achieve 30+ FPS camera capture with decoupled inference running at model-limited speed (~10-20 FPS on CPU for YOLOv8n).
 - **Responsive UI**: Ensure the UI never freezes by isolating capture, inference, and monitoring into separate threads.
 - **Modern Stack**: Showcase integration of C++17, Qt 6.8, OpenCV 4.x, and ONNX Runtime.
-- **Maintainability**: Clean architecture separating UI (QML), control logic (VideoController), data models (DetectionListModel), and AI engine (YOLO_V8).
+- **Maintainability**: Clean architecture separating UI (QML), control logic (VideoController), data models (DetectionListModel), and AI pipeline (YOLO).
 - **Observability**: Real-time performance metrics (camera FPS, inference FPS, per-phase timing, CPU/RAM usage).
 
 ## 3. User Stories
@@ -19,7 +19,7 @@ The **QtOpenCVCamera** is a high-performance desktop application designed to dem
 - **As a User**, I want the application to highlight objects (like 'Person', 'Car', 'Dog') with color-coded bounding boxes and labels so I can identify them.
 - **As a User**, I want to see inference timing and FPS metrics so I can understand the application's performance.
 - **As a User**, I want to monitor system performance (CPU/RAM usage) to ensure the app isn't consuming excessive resources.
-- **As a Developer**, I want the AI model to be interchangeable (ONNX format) so I can upgrade detection capabilities by swapping model files.
+- **As a Developer**, I want the AI model to be interchangeable (ONNX format, supporting Detection, Pose, and Segmentation workflows) so I can upgrade detection capabilities by swapping model files.
 - **As a Developer**, I want the capture and inference pipelines to be decoupled so I can optimize each independently.
 
 ## 4. Functional Requirements

@@ -4,11 +4,11 @@
 - **Background**: Works in a security room monitoring multiple feeds.
 - **Goals**: Needs reliable, continuous object detection to alert on specific events (e.g., "Person" in restricted area).
 - **Frustrations**: Laggy video feeds, confusing interfaces, high CPU usage slowing down other monitoring tools.
-- **Needs**: High stability, low resource footprint, clear visual indicators (color-coded bounding boxes), performance metrics to confirm the system is running smoothly.
+- **Needs**: High stability, low resource footprint, clear visual indicators (color-coded bounding boxes, segmentation masks, or pose skeletons), performance metrics to confirm the system is running smoothly.
 
 ## 2. The AI R&D Developer — "Alex"
 - **Background**: Computer Vision engineer prototyping new YOLO models.
-- **Goals**: Wants a solid "host" application to test custom-trained YOLO models without rewriting UI code. Needs to observe inference performance (pre-process, inference, post-process timing) to benchmark different models.
+- **Goals**: Wants a solid "host" application to test custom-trained YOLO models (Detection, Pose, Segmentation) without rewriting UI code. Needs to observe inference performance (pre-process, inference, post-process timing) to benchmark different models.
 - **Frustrations**: Hard-coded model paths, difficult build systems, lack of per-phase timing data, single-threaded architectures that conflate capture and inference bottlenecks.
 - **Needs**: Clean code structure, easy model swapping (drop-in ONNX file + `classes.txt`), real-time timing overlay, decoupled capture/inference pipelines for accurate benchmarking.
 

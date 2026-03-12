@@ -43,13 +43,13 @@ classDiagram
         +startInference()
         +stopInference()
         +processFrame(const cv::Mat&)
-        -YOLO_V8* m_yolo
+        -YOLO* m_yolo
         -vector~string~ m_classNames
         -atomic~bool~ m_running
         -atomic~bool~ m_isProcessing
     }
 
-    class YOLO_V8 {
+    class YOLO {
         +CreateSession(DL_INIT_PARAM&)
         +RunSession(const cv::Mat&, vector~DL_RESULT~&, InferenceTiming&)
         +WarmUpSession()
@@ -98,7 +98,7 @@ classDiagram
     VideoController --> SystemMonitor : manages (systemThread)
     VideoController --> DetectionListModel : owns
     CaptureWorker ..> InferenceWorker : frameReady signal
-    InferenceWorker --> YOLO_V8 : uses
+    InferenceWorker --> YOLO : uses
     InferenceWorker ..> VideoController : detectionsReady signal
     VideoController ..> DetectionListModel : updateDetections()
     DetectionOverlayItem --> DetectionListModel : reads
@@ -128,12 +128,12 @@ To ensure a responsive UI (60 FPS target), all blocking operations are offloaded
 ### Thread 3: Inference Thread (`InferenceWorker`, High Priority)
 - **Role**: Loads the YOLO model at startup, then responds to incoming frames.
 - **Initialization** (`startInference()`):
-    1. Creates `YOLO_V8` instance.
+    1. Creates `YOLO` instance.
     2. Loads `classes.txt` for class names.
     3. Creates ONNX session with optimized thread count (`min(4, hw_concurrency/2)`).
 - **Frame Processing** (`processFrame()`):
     1. **Frame Drop**: Uses `atomic<bool> m_isProcessing` with `compare_exchange_strong` to skip frames if inference is still ongoing (prevents queue buildup).
-    2. Runs `YOLO_V8::RunSession()` which performs preprocessing, inference, and postprocessing.
+    2. Runs `YOLO::RunSession()` which performs preprocessing, inference, and postprocessing.
     3. Emits `detectionsReady(results, classNames, timing)` to the main thread.
 - **Synchronization**: Uses `QueuedConnection` for thread-safe signal delivery.
 
@@ -172,7 +172,7 @@ sequenceDiagram
 
 ## Component Breakdown
 
-### 1. VideoController (`src/VideoController.h/cpp`)
+### 1. VideoController (`src/core/VideoController.h/cpp`)
 - **Type**: `QObject` + `QML_ELEMENT`, instantiated from QML.
 - **Responsibility**: Orchestrates the entire application lifecycle. Creates and manages three background threads. Bridges C++ detection data to QML via `Q_PROPERTY` bindings.
 - **Properties Exposed to QML**:
@@ -185,19 +185,19 @@ sequenceDiagram
 - **Startup Sequence**: Threads are started via `QTimer::singleShot(500ms)` to prevent UI freeze at launch.
 - **Shutdown Sequence**: Emits `stopWorkers()`, quits all threads, then waits for completion.
 
-### 2. CaptureWorker (`src/VideoController.h/cpp`)
+### 2. CaptureWorker (`src/core/VideoController.h/cpp`)
 - **Type**: `QObject`, lives on `m_captureThread`.
 - **Responsibility**: Camera capture loop with optimized frame delivery.
 - **Key Optimization**: 3-frame ring buffer (`m_framePool[3]`) avoids `cv::Mat::clone()` per frame. With 3 buffers at 30 FPS, each buffer has ~100ms before it gets overwritten, which is sufficient for typical inference durations.
 
-### 3. InferenceWorker (`src/VideoController.h/cpp`)
+### 3. InferenceWorker (`src/core/VideoController.h/cpp`)
 - **Type**: `QObject`, lives on `m_inferenceThread`.
 - **Responsibility**: AI inference pipeline.
 - **Key Optimization**: Atomic frame-drop mechanism. If a new frame arrives while inference is still running, the frame is silently dropped instead of accumulating in the event queue.
 
-### 4. YOLO_V8 (`src/inference.h/cpp`)
+### 4. YOLO (`src/pipeline/inference.h/cpp`)
 - **Type**: Pure C++ Class (no QObject).
-- **Responsibility**: Full ONNX Runtime wrapper for YOLOv8 inference.
+- **Responsibility**: Full ONNX Runtime wrapper for YOLO inference.
 - **Features**:
     - Session Pooling (`m_sessionPool`) for potential multi-session strategies.
     - Letterbox Preprocessing with reusable `m_letterboxBuffer`.
@@ -205,24 +205,24 @@ sequenceDiagram
     - `InferenceTiming` struct returning per-phase millisecond timings.
     - Non-Maximum Suppression (NMS) postprocessing.
 
-### 5. DetectionOverlayItem (`src/DetectionOverlayItem.h/cpp`)
+### 5. DetectionOverlayItem (`src/ui/DetectionOverlayItem.h/cpp`)
 - **Type**: `QQuickItem` + `QML_ELEMENT`.
 - **Responsibility**: Renders bounding box rectangles at the Scene Graph level for hardware-accelerated performance.
 - **Rendering**: Uses `QSGGeometry` with `DrawLines` mode and `QSGVertexColorMaterial` for per-class color-coded boxes.
 - **Label Rendering**: Handled by a QML `Repeater` nested inside the `DetectionOverlayItem` in `Main.qml`, providing easy text rendering without Scene Graph complexity.
 
-### 6. DetectionListModel (`src/DetectionListModel.h/cpp`)
+### 6. DetectionListModel (`src/models/DetectionListModel.h/cpp`)
 - **Type**: `QAbstractListModel` + `QML_ELEMENT`.
 - **Responsibility**: Stores detection data as a `std::vector<Detection>` and exposes it to QML via roles (classId, confidence, label, x, y, w, h).
 - **Update Strategy**: Full model reset per inference frame (`beginResetModel` / `endResetModel`).
 - **Coordinate System**: Normalized [0, 1] coordinates relative to `AppConfig::FrameWidth` / `AppConfig::FrameHeight`.
 
-### 7. Detection (`src/DetectionStruct.h`)
+### 7. Detection (`src/models/DetectionStruct.h`)
 - **Type**: `Q_GADGET` struct.
 - **Fields**: `classId`, `confidence`, `label` (QString), `x`, `y`, `w`, `h` (normalized floats).
 - **Purpose**: Efficient value-type for passing detection data between C++ and QML without QObject overhead.
 
-### 8. SystemMonitor (`src/SystemMonitor.h/cpp`)
+### 8. SystemMonitor (`src/core/SystemMonitor.h/cpp`)
 - **Type**: `QObject`, lives on `m_systemThread`.
 - **Responsibility**: Cross-platform system resource monitoring.
 - **Platforms**: Windows (PDH queries for CPU, PSAPI for memory), Linux (`/proc/stat`, `sysinfo`), macOS (`sysctl`, `mach` task info).

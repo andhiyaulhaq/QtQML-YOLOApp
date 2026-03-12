@@ -5,7 +5,7 @@
 - **Framework**: Qt 6.8 (Quick, Multimedia, Core)
 - **Computer Vision**: OpenCV 4.x (Video Capture, Image Preprocessing, Color Conversion)
 - **AI Inference**: ONNX Runtime (v1.16+ recommended)
-- **Model**: YOLOv8 Nano (`yolov8n.onnx`) for real-time CPU performance
+- **Models**: Configurable YOLO models (Detection, Pose, Segmentation) via ONNX for real-time CPU performance
 
 ## Development Environment
 - **OS**: Windows 10/11 (Primary Target)

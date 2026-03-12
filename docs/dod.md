@@ -23,7 +23,7 @@ For a feature or task to be considered "Done" in the **QtOpenCVCamera** project,
 
 ## 4. Testing
 - [ ] Feature verified manually on Windows (MinGW Makefiles build).
-- [ ] Bounding boxes, labels, and confidence scores render correctly.
+- [ ] Bounding boxes, segmentation masks, pose skeletons, labels, and confidence scores render correctly.
 - [ ] Performance HUD displays accurate timing and FPS values.
 - [ ] Application starts and shuts down cleanly without hangs.
 
