@@ -72,11 +72,18 @@ const char* OnnxRuntimeBackend::createSession(DL_INIT_PARAM& iParams) {
         Ort::AllocatorWithDefaultOptions allocator;
         Ort::Session* primary = m_sessionPool.front();
         
-        for (size_t i = 0; i < primary->GetInputCount(); i++) {
+        size_t inputCount = primary->GetInputCount();
+        m_inputNodeNameStorage.reserve(inputCount);
+        m_inputNodeNames.reserve(inputCount);
+        for (size_t i = 0; i < inputCount; i++) {
             m_inputNodeNameStorage.push_back(primary->GetInputNameAllocated(i, allocator).get());
             m_inputNodeNames.push_back(m_inputNodeNameStorage.back().c_str());
         }
-        for (size_t i = 0; i < primary->GetOutputCount(); i++) {
+
+        size_t outputCount = primary->GetOutputCount();
+        m_outputNodeNameStorage.reserve(outputCount);
+        m_outputNodeNames.reserve(outputCount);
+        for (size_t i = 0; i < outputCount; i++) {
             m_outputNodeNameStorage.push_back(primary->GetOutputNameAllocated(i, allocator).get());
             m_outputNodeNames.push_back(m_outputNodeNameStorage.back().c_str());
         }
