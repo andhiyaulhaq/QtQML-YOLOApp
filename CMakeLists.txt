@@ -99,28 +99,40 @@ if(WIN32)
     target_link_libraries(appCamera PRIVATE pdh psapi)
 endif()
 
-# 8. Copy Runtime DLLs to build directory
-file(GLOB OPENCV_DLLS "C:/opencv/build/x64/vc16/bin/*.dll")
+# 8. Copy Runtime DLLs to categorized subdirectories
 file(GLOB OPENVINO_DLLS "C:/intel/openvino_toolkit/runtime/bin/intel64/Release/*.dll")
 file(GLOB TBB_DLLS "C:/intel/openvino_toolkit/runtime/3rdparty/tbb/bin/*.dll")
 
 add_custom_command(TARGET appCamera POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs
+    # Create categorized directories
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs/onnx
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs/opencv
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs/openvino
+
+    # ONNX Runtime
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         C:/onnxruntime/lib/onnxruntime.dll
         C:/onnxruntime/lib/onnxruntime_providers_shared.dll
-        ${OPENCV_DLLS}
+        $<TARGET_FILE_DIR:appCamera>/libs/onnx
+
+    # OpenCV (release only)
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        C:/opencv/build/x64/vc16/bin/opencv_world4120.dll
+        $<TARGET_FILE_DIR:appCamera>/libs/opencv
+
+    # OpenVINO + TBB
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${OPENVINO_DLLS}
         ${TBB_DLLS}
-        $<TARGET_FILE_DIR:appCamera>/libs
-    COMMENT "Copying Runtime DLLs to the libs directory..."
+        $<TARGET_FILE_DIR:appCamera>/libs/openvino
+    COMMENT "Copying Runtime DLLs to categorized libs directories..."
 )
 
 # 9. Create qt.conf to point to libs for plugins and qml
 file(WRITE ${CMAKE_BINARY_DIR}/qt.conf 
 "[Paths]
 Prefix = libs
-Plugins = .
+Plugins = plugins
 Imports = qml
 Qml2Imports = qml
 ")
