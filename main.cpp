@@ -1,10 +1,28 @@
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickStyle>
+#include <string>
 
 using namespace Qt::StringLiterals;
 
 int main(int argc, char *argv[]) {
+#ifdef _WIN32
+  // Get the directory of the executable to set absolute search path
+  wchar_t path[MAX_PATH];
+  if (GetModuleFileNameW(NULL, path, MAX_PATH) != 0) {
+      std::wstring binDir = path;
+      size_t lastBackslash = binDir.find_last_of(L"\\/");
+      if (lastBackslash != std::wstring::npos) {
+          binDir = binDir.substr(0, lastBackslash);
+      }
+      std::wstring libsDir = binDir + L"\\libs";
+      SetDllDirectoryW(libsDir.c_str());
+  }
+#endif
   QGuiApplication app(argc, argv);
   
   QQuickStyle::setStyle("Basic");

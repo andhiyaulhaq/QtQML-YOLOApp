@@ -105,17 +105,34 @@ file(GLOB OPENVINO_DLLS "C:/intel/openvino_toolkit/runtime/bin/intel64/Release/*
 file(GLOB TBB_DLLS "C:/intel/openvino_toolkit/runtime/3rdparty/tbb/bin/*.dll")
 
 add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         C:/onnxruntime/lib/onnxruntime.dll
         C:/onnxruntime/lib/onnxruntime_providers_shared.dll
         ${OPENCV_DLLS}
         ${OPENVINO_DLLS}
         ${TBB_DLLS}
-        $<TARGET_FILE_DIR:appCamera>
-    COMMENT "Copying Runtime DLLs to the build directory..."
+        $<TARGET_FILE_DIR:appCamera>/libs
+    COMMENT "Copying Runtime DLLs to the libs directory..."
 )
 
-# 9. Copy model files to build directory
+# 9. Create qt.conf to point to libs for plugins and qml
+file(WRITE ${CMAKE_BINARY_DIR}/qt.conf 
+"[Paths]
+Prefix = libs
+Plugins = .
+Imports = qml
+Qml2Imports = qml
+")
+
+add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_BINARY_DIR}/qt.conf
+        $<TARGET_FILE_DIR:appCamera>/qt.conf
+    COMMENT "Creating and copying qt.conf..."
+)
+
+# 10. Copy model files to build directory
 add_custom_command(TARGET appCamera POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets
