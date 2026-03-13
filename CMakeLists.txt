@@ -150,3 +150,11 @@ add_custom_command(TARGET appCamera POST_BUILD
         ${CMAKE_SOURCE_DIR}/assets
         $<TARGET_FILE_DIR:appCamera>/assets
 )
+
+# 11. Copy README to build directory
+add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/docs/README_RELEASE.md
+        $<TARGET_FILE_DIR:appCamera>/README.md
+    COMMENT "Copying release README..."
+)
