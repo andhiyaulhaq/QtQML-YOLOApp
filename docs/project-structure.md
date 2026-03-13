@@ -26,46 +26,24 @@ graph TD
 ```
 root/
 ├── .agent/                 # AI Agent configurations and skills
-├── build/                  # Build artifacts (excluded from git)
-├── content/                # Qt Quick (QML) UI files
-│   └── Main.qml            # Main application window & overlays
-├── docs/                   # Documentation Suite
-│   ├── prd.md              # Product Requirements
-│   ├── design-spec.md      # Architecture & Component Specs
-│   ├── tech-stack.md       # Libraries & Standards
-│   ├── dod.md              # Definition of Done
-│   ├── personas.md         # User Personas
-│   └── project-structure.md# This file
-├── assets/                 # AI Model assets
+├── app/                    # C++ Application Deployment
+│   ├── src/                # C++ Source Code
+│   ├── content/            # Qt Quick (QML) UI files
+│   ├── build/              # Build artifacts (git-ignored)
+│   ├── CMakeLists.txt      # Build configuration
+│   ├── main.cpp            # Application entry point
+│   ├── configure.sh        # Setup build system
+│   ├── build.sh            # Compile application
+│   └── deploy.sh           # Package for release
+├── research/               # Model Research & Experimentation
+│   ├── notebooks/          # Jupyter Notebooks
+│   ├── scripts/            # Training/Export scripts
+│   └── requirements.txt    # Python dependencies
+├── assets/                 # Shared AI Model assets
 │   ├── onnx/               # ONNX Runtime models
-│   │   ├── yolov8n.onnx
-│   │   ├── yolov8n-pose.onnx
-│   │   └── yolov8n-seg.onnx
-│   ├── openvino/           # OpenVINO Intermediate Representation
-│   │   ├── yolov8n.xml
-│   │   └── yolov8n.bin
-│   └── classes.txt         # COCO class labels (80 classes)
-├── src/                    # C++ Source Code
-│   ├── core/               # Controllers and Monitors
-│   │   ├── VideoController.h/cpp
-│   │   └── SystemMonitor.h/cpp
-│   ├── ui/                 # Qt Quick UI Elements
-│   │   └── DetectionOverlayItem.h/cpp
-│   ├── models/             # Data Models
-│   │   ├── DetectionListModel.h/cpp
-│   │   └── DetectionStruct.h
-│   └── pipeline/           # AI Pipeline (Pre, Infer, Post)
-│       ├── YoloPipeline.h/cpp
-│       ├── PreProcessor.h/cpp
-│       ├── PostProcessor.h/cpp
-│       ├── YoloTypes.h
-│       ├── SimdUtils.h
-│       └── backends/       # Runtime-specific backends
-│           ├── IInferenceBackend.h
-│           ├── OnnxRuntimeBackend.h/cpp
-│           └── OpenVinoBackend.h/cpp
-├── CMakeLists.txt          # Build configuration (Qt6 + OpenCV + ONNX)
-├── main.cpp                # Application entry point
+│   └── openvino/           # OpenVINO Intermediate Representation
+├── docs/                   # Documentation Suite
+│   └── project-structure.md# This file
 └── README.md               # Project overview
 ```
 

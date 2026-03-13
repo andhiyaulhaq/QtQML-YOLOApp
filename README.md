@@ -33,32 +33,40 @@ To build this project on Windows, you need:
 git clone https://github.com/andhiyaulhaq/QtQML-YOLOApp.git
 cd QtQML-YOLOApp
 
-# 2. Configure via CMake using MSVC 2022
-# Note: Ensure CMAKE_PREFIX_PATH points to your MSVC Qt installation
-cmake -G "Visual Studio 17 2022" -B build -S . -DCMAKE_PREFIX_PATH="C:/Qt/6.8.3/msvc2022_64"
+# 2. Enter the app directory
+cd app
 
-# 3. Build the application (Release)
-cmake --build build --config Release --target appCamera
+# 3. Configure via CMake
+./configure.sh
+
+# 4. Build the application
+./build.sh
 ```
 
 ## 🚀 Deployment & Running
 
-To run the application outside of an IDE, you must deploy the Qt dependencies:
+1. **Build** the application as shown above.
+2. Run the **deploy** script:
+   ```bash
+   cd app
+   ./deploy.sh
+   ```
+3. Run the application from the release folder:
+   ```bash
+   # On Windows (cmd/powershell)
+   app\build\Release\appCamera.bat
+   ```
 
-```bash
-# 1. Run windeployqt to copy Qt DLLs and plugins
-C:/Qt/6.8.3/msvc2022_64/bin/windeployqt.exe --release --qmldir content --qmldir . build/Release/appCamera.exe
+*Note: The deploy system automatically copies all dependencies (Qt, OpenCV, OpenVINO, ONNX Runtime) into the Release folder.*
 
-# 2. Run the application
-cd build/Release
-./appCamera.exe
-```
+## 🏗️ Project Structure
 
-*Note: The build system automatically copies OpenCV, OpenVINO, and ONNX Runtime DLLs to the Release folder after compilation.*
+- **`app/`**: Contains the full C++ application codebase and build scripts.
+- **`research/`**: Dedicated space for Python notebooks and model experimentation.
+- **`assets/`**: Shared model files used by both the app and research.
+- **`docs/`**: Project documentation and architecture details.
 
-## 🏗️ Architecture
-
-The project uses a **Strategy Pattern** for inference backends and a **Multi-Threaded C++/QML Bridge**:
+The C++ backend uses a **Strategy Pattern** for inference backends and a **Multi-Threaded C++/QML Bridge**:
 
 - **Frontend (QML)**: Modern UI with a sidebar for task and runtime switching.
 - **Backend (C++)**:

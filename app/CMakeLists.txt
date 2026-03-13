@@ -31,7 +31,7 @@ link_directories("C:/onnxruntime/lib")
 
 # 3. Create Executable (Updated to use VideoController)
 qt_add_executable(appCamera
-    src/main.cpp
+    main.cpp
     src/core/VideoController.cpp
     src/core/VideoController.h
     src/ui/DetectionOverlayItem.cpp
@@ -147,14 +147,14 @@ add_custom_command(TARGET appCamera POST_BUILD
 # 10. Copy model files to build directory
 add_custom_command(TARGET appCamera POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/assets
+        ${CMAKE_CURRENT_SOURCE_DIR}/../assets
         $<TARGET_FILE_DIR:appCamera>/assets
 )
 
 # 11. Copy README to build directory
 add_custom_command(TARGET appCamera POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/docs/README_RELEASE.md
+        ${CMAKE_CURRENT_SOURCE_DIR}/../docs/README_RELEASE.md
         $<TARGET_FILE_DIR:appCamera>/README.md
     COMMENT "Copying release README..."
 )
