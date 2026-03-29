@@ -68,6 +68,7 @@ root/
     - **`classes.txt`**: The list of 80 COCO object categories the model can detect.
 
 - **`docs/`**: The central knowledge base for the project, maintained by the System Architect agent.
+    - **[`class-reference.md`](./class-reference.md)**: Complete OOP reference (class hierarchy, interfaces, method signatures, design patterns).
 
 ## Configuration Constants
 
