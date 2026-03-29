@@ -31,7 +31,7 @@ link_directories("C:/onnxruntime/lib")
 
 # 3. Create Executable (Updated to use VideoController)
 qt_add_executable(appCamera
-    main.cpp
+    src/main.cpp
     src/core/VideoController.cpp
     src/core/VideoController.h
     src/ui/DetectionOverlayItem.cpp
