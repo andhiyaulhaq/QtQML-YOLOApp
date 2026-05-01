@@ -66,7 +66,7 @@ char *YoloPipeline::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oRes
     auto start_pre = std::chrono::high_resolution_clock::now();
 
     // Step 1: Letterbox Resize (CPU)
-    m_preProcessor->PreProcess(iImg, m_letterboxBuffer);
+    LetterboxInfo info = m_preProcessor->PreProcess(iImg, m_letterboxBuffer);
 
     int height = imgSize.at(0);
     int width = imgSize.at(1);
@@ -90,7 +90,7 @@ char *YoloPipeline::RunSession(const cv::Mat &iImg, std::vector<DL_RESULT> &oRes
     // Post-processing
     auto start_post = std::chrono::high_resolution_clock::now();
     m_postProcessor->PostProcess(out.primaryData, out.primaryShape, oResult, 
-                                 m_preProcessor->getResizeScales(), classes, 
+                                 info, classes, 
                                  out.secondaryData, out.secondaryShape);
     auto end_post = std::chrono::high_resolution_clock::now();
     timing.postProcessTime = std::chrono::duration<double, std::milli>(end_post - start_post).count();

@@ -9,14 +9,14 @@ class IPostProcessor {
 public:
     virtual ~IPostProcessor() = default;
     virtual void initBuffers(size_t strideNum) = 0;
-    virtual void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) = 0;
+    virtual void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) = 0;
 };
 
 class DetectionPostProcessor : public IPostProcessor {
 public:
     DetectionPostProcessor(MODEL_TYPE modelType, float rectConfidenceThreshold, float iouThreshold);
     void initBuffers(size_t strideNum) override;
-    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
+    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
 private:
     void greedyNMS(float iouThresh);
     MODEL_TYPE modelType;
@@ -36,7 +36,7 @@ class PosePostProcessor : public IPostProcessor {
 public:
     PosePostProcessor(MODEL_TYPE modelType, float rectConfidenceThreshold, float iouThreshold);
     void initBuffers(size_t strideNum) override;
-    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
+    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
 private:
     void greedyNMS(float iouThresh);
     MODEL_TYPE modelType;
@@ -57,7 +57,7 @@ class SegmentationPostProcessor : public IPostProcessor {
 public:
     SegmentationPostProcessor(MODEL_TYPE modelType, float rectConfidenceThreshold, float iouThreshold);
     void initBuffers(size_t strideNum) override;
-    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
+    void PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
 private:
     void greedyNMS(float iouThresh);
     MODEL_TYPE modelType;

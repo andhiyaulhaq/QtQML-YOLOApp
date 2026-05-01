@@ -31,7 +31,7 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Fast update method called by VideoController
-    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames);
+    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames, const QSize& frameSize);
     
     const std::vector<Detection>& getDetections() const { return m_detections; }
 

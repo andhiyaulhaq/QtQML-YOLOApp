@@ -60,12 +60,13 @@ QHash<int, QByteArray> DetectionListModel::roleNames() const
     return roles;
 }
 
-void DetectionListModel::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames)
+void DetectionListModel::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>& classNames, const QSize& frameSize)
 {
     // Fast path: if empty and was empty
     if (results.empty() && m_detections.empty()) return;
     
-    // qDebug() << "DetectionListModel::updateDetections count:" << results.size();
+    float frameW = static_cast<float>(frameSize.width());
+    float frameH = static_cast<float>(frameSize.height());
 
     auto buildDetection = [&](const DL_RESULT& res) -> Detection {
         Detection det; 
@@ -76,13 +77,13 @@ void DetectionListModel::updateDetections(const std::vector<DL_RESULT>& results,
         float w = res.box.width;
         float h = res.box.height;
         
-        det.x = res.box.x / (float)AppConfig::FrameWidth;
-        det.y = res.box.y / (float)AppConfig::FrameHeight;
-        det.w = w / (float)AppConfig::FrameWidth;
-        det.h = h / (float)AppConfig::FrameHeight;
+        det.x = res.box.x / frameW;
+        det.y = res.box.y / frameH;
+        det.w = w / frameW;
+        det.h = h / frameH;
         
         for (const auto& kp : res.keyPoints) {
-            det.keyPoints.append(QPointF(kp.x / AppConfig::FrameWidth, kp.y / AppConfig::FrameHeight));
+            det.keyPoints.append(QPointF(kp.x / frameW, kp.y / frameH));
         }
         
         return det;

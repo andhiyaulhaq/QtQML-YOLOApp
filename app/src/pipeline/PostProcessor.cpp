@@ -21,7 +21,7 @@ void DetectionPostProcessor::initBuffers(size_t strideNum) {
     m_sortIndices.reserve(256);
 }
 
-void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
+void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     int signalResultNum = outputNodeDims[1]; // 84
     int strideNum = outputNodeDims[2];       // 8400
     int numClasses = signalResultNum - 4;    // 80
@@ -59,10 +59,10 @@ void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t
                 float bw = data[2 * strideNum + idx];
                 float bh = data[3 * strideNum + idx];
 
-                int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-                int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-                int width  = static_cast<int>(bw * resizeScales);
-                int height = static_cast<int>(bh * resizeScales);
+                int left   = static_cast<int>((cx - 0.5f * bw - info.padW) * info.scale);
+                int top    = static_cast<int>((cy - 0.5f * bh - info.padH) * info.scale);
+                int width  = static_cast<int>(bw * info.scale);
+                int height = static_cast<int>(bh * info.scale);
 
                 m_boxes.emplace_back(left, top, width, height);
             }
@@ -80,10 +80,10 @@ void DetectionPostProcessor::PostProcess(void* output, const std::vector<int64_t
             float bw = data[2 * strideNum + j];
             float bh = data[3 * strideNum + j];
 
-            int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-            int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-            int width  = static_cast<int>(bw * resizeScales);
-            int height = static_cast<int>(bh * resizeScales);
+            int left   = static_cast<int>((cx - 0.5f * bw - info.padW) * info.scale);
+            int top    = static_cast<int>((cy - 0.5f * bh - info.padH) * info.scale);
+            int width  = static_cast<int>(bw * info.scale);
+            int height = static_cast<int>(bh * info.scale);
 
             m_boxes.emplace_back(left, top, width, height);
         }
@@ -167,7 +167,7 @@ void PosePostProcessor::initBuffers(size_t strideNum) {
     m_sortIndices.reserve(256);
 }
 
-void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
+void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     // Basic implementation for Pose Estimation placeholder
     // In a full implementation, you'd extract the 17 keypoints from the tensor and store them in DL_RESULT::keyPoints
     int signalResultNum = outputNodeDims[1]; 
@@ -200,10 +200,10 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
                 float bw = data[2 * strideNum + idx];
                 float bh = data[3 * strideNum + idx];
 
-                int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-                int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-                int width  = static_cast<int>(bw * resizeScales);
-                int height = static_cast<int>(bh * resizeScales);
+                int left   = static_cast<int>((cx - 0.5f * bw - info.padW) * info.scale);
+                int top    = static_cast<int>((cy - 0.5f * bh - info.padH) * info.scale);
+                int width  = static_cast<int>(bw * info.scale);
+                int height = static_cast<int>(bh * info.scale);
 
                 m_boxes.emplace_back(left, top, width, height);
                 
@@ -211,7 +211,7 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
                 for(int kp=0; kp<17; kp++) {
                     float kx = data[(5 + kp*3) * strideNum + idx];
                     float ky = data[(5 + kp*3 + 1) * strideNum + idx];
-                    kpts.push_back(cv::Point2f(kx * resizeScales, ky * resizeScales));
+                    kpts.push_back(cv::Point2f((kx - info.padW) * info.scale, (ky - info.padH) * info.scale));
                 }
                 m_keypoints.push_back(kpts);
             }
@@ -229,10 +229,10 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
             float bw = data[2 * strideNum + j];
             float bh = data[3 * strideNum + j];
 
-            int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-            int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-            int width  = static_cast<int>(bw * resizeScales);
-            int height = static_cast<int>(bh * resizeScales);
+            int left   = static_cast<int>((cx - 0.5f * bw - info.padW) * info.scale);
+            int top    = static_cast<int>((cy - 0.5f * bh - info.padH) * info.scale);
+            int width  = static_cast<int>(bw * info.scale);
+            int height = static_cast<int>(bh * info.scale);
 
             m_boxes.emplace_back(left, top, width, height);
             
@@ -240,7 +240,7 @@ void PosePostProcessor::PostProcess(void* output, const std::vector<int64_t>& ou
             for(int k=0; k<17; k++) {
                 float kx = data[(5 + k*3) * strideNum + j];
                 float ky = data[(5 + k*3 + 1) * strideNum + j];
-                kpts.push_back(cv::Point2f(kx * resizeScales, ky * resizeScales));
+                kpts.push_back(cv::Point2f((kx - info.padW) * info.scale, (ky - info.padH) * info.scale));
             }
             m_keypoints.push_back(kpts);
         }
@@ -324,7 +324,7 @@ void SegmentationPostProcessor::initBuffers(size_t strideNum) {
     m_sortIndices.reserve(256);
 }
 
-void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, float resizeScales, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
+void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DL_RESULT> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     if (!secondaryOutput) {
         std::cout << "[YOLO]: Segmentation requires secondary output tensor!" << std::endl;
         return;
@@ -371,10 +371,10 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
                 float bw = data[2 * strideNum + idx];
                 float bh = data[3 * strideNum + idx];
 
-                int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-                int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-                int width  = static_cast<int>(bw * resizeScales);
-                int height = static_cast<int>(bh * resizeScales);
+                int left   = static_cast<int>((cx - 0.5f * bw - info.padW) * info.scale);
+                int top    = static_cast<int>((cy - 0.5f * bh - info.padH) * info.scale);
+                int width  = static_cast<int>(bw * info.scale);
+                int height = static_cast<int>(bh * info.scale);
 
                 m_boxes.emplace_back(left, top, width, height);
 
@@ -398,10 +398,10 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
             float bw = data[2 * strideNum + j];
             float bh = data[3 * strideNum + j];
 
-            int left   = static_cast<int>((cx - 0.5f * bw) * resizeScales);
-            int top    = static_cast<int>((cy - 0.5f * bh) * resizeScales);
-            int width  = static_cast<int>(bw * resizeScales);
-            int height = static_cast<int>(bh * resizeScales);
+            int left   = static_cast<int>((cx - 0.5f * bw - info.padW) * info.scale);
+            int top    = static_cast<int>((cy - 0.5f * bh - info.padH) * info.scale);
+            int width  = static_cast<int>(bw * info.scale);
+            int height = static_cast<int>(bh * info.scale);
 
             m_boxes.emplace_back(left, top, width, height);
 
@@ -447,7 +447,18 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
 
             // Resize the mask up to the original image coordinates to crop via bounding box
             cv::Mat maskResized;
-            cv::resize(maskMat, maskResized, cv::Size(maskW * 4 * resizeScales, maskH * 4 * resizeScales)); // Usually 4x stride
+            // The secondary mask is 160x160 (or similar), and it's relative to the letterboxed input.
+            // We need to resize it to the FULL 640x640 (target) size first, then crop the valid area, then scale.
+            // But a simpler way: just scale by 4x (as is done here) and then use info.scale
+            cv::resize(maskMat, maskResized, cv::Size(maskW * 4, maskH * 4)); 
+            
+            // Now we need to remove the padding from the maskResized before using it
+            cv::Rect validRoi(info.padW, info.padH, maskW * 4 - 2 * info.padW, maskH * 4 - 2 * info.padH);
+            validRoi = validRoi & cv::Rect(0, 0, maskResized.cols, maskResized.rows);
+            if (validRoi.width > 0 && validRoi.height > 0) {
+                cv::Mat maskUnpadded = maskResized(validRoi);
+                cv::resize(maskUnpadded, maskResized, cv::Size(maskUnpadded.cols * info.scale, maskUnpadded.rows * info.scale));
+            }
 
             // Crop mask to bounding box bounds 
             // Clamp rect to mask bounds

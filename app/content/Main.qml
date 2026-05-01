@@ -146,6 +146,47 @@ Window {
                     else if (currentIndex === 1) controller.currentRuntime = VideoController.RuntimeONNXRuntime
                 }
             }
+
+            Item { Layout.preferredWidth: 10 }
+
+            Text {
+                text: "Res:"
+                color: "#FFFFFF"
+                font.pixelSize: 14
+            }
+
+            ComboBox {
+                id: resComboBox
+                model: controller.supportedResolutions
+                currentIndex: {
+                    for (var i = 0; i < controller.supportedResolutions.length; i++) {
+                        if (controller.supportedResolutions[i].width === controller.currentResolution.width &&
+                            controller.supportedResolutions[i].height === controller.currentResolution.height) {
+                            return i;
+                        }
+                    }
+                    return -1;
+                }
+                textRole: "" 
+                delegate: ItemDelegate {
+                    width: resComboBox.width
+                    contentItem: Text {
+                        text: modelData.width + "x" + modelData.height
+                        color: "white"
+                    }
+                    background: Rectangle { color: hovered ? "#444444" : "#222222" }
+                }
+                contentItem: Text {
+                    text: controller.currentResolution.width + "x" + controller.currentResolution.height
+                    color: "white"
+                    verticalAlignment: Text.AlignVCenter
+                    leftPadding: 10
+                }
+
+                onActivated: {
+                    controller.currentResolution = controller.supportedResolutions[currentIndex]
+                }
+            }
         }
 
         // Main Content: Video Feed + Metrics Panel

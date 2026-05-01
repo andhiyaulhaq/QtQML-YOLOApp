@@ -8,14 +8,13 @@ class ImagePreProcessor {
 public:
     ImagePreProcessor(MODEL_TYPE modelType, const std::vector<int>& imgSize);
 
-    char* PreProcess(const cv::Mat &iImg, cv::Mat &oImg);
+    LetterboxInfo PreProcess(const cv::Mat &iImg, cv::Mat &oImg);
     void PreProcessImageToBlob(const cv::Mat& iImg, float* blob_data);
 
-    float getResizeScales() const { return resizeScales; }
-    void setResizeScales(float s) { resizeScales = s; }
+    float getResizeScales() const { return m_info.scale; }
 
 private:
     MODEL_TYPE modelType;
     std::vector<int> imgSize;
-    float resizeScales = 1.0f;
+    LetterboxInfo m_info;
 };

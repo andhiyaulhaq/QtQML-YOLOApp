@@ -41,3 +41,9 @@ typedef struct _DL_RESULT {
   std::vector<cv::Point2f> keyPoints;
   cv::Mat boxMask;
 } DL_RESULT;
+
+typedef struct _LetterboxInfo {
+    float scale = 1.0f;
+    int padW = 0;
+    int padH = 0;
+} LetterboxInfo;

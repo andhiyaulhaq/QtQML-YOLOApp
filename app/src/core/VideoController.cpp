@@ -16,36 +16,68 @@ void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT
 void CaptureWorker::startCapturing(QVideoSink* sink) {
     if (m_running) return;
     m_running = true;
+    m_sink = sink;
 
-    // Open Camera (DSHOW for Windows usually faster)
-    m_capture.open(0, cv::CAP_DSHOW);
-    if (!m_capture.isOpened()) {
-        m_capture.open(0);
-    }
+    auto openCamera = [&]() {
+        // Open Camera (DSHOW for Windows usually faster)
+        m_capture.open(0, cv::CAP_DSHOW);
+        if (!m_capture.isOpened()) {
+            m_capture.open(0);
+        }
 
-    if (!m_capture.isOpened()) {
-        // qWarning() << "Could not open camera";
+        if (!m_capture.isOpened()) {
+            return false;
+        }
+
+        // Optimization Settings
+        m_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+        
+        QSize req;
+        {
+            std::lock_guard<std::mutex> lock(m_resolutionMutex);
+            req = m_requestedResolution;
+        }
+        
+        m_capture.set(cv::CAP_PROP_FRAME_WIDTH, req.width());
+        m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, req.height());
+        m_capture.set(cv::CAP_PROP_FPS, 30);
+
+        // Re-read to confirm what the driver actually set
+        int actualWidth = static_cast<int>(m_capture.get(cv::CAP_PROP_FRAME_WIDTH));
+        int actualHeight = static_cast<int>(m_capture.get(cv::CAP_PROP_FRAME_HEIGHT));
+        
+        // Initialize UI double-buffer with ACTUAL resolution
+        QVideoFrameFormat format(QSize(actualWidth, actualHeight),
+                                 QVideoFrameFormat::Format_RGBA8888);
+        m_reusableFrames[0] = QVideoFrame(format);
+        m_reusableFrames[1] = QVideoFrame(format);
+
+        // Clear pools
+        for(int i=0; i<3; ++i) m_framePool[i].release();
+        
+        emit resolutionChanged(QSize(actualWidth, actualHeight));
+        return true;
+    };
+
+    if (!openCamera()) {
         m_running = false;
         return;
     }
-
-    // Optimization Settings
-    m_capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    m_capture.set(cv::CAP_PROP_FRAME_WIDTH, AppConfig::FrameWidth);
-    m_capture.set(cv::CAP_PROP_FRAME_HEIGHT, AppConfig::FrameHeight);
-    m_capture.set(cv::CAP_PROP_FPS, 30);
-
-    // Initialize UI double-buffer
-    QVideoFrameFormat format(QSize(AppConfig::FrameWidth, AppConfig::FrameHeight),
-                             QVideoFrameFormat::Format_RGBA8888);
-    m_reusableFrames[0] = QVideoFrame(format);
-    m_reusableFrames[1] = QVideoFrame(format);
 
     // cv::Mat rawFrame; // Replaced by pool
     int frames = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
 
     while (m_running) {
+        if (m_resolutionUpdatePending.load()) {
+            m_capture.release();
+            if (!openCamera()) {
+                m_running = false;
+                break;
+            }
+            m_resolutionUpdatePending = false;
+        }
+
         cv::Mat& currentFrame = m_framePool[m_poolIndex];
         
         if (!m_capture.read(currentFrame) || currentFrame.empty()) {
@@ -131,6 +163,14 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
 
 void CaptureWorker::stopCapturing() {
     m_running = false;
+}
+
+void CaptureWorker::updateResolution(const QSize& size) {
+    {
+        std::lock_guard<std::mutex> lock(m_resolutionMutex);
+        m_requestedResolution = size;
+    }
+    m_resolutionUpdatePending = true;
 }
 
 // =========================================================
@@ -291,6 +331,9 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     qRegisterMetaType<const std::vector<std::string>*>("const std::vector<std::string>*");
     qRegisterMetaType<std::shared_ptr<std::vector<DL_RESULT>>>("std::shared_ptr<std::vector<DL_RESULT>>");
     
+    // Discover resolutions
+    refreshResolutions();
+    
     // Initialize Model
     m_detections = new DetectionListModel(this);
     // 1. Create Workers
@@ -303,6 +346,13 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     // Link synchronization flags to avoid allocating and queuing frames during busy interference loop
     m_captureWorker->setInferenceProcessingFlag(m_inferenceWorker->getProcessingFlag());
     
+    // Set initial resolution if discovery succeeded
+    if (!m_supportedResolutions.isEmpty()) {
+        // Try to find 1280x720 or just use the largest (sorted smallest to largest)
+        m_currentResolution = m_supportedResolutions.last().toSize();
+        m_captureWorker->updateResolution(m_currentResolution);
+    }
+
     captureWorker.release(); // Qt takes ownership via moveToThread logic expectation
     inferenceWorker.release();
 
@@ -318,6 +368,13 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     connect(this, &VideoController::stopWorkers, m_captureWorker, &CaptureWorker::stopCapturing, Qt::DirectConnection); 
     connect(this, &VideoController::stopWorkers, m_inferenceWorker, &InferenceWorker::stopInference, Qt::DirectConnection); 
     connect(&m_inferenceThread, &QThread::started, m_inferenceWorker, &InferenceWorker::startInference);
+    
+    connect(m_captureWorker, &CaptureWorker::resolutionChanged, this, [this](QSize s){
+        if (m_currentResolution != s) {
+            m_currentResolution = s;
+            emit currentResolutionChanged();
+        }
+    });
     
     // Capture -> Inference
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame, Qt::QueuedConnection);
@@ -415,7 +472,7 @@ void VideoController::updateSystemStats(const QString &formattedStats) {
 void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing) {
     // Update the model directly
     if (m_detections && classNames) {
-        m_detections->updateDetections(results, *classNames);
+        m_detections->updateDetections(results, *classNames, m_currentResolution);
         emit detectionsChanged(); // Notify that the model object itself 'changed' (or just keeping signal for compatibility, mostly not needed if model internal signals fire)
         // Actually, for QAbstractListModel, the model emits rowsInserted/etc. 
         // emit detectionsChanged() is only needed if the pointer m_detections changed, which it doesn't.
@@ -467,4 +524,49 @@ void VideoController::handleInferenceError(const QString& title, const QString& 
 void VideoController::handleModelLoaded(int task, int runtime) {
     m_lastGoodTask = static_cast<TaskType>(task);
     m_lastGoodRuntime = static_cast<RuntimeType>(runtime);
+}
+
+void VideoController::setCurrentResolution(const QSize& size) {
+    if (m_currentResolution == size) return;
+    // Don't update m_currentResolution here; wait for worker to confirm it
+    if (m_captureWorker) {
+        // Use DirectConnection because updateResolution is now thread-safe and we need it to bypass the blocked event loop
+        QMetaObject::invokeMethod(m_captureWorker, "updateResolution", Qt::DirectConnection, Q_ARG(QSize, size));
+    }
+}
+
+void VideoController::refreshResolutions() {
+    auto cameras = QMediaDevices::videoInputs();
+    if (cameras.isEmpty()) return;
+
+    // Use the first camera for discovery
+    auto camera = cameras.first();
+    auto formats = camera.videoFormats();
+    
+    QSet<QString> uniqueResolutions;
+    m_supportedResolutions.clear();
+
+    for (const auto& format : formats) {
+        QSize res = format.resolution();
+        // User requested only 480p (640x480) and 720p (1280x720)
+        bool is480p = (res.width() == 640 && res.height() == 480);
+        bool is720p = (res.width() == 1280 && res.height() == 720);
+        
+        if (!is480p && !is720p) continue;
+        
+        QString key = QString("%1x%2").arg(res.width()).arg(res.height());
+        if (!uniqueResolutions.contains(key)) {
+            uniqueResolutions.insert(key);
+            m_supportedResolutions.append(res);
+        }
+    }
+
+    // Sort by area
+    std::sort(m_supportedResolutions.begin(), m_supportedResolutions.end(), [](const QVariant& a, const QVariant& b){
+        QSize sa = a.toSize();
+        QSize sb = b.toSize();
+        return (sa.width() * sa.height()) < (sb.width() * sb.height());
+    });
+
+    emit supportedResolutionsChanged();
 }

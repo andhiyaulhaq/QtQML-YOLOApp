@@ -13,6 +13,8 @@
 #include <opencv2/opencv.hpp>
 #include <chrono>
 #include <memory>
+#include <QMediaDevices>
+#include <QCameraDevice>
 
 namespace AppConfig {
     static constexpr int FrameWidth = 640;
@@ -62,6 +64,8 @@ public:
     Q_PROPERTY(double inferenceTime READ inferenceTime NOTIFY timingChanged)
     Q_PROPERTY(double postProcessTime READ postProcessTime NOTIFY timingChanged)
     Q_PROPERTY(double inferenceFps READ inferenceFps NOTIFY inferenceFpsChanged)
+    Q_PROPERTY(QVariantList supportedResolutions READ supportedResolutions NOTIFY supportedResolutionsChanged)
+    Q_PROPERTY(QSize currentResolution READ currentResolution WRITE setCurrentResolution NOTIFY currentResolutionChanged)
 
 public:
     explicit VideoController(QObject *parent = nullptr);
@@ -80,6 +84,8 @@ public:
     double inferenceFps() const { return m_inferenceFps; }
     TaskType currentTask() const { return m_currentTask; }
     RuntimeType currentRuntime() const { return m_currentRuntime; }
+    QVariantList supportedResolutions() const { return m_supportedResolutions; }
+    QSize currentResolution() const { return m_currentResolution; }
 
 signals:
     void currentTaskChanged();
@@ -93,6 +99,8 @@ signals:
     void detectionsChanged();
     void timingChanged();
     void errorOccurred(const QString& title, const QString& message);
+    void supportedResolutionsChanged();
+    void currentResolutionChanged();
     
     // Signals to workers
     void startWorkers(QVideoSink* sink);
@@ -104,10 +112,12 @@ public slots:
     void updateFps(double fps);
     void updateSystemStats(const QString &formattedStats);
     void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
+    void setCurrentResolution(const QSize& size);
 
 private slots:
     void handleInferenceError(const QString& title, const QString& message);
     void handleModelLoaded(int task, int runtime);
+    void refreshResolutions();
 
 private:
     QVideoSink* m_sink = nullptr;
@@ -125,6 +135,9 @@ private:
     RuntimeType m_currentRuntime = RuntimeOpenVINO;
     TaskType m_lastGoodTask = TaskObjectDetection;
     RuntimeType m_lastGoodRuntime = RuntimeOpenVINO;
+
+    QVariantList m_supportedResolutions;
+    QSize m_currentResolution = QSize(640, 480);
 
     // Workers and Threads
     CaptureWorker* m_captureWorker = nullptr;
@@ -148,6 +161,7 @@ public:
 signals:
     void frameReady(std::shared_ptr<cv::Mat> frame); // Send frame to Inference Worker
     void fpsUpdated(double fps);
+    void resolutionChanged(QSize size);
     void cleanUp();
 
 public slots:
@@ -155,6 +169,7 @@ public slots:
     void stopCapturing();
     void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
     void updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections);
+    void updateResolution(const QSize& size);
 
 private:
     std::mutex m_detectionsMutex;
@@ -162,6 +177,11 @@ private:
     std::atomic<bool> m_running{false};
     std::atomic<bool>* m_inferenceProcessingFlag = nullptr;
     cv::VideoCapture m_capture;
+    
+    std::mutex m_resolutionMutex;
+    QSize m_requestedResolution = QSize(640, 480);
+    std::atomic<bool> m_resolutionUpdatePending{false};
+    QVideoSink* m_sink = nullptr;
     
     // Multi-buffer logic to avoid cloning
     cv::Mat m_framePool[3]; 
