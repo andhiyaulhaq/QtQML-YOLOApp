@@ -11,11 +11,9 @@ if(MSVC)
     add_definitions(-DNOMINMAX)
 endif()
 
-# 1. Setup Qt6 (Added Multimedia component)
+# 1. Setup Qt6
 find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia QuickControls2)
-
 qt_standard_project_setup()
-qt_policy(SET QTP0001 NEW)
 
 # 2. Setup OpenCV
 set(OpenCV_DIR "C:/opencv/build")
@@ -29,32 +27,69 @@ find_package(OpenVINO REQUIRED)
 include_directories("C:/onnxruntime/include")
 link_directories("C:/onnxruntime/lib")
 
-# 3. Create Executable (Updated to use VideoController)
+# 5. Create Executable
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
+
 qt_add_executable(appCamera
     src/main.cpp
-    src/core/VideoController.cpp
-    src/core/VideoController.h
-    src/ui/DetectionOverlayItem.cpp
-    src/ui/DetectionOverlayItem.h
-    src/pipeline/YoloPipeline.cpp
-    src/pipeline/PreProcessor.cpp
-    src/pipeline/PostProcessor.cpp
-    src/pipeline/backends/OnnxRuntimeBackend.cpp
-    src/pipeline/backends/OpenVinoBackend.cpp
-    src/pipeline/YoloPipeline.h
-    src/pipeline/backends/IInferenceBackend.h
-    src/pipeline/backends/OnnxRuntimeBackend.h
-    src/pipeline/backends/OpenVinoBackend.h
-    src/pipeline/YoloTypes.h
-    src/pipeline/SimdUtils.h
-    src/core/SystemMonitor.cpp
-    src/core/SystemMonitor.h
-    src/models/DetectionStruct.h
-    src/models/DetectionListModel.cpp
-    src/models/DetectionListModel.h
+    src/shared/domain/AppConfig.h
+    
+    # ── Shared Application (Composition Root) ──
+    src/shared/application/AppController.h
+    src/shared/application/AppController.cpp
+
+    # ── Monitoring Feature ──
+    src/features/monitoring/domain/SystemStats.h
+    src/features/monitoring/domain/ISystemMonitor.h
+    src/features/monitoring/application/SystemMonitorWorker.h
+    src/features/monitoring/application/SystemMonitorWorker.cpp
+    src/features/monitoring/application/MonitoringController.h
+    src/features/monitoring/application/MonitoringController.cpp
+    src/features/monitoring/infrastructure/WindowsSystemMonitor.h
+    src/features/monitoring/infrastructure/WindowsSystemMonitor.cpp
+
+    # ── Detection Feature ──
+    src/features/detection/domain/TaskType.h
+    src/features/detection/domain/DetectionResult.h
+    src/features/detection/domain/InferenceConfig.h
+    src/features/detection/domain/InferenceTiming.h
+    src/features/detection/domain/IDetectionModel.h
+    src/features/detection/infrastructure/SimdUtils.h
+    src/features/detection/infrastructure/PreProcessor.h
+    src/features/detection/infrastructure/PreProcessor.cpp
+    src/features/detection/infrastructure/PostProcessor.h
+    src/features/detection/infrastructure/PostProcessor.cpp
+    src/features/detection/infrastructure/YoloPipeline.h
+    src/features/detection/infrastructure/YoloPipeline.cpp
+    src/features/detection/infrastructure/backends/IInferenceBackend.h
+    src/features/detection/infrastructure/backends/OnnxRuntimeBackend.h
+    src/features/detection/infrastructure/backends/OnnxRuntimeBackend.cpp
+    src/features/detection/infrastructure/backends/OpenVinoBackend.h
+    src/features/detection/infrastructure/backends/OpenVinoBackend.cpp
+    src/features/detection/domain/Detection.h
+    src/features/detection/application/InferenceWorker.h
+    src/features/detection/application/InferenceWorker.cpp
+    src/features/detection/application/DetectionController.h
+    src/features/detection/application/DetectionController.cpp
+    src/features/detection/ui/DetectionListModel.h
+    src/features/detection/ui/DetectionListModel.cpp
+    src/features/detection/ui/DetectionOverlayItem.h
+    src/features/detection/ui/DetectionOverlayItem.cpp
+
+    # ── Camera Feature ──
+    src/features/camera/domain/CameraConfig.h
+    src/features/camera/domain/CameraFrame.h
+    src/features/camera/domain/ICameraSource.h
+    src/features/camera/infrastructure/OpenCVCameraSource.h
+    src/features/camera/infrastructure/OpenCVCameraSource.cpp
+    src/features/camera/application/CaptureWorker.h
+    src/features/camera/application/CaptureWorker.cpp
+    src/features/camera/application/YoloCameraController.h
+    src/features/camera/application/YoloCameraController.cpp
 )
 
-# Optimization Flags for Release
+# Optimization Flags
 if(MSVC)
     target_compile_options(appCamera PRIVATE /O2 /Ob2 /Oi /Ot /Oy /GL)
     target_link_options(appCamera PRIVATE /LTCG)
@@ -62,9 +97,7 @@ else()
     target_compile_options(appCamera PRIVATE -O3 -march=native -ffast-math)
 endif()
 
-# target_compile_options(appCamera PRIVATE -Wno-macro-redefined)
-
-# 4. Register QML Module
+# 6. Register QML Module
 qt_add_qml_module(appCamera
     URI "CameraModule"
     VERSION 1.0
@@ -72,17 +105,21 @@ qt_add_qml_module(appCamera
         content/Main.qml
 )
 
-# 5. Include Directories
+# 7. Include Directories (Clean Architecture approach)
 target_include_directories(appCamera PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/core
-    ${CMAKE_SOURCE_DIR}/src/ui
-    ${CMAKE_SOURCE_DIR}/src/models
-    ${CMAKE_SOURCE_DIR}/src/pipeline
+    src/features/detection/domain
+    src/features/detection/application
+    src/features/detection/infrastructure
+    src/features/detection/ui
+    src/features/monitoring/domain
+    src/features/monitoring/application
+    src/features/monitoring/infrastructure
+    src/shared/domain
+    src/shared/application
 )
 
-# 6. Link Libraries
+# 8. Link Libraries
 target_link_libraries(appCamera
     PRIVATE
     Qt6::Quick
@@ -94,67 +131,18 @@ target_link_libraries(appCamera
     onnxruntime_providers_shared
 )
 
-# 7. Platform-specific libraries for system monitoring
 if(WIN32)
     target_link_libraries(appCamera PRIVATE pdh psapi)
 endif()
 
-# 8. Copy Runtime DLLs to categorized subdirectories
+# 9. Post-build: DLL Deployment
 file(GLOB OPENVINO_DLLS "C:/intel/openvino_toolkit/runtime/bin/intel64/Release/*.dll")
 file(GLOB TBB_DLLS "C:/intel/openvino_toolkit/runtime/3rdparty/tbb/bin/*.dll")
 
 add_custom_command(TARGET appCamera POST_BUILD
-    # Create categorized directories
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs/onnx
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs/opencv
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/libs/openvino
-
-    # ONNX Runtime
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        C:/onnxruntime/lib/onnxruntime.dll
-        C:/onnxruntime/lib/onnxruntime_providers_shared.dll
-        $<TARGET_FILE_DIR:appCamera>/libs/onnx
-
-    # OpenCV (release only)
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        C:/opencv/build/x64/vc16/bin/opencv_world4120.dll
-        $<TARGET_FILE_DIR:appCamera>/libs/opencv
-
-    # OpenVINO + TBB
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${OPENVINO_DLLS}
-        ${TBB_DLLS}
-        $<TARGET_FILE_DIR:appCamera>/libs/openvino
-    COMMENT "Copying Runtime DLLs to categorized libs directories..."
-)
-
-# 9. Create qt.conf to point to libs for plugins and qml
-file(WRITE ${CMAKE_BINARY_DIR}/qt.conf 
-"[Paths]
-Prefix = libs
-Plugins = plugins
-Imports = qml
-Qml2Imports = qml
-")
-
-add_custom_command(TARGET appCamera POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/qt.conf
-        $<TARGET_FILE_DIR:appCamera>/qt.conf
-    COMMENT "Creating and copying qt.conf..."
-)
-
-# 10. Copy model files to build directory
-add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/../assets
         $<TARGET_FILE_DIR:appCamera>/assets
-)
-
-# 11. Copy README to build directory
-add_custom_command(TARGET appCamera POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/../docs/README_RELEASE.md
-        $<TARGET_FILE_DIR:appCamera>/README.md
-    COMMENT "Copying release README..."
+    COMMENT "Deploying assets..."
 )

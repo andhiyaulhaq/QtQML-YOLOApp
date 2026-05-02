@@ -1,0 +1,56 @@
+#pragma once
+
+#include <QObject>
+#include <QVideoSink>
+#include <QVideoFrame>
+#include <QMutex>
+#include <QSize>
+#include <atomic>
+#include <memory>
+#include <opencv2/opencv.hpp>
+#include "../domain/ICameraSource.h"
+#include "../../detection/domain/DetectionResult.h"
+
+class CaptureWorker : public QObject {
+    Q_OBJECT
+
+public:
+    explicit CaptureWorker(ICameraSource *source, QObject *parent = nullptr);
+    ~CaptureWorker() override;
+
+    void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
+
+signals:
+    void frameReady(std::shared_ptr<cv::Mat> frame); 
+    void fpsUpdated(double fps);
+    void resolutionChanged(QSize size);
+    void cleanUp();
+
+public slots:
+    void startCapturing(QVideoSink* sink);
+    void stopCapturing();
+    void updateLatestDetections(std::shared_ptr<std::vector<DetectionResult>> detections, const QSize& frameSize);
+    void clearDetections();
+    void updateResolution(const QSize& size);
+
+private:
+    ICameraSource *m_source;
+    std::atomic<bool> m_running{false};
+    std::atomic<bool>* m_inferenceProcessingFlag = nullptr;
+    QVideoSink* m_sink = nullptr;
+
+    std::mutex m_detectionsMutex;
+    std::shared_ptr<std::vector<DetectionResult>> m_latestDetections;
+
+    std::mutex m_resolutionMutex;
+    QSize m_requestedResolution = QSize(640, 480);
+    std::atomic<bool> m_resolutionUpdatePending{false};
+
+    cv::Mat m_framePool[3]; 
+    int m_poolIndex = 0;
+    
+    QVideoFrame m_reusableFrames[2];
+    int m_reusableFrameIndex = 0;
+
+    bool openCamera(const CameraConfig& config);
+};

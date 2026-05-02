@@ -4,45 +4,59 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QtQml>
 #include <QQuickStyle>
-#include <string>
+#include "shared/application/AppController.h"
+#include "features/camera/application/YoloCameraController.h"
+#include "features/monitoring/application/MonitoringController.h"
+#include "features/detection/application/DetectionController.h"
+#include "features/detection/ui/DetectionListModel.h"
+#include "features/detection/ui/DetectionOverlayItem.h"
+#include "features/detection/domain/DetectionResult.h"
+#include "features/detection/domain/InferenceTiming.h"
+#include "features/detection/domain/InferenceConfig.h"
 
-using namespace Qt::StringLiterals;
+#include "features/detection/domain/TaskType.h"
 
-int main(int argc, char *argv[]) {
-#ifdef _WIN32
-  // Configure DLL search path for organized libs/ structure
-  wchar_t path[MAX_PATH];
-  if (GetModuleFileNameW(NULL, path, MAX_PATH) != 0) {
-      std::wstring binDir = path;
-      size_t lastBackslash = binDir.find_last_of(L"\\/");
-      if (lastBackslash != std::wstring::npos) {
-          binDir = binDir.substr(0, lastBackslash);
-      }
-      // Point secondary DLL search to libs/ for dynamically loaded plugins
-      std::wstring libsDir = binDir + L"\\libs";
-      SetDllDirectoryW(libsDir.c_str());
-  }
-#endif
-  QGuiApplication app(argc, argv);
-  
-  QQuickStyle::setStyle("Basic");
+int main(int argc, char *argv[])
+{
+    QGuiApplication app(argc, argv);
+    QQuickStyle::setStyle("Basic");
 
-  QQmlApplicationEngine engine;
+    qRegisterMetaType<Detection>("Detection");
+    qRegisterMetaType<std::vector<DetectionResult>>("std::vector<DetectionResult>");
+    qRegisterMetaType<InferenceTiming>("InferenceTiming");
+    qRegisterMetaType<InferenceConfig>("InferenceConfig");
+    qRegisterMetaType<std::shared_ptr<cv::Mat>>("std::shared_ptr<cv::Mat>");
+    qRegisterMetaType<std::shared_ptr<std::vector<DetectionResult>>>("std::shared_ptr<std::vector<DetectionResult>>");
 
-  // Load the QML file from the module path defined in CMake
-  // Note the added "/qt/qml/" at the start
-  const QUrl url(u"qrc:/qt/qml/CameraModule/content/Main.qml"_s);
+    qDebug() << "Registering QML types...";
+    qmlRegisterType<YoloCameraController>("CameraModule", 1, 0, "YoloCameraController");
+    qmlRegisterType<MonitoringController>("CameraModule", 1, 0, "MonitoringController");
+    qmlRegisterType<DetectionController>("CameraModule", 1, 0, "DetectionController");
+    qmlRegisterType<DetectionListModel>("CameraModule", 1, 0, "DetectionListModel");
+    qmlRegisterType<DetectionOverlayItem>("CameraModule", 1, 0, "DetectionOverlayItem");
+    qmlRegisterUncreatableMetaObject(YoloTask::staticMetaObject, "CameraModule", 1, 0, "YoloTask", "Access to enums");
 
-  QObject::connect(
-      &engine, &QQmlApplicationEngine::objectCreated, &app,
-      [url](QObject *obj, const QUrl &objUrl) {
-        if (!obj && url == objUrl)
-          QCoreApplication::exit(-1);
-      },
-      Qt::QueuedConnection);
+    QQmlApplicationEngine engine;
+    
+    AppController controller(&engine);
+    controller.initialize();
 
-  engine.load(url);
+    const QUrl url(u"qrc:/qt/qml/CameraModule/content/Main.qml"_qs);
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
+        &app, [url](QObject *obj, const QUrl &objUrl) {
+            if (!obj && url == objUrl)
+                QCoreApplication::exit(-1);
+        }, Qt::QueuedConnection);
+    qDebug() << "Main: Loading QML from" << url;
+    engine.load(url);
+    
+    if (engine.rootObjects().isEmpty()) {
+        qDebug() << "Main: Failed to load QML!";
+        return -1;
+    }
 
-  return app.exec();
+    qDebug() << "Main: QML loaded, entering event loop.";
+    return app.exec();
 }

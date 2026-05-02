@@ -110,12 +110,9 @@ app/
 │   │   │   │   ├── CameraController.h  # QML_ELEMENT: fps, resolution, videoSink
 │   │   │   │   └── CameraController.cpp
 │   │   │   │
-│   │   │   ├── infrastructure/
-│   │   │   │   ├── OpenCVCameraSource.h   # ICameraSource → cv::VideoCapture
-│   │   │   │   └── OpenCVCameraSource.cpp
-│   │   │   │
-│   │   │   └── ui/
-│   │   │       └── ResolutionModel.h      # QAbstractListModel for resolution picker
+│   │   │   └── infrastructure/
+│   │   │       ├── OpenCVCameraSource.h   # ICameraSource → cv::VideoCapture
+│   │   │       └── OpenCVCameraSource.cpp
 │   │   │
 │   │   └── monitoring/                 # ── MONITORING FEATURE ──────────────
 │   │       ├── domain/
@@ -473,7 +470,9 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 | `features/monitoring/domain/ISystemMonitor.h` | Domain | Contract for platform resource polling |
 | `features/monitoring/infrastructure/WindowsSystemMonitor.h` | Infrastructure | PDH CPU + PSAPI memory |
 | `features/monitoring/application/SystemMonitorWorker.h` | Application | Timer-driven worker emitting SystemStats |
+| `features/monitoring/application/MonitoringController.h` | Application | QML_ELEMENT: exposes statsText to UI |
 | `shared/application/AppController.h` | Application | Root orchestrator: wires all feature controllers |
+
 | `shared/domain/AppConfig.h` | Domain | Compile-time constants (frame size, model dims) |
 | `content/Main.qml` | Presentation | Root QML window |
 

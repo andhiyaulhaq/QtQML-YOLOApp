@@ -158,7 +158,7 @@ app/src/
 | Create (new) | — | `src/features/monitoring/application/SystemMonitorWorker.h` |
 | Create (new) | — | `src/features/monitoring/application/SystemMonitorWorker.cpp` |
 
-### Verification
+### Verification [COMPLETED]
 - Application runs; `systemStats` property in QML still updates CPU/RAM correctly.
 
 ---
@@ -245,7 +245,7 @@ app/src/
 | Create (new) | — | `src/features/detection/domain/IDetectionModel.h` |
 | Delete | `src/pipeline/YoloTypes.h` | (after replacing all usages with new domain types) |
 
-### Verification
+### Verification [COMPLETED]
 - Application compiles and runs — detection still works with same FPS.
 
 ---
@@ -298,7 +298,7 @@ app/src/
 | Delete | `src/models/` directory | (after Phase 3 compiles) |
 | Delete | `src/ui/` directory | (after Phase 3 compiles) |
 
-### Verification
+### Verification [COMPLETED]
 - Application runs; bounding boxes render correctly; QML timing HUD shows correct values.
 
 ---
@@ -361,7 +361,7 @@ app/src/
 | Create (new) | — | `src/features/camera/infrastructure/OpenCVCameraSource.*` |
 | Create (new) | — | `src/features/camera/application/CameraController.*` |
 
-### Verification
+### Verification [COMPLETED]
 - Camera feed renders at correct FPS; resolution switching works.
 
 ---
@@ -424,7 +424,7 @@ app/src/
 
 6. **Update `CMakeLists.txt`**: remove all old `src/core/`, `src/models/`, `src/ui/`, `src/pipeline/` entries; add feature module paths.
 
-### Verification
+### Verification [COMPLETED]
 - Full end-to-end test: camera opens, inference runs, bounding boxes render, HUD updates, resolution switching works.
 
 ---

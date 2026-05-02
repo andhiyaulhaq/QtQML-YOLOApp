@@ -8,92 +8,20 @@ Window {
     width: 1000
     height: 700
     visible: true
-    title: "YOLO Object Detection - Metrics Dashboard"
+    title: "YOLOApp - Clean Architecture"
     color: "#121212"
 
-    VideoController {
-        id: controller
-        videoSink: videoOutput.videoSink
-        onErrorOccurred: (title, message) => {
-            errorDialog.title = title
-            errorText.text = message
-            errorDialog.open()
-        }
-    }
-
-    Dialog {
-        id: errorDialog
-        anchors.centerIn: parent
-        width: 400
-        modal: true
-        title: "Error"
-        
-        background: Rectangle {
-            color: "#1e1e1e"
-            border.color: "#FF5252"
-            border.width: 1
-            radius: 8
-        }
-
-        header: Rectangle {
-            width: parent.width
-            height: 40
-            color: "#FF5252"
-            radius: 8
-            
-            // Mask top corners
-            Rectangle {
-                width: parent.width
-                height: 10
-                color: "#FF5252"
-                anchors.bottom: parent.bottom
-            }
-
-            Text {
-                text: errorDialog.title
-                anchors.centerIn: parent
-                color: "white"
-                font.bold: true
-            }
-        }
-
-        contentItem: ColumnLayout {
-            spacing: 20
-            Text {
-                id: errorText
-                Layout.fillWidth: true
-                color: "white"
-                wrapMode: Text.Wrap
-                font.pixelSize: 14
-                horizontalAlignment: Text.AlignHCenter
-            }
-            
-            Button {
-                text: "OK"
-                Layout.alignment: Qt.AlignHCenter
-                onClicked: errorDialog.close()
-                
-                background: Rectangle {
-                    implicitWidth: 80
-                    implicitHeight: 32
-                    color: parent.hovered ? "#333333" : "#222222"
-                    radius: 4
-                    border.color: "#444444"
-                }
-                contentItem: Text {
-                    text: "OK"
-                    color: "white"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    font.bold: true
-                }
-            }
+    // Component logic moved to controllers (monitoring, detection, camera)
+    
+    Connections {
+        target: camera
+        function onVideoSinkChanged() {
+            // Already handled by property binding in VideoOutput but just in case
         }
     }
 
     component StyledComboBox : ComboBox {
         id: control
-        
         background: Rectangle {
             implicitWidth: 140
             implicitHeight: 32
@@ -102,7 +30,6 @@ Window {
             border.width: 1
             radius: 4
         }
-
         contentItem: Text {
             leftPadding: 10
             rightPadding: control.indicator.width + control.spacing
@@ -112,7 +39,6 @@ Window {
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
-
         indicator: Canvas {
             id: canvas
             x: control.width - width - 10
@@ -136,13 +62,11 @@ Window {
                 function onPressedChanged() { canvas.requestPaint(); }
             }
         }
-
         popup: Popup {
             y: control.height + 2
             width: control.width
             implicitHeight: Math.min(contentItem.implicitHeight, 200)
-            padding: 0 // Remove padding to prevent offsets
-
+            padding: 0
             contentItem: ListView {
                 clip: true
                 implicitHeight: contentHeight
@@ -151,21 +75,18 @@ Window {
                 spacing: 0
                 ScrollIndicator.vertical: ScrollIndicator { }
             }
-
             background: Rectangle {
                 color: "#1e1e1e"
                 border.color: "#333333"
                 radius: 4
             }
         }
-
         delegate: ItemDelegate {
             id: delegateItem
             width: control.width
             implicitHeight: 32
             padding: 0
             highlighted: control.highlightedIndex === index
-            
             contentItem: Text {
                 text: control.textRole ? (Array.isArray(control.model) ? modelData[control.textRole] : model[control.textRole]) : (modelData.width ? modelData.width + "x" + modelData.height : modelData)
                 color: "white"
@@ -174,7 +95,6 @@ Window {
                 verticalAlignment: Text.AlignVCenter
                 leftPadding: 10
             }
-            
             background: Rectangle {
                 color: delegateItem.highlighted ? "#333333" : "transparent"
                 visible: delegateItem.highlighted
@@ -190,95 +110,65 @@ Window {
         // Header Section
         RowLayout {
             Layout.fillWidth: true
-            
             Text {
-                text: "Real-time AI Vision"
+                text: "YOLO Clean Architecture"
                 color: "#FFFFFF"
-                font.pixelSize: 28
+                font.pixelSize: 24
                 font.bold: true
-                Layout.alignment: Qt.AlignLeft
             }
+            Item { Layout.fillWidth: true }
             
-            Item { Layout.fillWidth: true } // Spacer
-            
-            Text {
-                text: "Task:"
-                color: "#FFFFFF"
-                font.pixelSize: 14
-            }
-            
+            Text { text: "Task:"; color: "white" }
             StyledComboBox {
-                id: taskComboBox
-                model: ["Object Detection", "Pose Estimation", "Image Segmentation"]
-                currentIndex: controller.currentTask - 1
-                
-                onActivated: {
-                    if (currentIndex === 0) controller.currentTask = VideoController.TaskObjectDetection
-                    else if (currentIndex === 1) controller.currentTask = VideoController.TaskPoseEstimation
-                    else if (currentIndex === 2) controller.currentTask = VideoController.TaskImageSegmentation
+                id: taskCombo
+                model: ["Detection", "Pose", "Seg"]
+                currentIndex: detection.currentTask - 1
+                onActivated: (index) => {
+                    if (index === 0) detection.currentTask = YoloTask.ObjectDetection
+                    else if (index === 1) detection.currentTask = YoloTask.PoseEstimation
+                    else if (index === 2) detection.currentTask = YoloTask.ImageSegmentation
                 }
             }
 
-            Item { Layout.preferredWidth: 10 } // Small spacer
-
-            Text {
-                text: "Runtime:"
-                color: "#FFFFFF"
-                font.pixelSize: 14
-            }
-            
+            Text { text: "Runtime:"; color: "white" }
             StyledComboBox {
-                id: runtimeComboBox
-                model: ["OpenVINO", "ONNX Runtime"]
-                currentIndex: controller.currentRuntime
-                
-                onActivated: {
-                    if (currentIndex === 0) controller.currentRuntime = VideoController.RuntimeOpenVINO
-                    else if (currentIndex === 1) controller.currentRuntime = VideoController.RuntimeONNXRuntime
+                id: runtimeCombo
+                model: ["OpenVINO", "ONNX"]
+                currentIndex: detection.currentRuntime
+                onActivated: (index) => {
+                    if (index === 0) detection.currentRuntime = YoloTask.OpenVINO
+                    else if (index === 1) detection.currentRuntime = YoloTask.ONNXRuntime
                 }
             }
 
-            Item { Layout.preferredWidth: 10 }
-
-            Text {
-                text: "Res:"
-                color: "#FFFFFF"
-                font.pixelSize: 14
-            }
-
+            Text { text: "Res:"; color: "white" }
             StyledComboBox {
-                id: resComboBox
-                model: controller.supportedResolutions
+                id: resCombo
+                model: camera.supportedResolutions
                 currentIndex: {
-                    for (var i = 0; i < controller.supportedResolutions.length; i++) {
-                        if (controller.supportedResolutions[i].width === controller.currentResolution.width &&
-                            controller.supportedResolutions[i].height === controller.currentResolution.height) {
+                    for (var i = 0; i < camera.supportedResolutions.length; i++) {
+                        if (camera.supportedResolutions[i].width === camera.currentResolution.width &&
+                            camera.supportedResolutions[i].height === camera.currentResolution.height) {
                             return i;
                         }
                     }
                     return -1;
                 }
-                textRole: ""
-                displayText: controller.currentResolution.width + "x" + controller.currentResolution.height
-
-                onActivated: {
-                    controller.currentResolution = controller.supportedResolutions[currentIndex]
-                }
+                displayText: camera.currentResolution.width + "x" + camera.currentResolution.height
+                onActivated: (index) => camera.currentResolution = camera.supportedResolutions[index]
             }
         }
 
-        // Main Content: Video Feed + Metrics Panel
+        // Main Layout
         RowLayout {
             spacing: 20
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Video Container
             Rectangle {
-                id: videoContainer
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: "#000000"
+                color: "black"
                 radius: 8
                 clip: true
 
@@ -286,43 +176,36 @@ Window {
                     id: videoOutput
                     anchors.fill: parent
                     fillMode: VideoOutput.PreserveAspectFit
+                    Component.onCompleted: camera.videoSink = videoOutput.videoSink
                 }
 
-                // Detection Overlay
                 DetectionOverlayItem {
-                    id: bboxItem
-                    x: videoOutput.contentRect.x
-                    y: videoOutput.contentRect.y
-                    width: videoOutput.contentRect.width
-                    height: videoOutput.contentRect.height
-                    detections: controller.detections
-
+                    id: overlay
+                    anchors.fill: videoOutput
+                    detections: detection.detections
+                    
+                    // Optional: Hardware-accelerated bounding box rendering is handled in C++
+                    // We can still use QML for labels if we want, or keep it minimal
                     Repeater {
-                        model: bboxItem.detections
+                        model: overlay.detections
                         Item {
-                            id: detectionDelegate
-                            property var det: modelData 
-                            x: det.x * parent.width
-                            y: det.y * parent.height
-                            width: det.w * parent.width
-                            height: det.h * parent.height
+                            x: modelData.x * parent.width
+                            y: modelData.y * parent.height
+                            width: modelData.w * parent.width
+                            height: modelData.h * parent.height
                             
                             Rectangle {
-                                id: labelBg
-                                y: -height - 2
-                                width: labelText.width + 8
-                                height: labelText.height + 4
-                                color: Qt.hsla((det.classId * 60) % 360 / 360.0, 1.0, 0.5, 0.9)
+                                y: -20
+                                width: labelTxt.width + 10
+                                height: 18
+                                color: Qt.hsla((modelData.classId * 60) % 360 / 360.0, 1.0, 0.5, 0.8)
                                 radius: 2
-                                transform: Translate {
-                                    y: (detectionDelegate.y + labelBg.y < 0) ? labelBg.height + 4 : 0
-                                }
                                 Text {
-                                    id: labelText
+                                    id: labelTxt
                                     anchors.centerIn: parent
-                                    text: det.label + " " + Math.round(det.confidence * 100) + "%"
+                                    text: modelData.label + " " + Math.round(modelData.confidence * 100) + "%"
                                     color: "white"
-                                    font.pixelSize: 11
+                                    font.pixelSize: 10
                                     font.bold: true
                                 }
                             }
@@ -331,138 +214,59 @@ Window {
                 }
             }
 
-            // Metrics Panel (Right Sidebar)
+            // Right Panel
             Rectangle {
-                id: metricsPanel
-                width: 260
+                width: 240
                 Layout.fillHeight: true
                 color: "#1e1e1e"
-                border.color: "#333333"
-                border.width: 1
                 radius: 8
+                border.color: "#333333"
 
                 Column {
                     anchors.fill: parent
                     anchors.margins: 15
-                    spacing: 20
+                    spacing: 15
 
+                    Text { text: "METRICS"; color: "#888888"; font.bold: true }
+
+                    MetricRow { label: "Camera FPS"; value: camera.cameraFps.toFixed(1) }
+                    MetricRow { label: "Inference FPS"; value: detection.inferenceFps.toFixed(1) }
+                    
+                    Rectangle { width: parent.width; height: 1; color: "#333333" }
+                    
+                    MetricRow { label: "Pre-proc"; value: detection.preProcessTime.toFixed(2) + " ms" }
+                    MetricRow { label: "Inference"; value: detection.inferenceTime.toFixed(2) + " ms" }
+                    MetricRow { label: "Post-proc"; value: detection.postProcessTime.toFixed(2) + " ms" }
+
+                    Rectangle { width: parent.width; height: 1; color: "#333333" }
+
+                    Text { text: "SYSTEM"; color: "#888888"; font.bold: true }
                     Text {
-                        text: "PERFORMANCE METRICS"
-                        color: "#888888"
-                        font.pixelSize: 12
-                        font.bold: true
-                        font.letterSpacing: 1.2
-                    }
-
-                    // FPS Section
-                    Column {
                         width: parent.width
-                        spacing: 8
-                        
-                        MetricItem {
-                            label: "Camera FPS"
-                            value: controller.fps.toFixed(1)
-                            color: "#00E5FF"
-                        }
-                        MetricItem {
-                            label: "Inference FPS"
-                            value: controller.inferenceFps.toFixed(1)
-                            color: "#FF00FF"
-                        }
-                    }
-
-                    Rectangle { width: parent.width; height: 1; color: "#333333" }
-
-                    // Timing Section
-                    Column {
-                        width: parent.width
-                        spacing: 10
-                        
-                        Text {
-                            text: "LATENCY (ms)"
-                            color: "#888888"
-                            font.pixelSize: 10
-                            font.bold: true
-                        }
-                        
-                        MetricItem { label: "Pre-Process"; value: controller.preProcessTime.toFixed(3); color: "#76FF03" }
-                        MetricItem { label: "Inference"; value: controller.inferenceTime.toFixed(3); color: "#76FF03" }
-                        MetricItem { label: "Post-Process"; value: controller.postProcessTime.toFixed(3); color: "#76FF03" }
-                    }
-
-                    Rectangle { width: parent.width; height: 1; color: "#333333" }
-
-                    // System Section
-                    Column {
-                        width: parent.width
-                        spacing: 10
-                        
-                        Text {
-                            text: "SYSTEM RESOURCES"
-                            color: "#888888"
-                            font.pixelSize: 10
-                            font.bold: true
-                        }
-                        
-                        Text {
-                            width: parent.width
-                            text: controller.systemStats
-                            color: "#FFD600"
-                            font.family: "Courier"
-                            font.pixelSize: 12
-                            wrapMode: Text.Wrap
-                        }
+                        text: monitoring.statsText
+                        color: "#FFD600"
+                        font.family: "Courier"
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
                     }
                 }
 
-                // Helper component for metric rows
-                component MetricItem : Row {
+                component MetricRow : Row {
                     property string label: ""
                     property string value: ""
-                    property color color: "white"
                     width: parent.width
-                    
-                    Text {
-                        text: label
-                        color: "#BBBBBB"
-                        font.pixelSize: 14
-                        width: parent.width * 0.6
-                    }
-                    Text {
-                        text: value
-                        color: parent.color
-                        font.pixelSize: 16
-                        font.bold: true
-                        font.family: "Courier New"
-                        horizontalAlignment: Text.AlignRight
-                        width: parent.width * 0.4
-                    }
+                    Text { text: label; color: "#BBBBBB"; width: parent.width * 0.6 }
+                    Text { text: value; color: "white"; font.bold: true; width: parent.width * 0.4; horizontalAlignment: Text.AlignRight }
                 }
             }
         }
 
-        // Footer Section
         Button {
-            text: "Exit Application"
+            text: "EXIT"
             Layout.alignment: Qt.AlignHCenter
             onClicked: Qt.quit()
-            
-            contentItem: Text {
-                text: parent.text
-                color: parent.pressed ? "#FF5252" : "#FFFFFF"
-                font.bold: true
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            
-            background: Rectangle {
-                implicitWidth: 150
-                implicitHeight: 40
-                color: parent.hovered ? "#333333" : "#222222"
-                radius: 4
-                border.color: "#444444"
-                border.width: 1
-            }
+            background: Rectangle { implicitWidth: 100; implicitHeight: 32; color: "#333"; radius: 4 }
+            contentItem: Text { text: "EXIT"; color: "white"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
         }
     }
 }
