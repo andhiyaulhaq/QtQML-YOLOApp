@@ -2,19 +2,19 @@
 
 > **From**: Monolithic `VideoController` + layer-by-type structure  
 > **To**: Feature-first clean architecture (see [`1_clean-architecture.md`](./1_clean-architecture.md))  
-> **Strategy**: Incremental, zero-regression, feature-by-feature extraction
+> **Strategy**: Backup & Rebuild (Greenfield Reconstruction)
 
 ---
 
 ## Overview
 
-The current codebase is functional and performant, but has two structural liabilities:
+The current codebase is functional but structurally coupled. To ensure a clean transition and avoid build-system "ghosts" (stale MOC/cache collisions), we will:
+1. **Backup**: Move the current `app` folder to `app_legacy` or `app_backup`.
+2. **Rebuild**: Create a brand new `app` structure with the final Clean Architecture layout.
+3. **Port**: Incremental port logic feature-by-feature from `app_backup` into the new `app`.
 
-1. **God class**: `VideoController` owns *all* workers, *all* threads, *all* Q_PROPERTY bindings, and wires *all* cross-component signals. It is the single point of failure and the blocker for any isolated testing or feature evolution.
+This strategy guarantees that the new build environment is always clean and follows the new rules from day one.
 
-2. **Layer-by-type organization**: `src/core/`, `src/models/`, `src/pipeline/`, `src/ui/` group files by technical type, not by problem domain — making it hard to locate, reason about, or independently modify a feature.
-
-The migration introduces no new runtime behavior. It is purely a **structural refactor** that extracts cohesive vertical slices and enforces clean dependency flow.
 
 ---
 
@@ -71,45 +71,27 @@ app/src/
 
 ---
 
-## Phase 0 — Preparation (1–2 hours)
-
-**Goal**: Set up directory skeleton and migrate shared constants. No logic changes.
+## Phase 0 — Greenfield Initialization
+**Goal**: Preserve the current working state and establish the new clean structure.
 
 ### Actions
+1. **Backup**: Rename `app` directory to `app_backup`.
+2. **Initialize New App**:
+   - Create a fresh `app` folder.
+   - Create the new feature-first directory skeleton:
+     ```
+     app/src/features/[detection,camera,monitoring]/[domain,application,infrastructure,ui]
+     app/src/shared/[domain,application]
+     app/content/features/[...]
+     ```
+3. **Copy Build Essentials**:
+   - Create a fresh `CMakeLists.txt` in the new `app` (copied from `app_backup` but stripped).
+   - Copy `main.cpp` and basic QML infrastructure.
 
-1. Create the new directory tree (all folders, no files yet):
-   ```
-   src/features/detection/domain/
-   src/features/detection/application/
-   src/features/detection/infrastructure/
-   src/features/detection/ui/
-   src/features/camera/domain/
-   src/features/camera/application/
-   src/features/camera/infrastructure/
-   src/features/monitoring/domain/
-   src/features/monitoring/application/
-   src/features/monitoring/infrastructure/
-   src/shared/domain/
-   src/shared/application/
-   content/features/detection/
-   content/features/camera/
-   content/features/monitoring/
-   content/shared/components/
-   content/shared/theme/
-   ```
+### Verification
+- Empty project structure created.
+- `app_backup` contains the functional monolithic version for reference.
 
-2. **Create `shared/domain/AppConfig.h`** — copy the `AppConfig` namespace from `VideoController.h` into a standalone header. Remove it from `VideoController.h`.
-
-3. **Create `detection/domain/TaskType.h`** — extract `TaskType` and `RuntimeType` enums from `VideoController` into standalone headers with `Q_NAMESPACE` / `Q_ENUM_NS` so QML can access them without importing the controller.
-
-4. **Update `CMakeLists.txt`**: add new include directories:
-   ```cmake
-   target_include_directories(appCamera PRIVATE
-       ${CMAKE_SOURCE_DIR}/src/features
-       ${CMAKE_SOURCE_DIR}/src/shared
-       # keep existing entries during transition
-   )
-   ```
 
 ### Files created
 
