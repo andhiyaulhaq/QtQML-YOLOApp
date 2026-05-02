@@ -139,8 +139,32 @@ Window {
                         inputMode = "camera"
                         camera.activate()
                     } else {
-                        videoFileDialog.open()
+                        if (videoFile.hasFile) {
+                            inputMode = "video"
+                            videoFile.activate()
+                        } else {
+                            videoFileDialog.open()
+                        }
                     }
+                }
+            }
+
+            Button {
+                text: "Browse..."
+                visible: sourceCombo.currentIndex === 1
+                onClicked: videoFileDialog.open()
+                contentItem: Text {
+                    text: parent.text
+                    color: "white"
+                    font.pixelSize: 12
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    implicitWidth: 70
+                    implicitHeight: 32
+                    color: parent.hovered ? "#333333" : "#1e1e1e"
+                    border.color: "#333333"
+                    radius: 4
                 }
             }
             
@@ -169,11 +193,14 @@ Window {
                 }
             }
 
-            Text { text: "Res:"; color: "white" }
+            Text { 
+                text: "Res:"
+                color: "white"
+                visible: inputMode === "camera"
+            }
             StyledComboBox {
                 id: resCombo
-                enabled: inputMode === "camera"
-                opacity: enabled ? 1.0 : 0.5
+                visible: inputMode === "camera"
                 model: camera ? camera.supportedResolutions : []
                 currentIndex: {
                     if (!camera) return -1;

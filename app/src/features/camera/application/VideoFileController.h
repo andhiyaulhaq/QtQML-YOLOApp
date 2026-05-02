@@ -15,6 +15,7 @@ public:
     explicit VideoFileController(QObject *parent = nullptr);
 
     Q_INVOKABLE void setFilePath(const QUrl& fileUrl);
+    Q_INVOKABLE void activate();
 
     QString filePath() const { return m_filePath; }
     bool hasFile() const { return !m_filePath.isEmpty(); }
