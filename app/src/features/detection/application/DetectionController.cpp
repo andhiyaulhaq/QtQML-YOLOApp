@@ -17,6 +17,7 @@ void DetectionController::setCurrentTask(YoloTask::TaskType task)
         emit currentTaskChanged();
         if (m_currentTask != static_cast<YoloTask::TaskType>(-1) && 
             m_currentRuntime != static_cast<YoloTask::RuntimeType>(-1)) {
+            resetFps();
             emit requestModelChange(createCurrentConfig());
         }
     }
@@ -29,6 +30,7 @@ void DetectionController::setCurrentRuntime(YoloTask::RuntimeType runtime)
         emit currentRuntimeChanged();
         if (m_currentTask != static_cast<YoloTask::TaskType>(-1) && 
             m_currentRuntime != static_cast<YoloTask::RuntimeType>(-1)) {
+            resetFps();
             emit requestModelChange(createCurrentConfig());
         }
     }
@@ -89,4 +91,11 @@ InferenceConfig DetectionController::createCurrentConfig() const
     }
     
     return config;
+}
+
+void DetectionController::resetFps()
+{
+    m_inferenceFps = 0.0;
+    m_lastInferenceTime = std::chrono::steady_clock::now();
+    emit inferenceFpsChanged();
 }

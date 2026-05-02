@@ -65,4 +65,5 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> m_lastInferenceTime;
     
     InferenceConfig createCurrentConfig() const;
+    void resetFps();
 };

@@ -44,6 +44,10 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
             config.resolution = m_requestedResolution;
             openCamera(config);
             m_resolutionUpdatePending = false;
+            
+            // Reset FPS counters to avoid hardware reconfiguration latency dip
+            frames = 0;
+            startTime = std::chrono::high_resolution_clock::now();
         }
 
         cv::Mat& currentFrame = m_framePool[m_poolIndex];
