@@ -291,7 +291,10 @@ Window {
                 // Detection Overlay
                 DetectionOverlayItem {
                     id: bboxItem
-                    anchors.fill: parent
+                    x: videoOutput.contentRect.x
+                    y: videoOutput.contentRect.y
+                    width: videoOutput.contentRect.width
+                    height: videoOutput.contentRect.height
                     detections: controller.detections
 
                     Repeater {

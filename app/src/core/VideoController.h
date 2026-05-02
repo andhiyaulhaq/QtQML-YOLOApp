@@ -111,7 +111,7 @@ public slots:
     void setCurrentRuntime(RuntimeType runtime);
     void updateFps(double fps);
     void updateSystemStats(const QString &formattedStats);
-    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
+    void updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing, const QSize& frameSize);
     void setCurrentResolution(const QSize& size);
 
 private slots:
@@ -168,7 +168,7 @@ public slots:
     void startCapturing(QVideoSink* sink);
     void stopCapturing();
     void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
-    void updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections);
+    void updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections, const QSize& frameSize);
     void clearDetections();
     void updateResolution(const QSize& size);
 
@@ -200,8 +200,8 @@ public:
     ~InferenceWorker();
 
 signals:
-    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing);
-    void latestDetectionsReady(std::shared_ptr<std::vector<DL_RESULT>> results);
+    void detectionsReady(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing, const QSize& frameSize);
+    void latestDetectionsReady(std::shared_ptr<std::vector<DL_RESULT>> results, const QSize& frameSize);
     void modelLoaded(int taskType, int runtimeType);
     void errorOccurred(const QString& title, const QString& message);
 

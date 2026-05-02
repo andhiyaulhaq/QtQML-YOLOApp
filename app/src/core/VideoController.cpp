@@ -8,7 +8,8 @@
 // CAPTURE WORKER
 // =========================================================
 
-void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections) {
+void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections, const QSize& frameSize) {
+    Q_UNUSED(frameSize); // We use the current frame's size for blending
     std::lock_guard<std::mutex> lock(m_detectionsMutex);
     m_latestDetections = detections;
 }
@@ -339,14 +340,13 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame) {
     // Run Inference
     std::vector<DL_RESULT> results;
     YoloPipeline::InferenceTiming timing;
-    // We can use the input const reference directly if RunSession accepts it.
-    // If not, we might need a const_cast or better, fix RunSession to take const cv::Mat&
-    // For now, let's assume we will fix RunSession.
+    
+    QSize frameSize(frame->cols, frame->rows);
     m_pipeline->RunSession(*frame, results, timing);
 
-    // Emit results
-    emit detectionsReady(results, &m_pipeline->getClassNames(), timing);
-    emit latestDetectionsReady(std::make_shared<std::vector<DL_RESULT>>(results));
+    // Emit results with the size of the frame that was actually processed
+    emit detectionsReady(results, &m_pipeline->getClassNames(), timing, frameSize);
+    emit latestDetectionsReady(std::make_shared<std::vector<DL_RESULT>>(results), frameSize);
 
     m_isProcessing = false;
 }
@@ -496,10 +496,10 @@ void VideoController::updateSystemStats(const QString &formattedStats) {
     }
 }
 
-void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing) {
+void VideoController::updateDetections(const std::vector<DL_RESULT>& results, const std::vector<std::string>* classNames, const YoloPipeline::InferenceTiming& timing, const QSize& frameSize) {
     // Update the model directly
     if (m_detections && classNames) {
-        m_detections->updateDetections(results, *classNames, m_currentResolution);
+        m_detections->updateDetections(results, *classNames, frameSize);
         emit detectionsChanged(); // Notify that the model object itself 'changed' (or just keeping signal for compatibility, mostly not needed if model internal signals fire)
         // Actually, for QAbstractListModel, the model emits rowsInserted/etc. 
         // emit detectionsChanged() is only needed if the pointer m_detections changed, which it doesn't.
