@@ -25,6 +25,10 @@ AppController::AppController(QQmlApplicationEngine *engine, QObject *parent)
 
 AppController::~AppController()
 {
+    if (m_captureWorker) m_captureWorker->stopCapturing();
+    if (m_inferenceWorker) m_inferenceWorker->stopInference();
+    if (m_monitoringWorker) m_monitoringWorker->stop();
+
     m_cameraThread.quit();
     m_inferenceThread.quit();
     m_monitoringThread.quit();
