@@ -51,8 +51,6 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame)
         return; 
     }
 
-    qDebug() << "InferenceWorker: Processing frame size" << frame->cols << "x" << frame->rows;
-
     std::vector<DetectionResult> results;
     InferenceTiming timing;
     
