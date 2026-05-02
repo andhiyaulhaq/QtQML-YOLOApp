@@ -8,7 +8,7 @@ struct SystemStats {
     QString processMemory;
 
     QString formatted() const {
-        return QString("CPU: %1%\n%2\n%3")
+        return QString("CPU: %1%\nSYS: %2\nAPP: %3")
             .arg(cpuPercent, 0, 'f', 1)
             .arg(systemMemory)
             .arg(processMemory);

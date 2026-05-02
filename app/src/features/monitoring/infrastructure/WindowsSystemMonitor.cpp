@@ -71,7 +71,11 @@ QString WindowsSystemMonitor::getSystemMemoryInfo()
     GlobalMemoryStatusEx(&memInfo);
     double totalGB = memInfo.ullTotalPhys / (1024.0 * 1024.0 * 1024.0);
     double usedGB = (memInfo.ullTotalPhys - memInfo.ullAvailPhys) / (1024.0 * 1024.0 * 1024.0);
-    return QString("%1GB/%2GB").arg(QString::number(usedGB, 'f', 1)).arg(QString::number(totalGB, 'f', 1));
+    double usagePercent = (double)memInfo.dwMemoryLoad;
+    return QString("%1GB/%2GB (%3%)")
+           .arg(QString::number(usedGB, 'f', 1))
+           .arg(QString::number(totalGB, 'f', 1))
+           .arg(QString::number(usagePercent, 'f', 1));
 #else
     return "N/A";
 #endif
@@ -83,7 +87,10 @@ QString WindowsSystemMonitor::getProcessMemoryInfo()
     PROCESS_MEMORY_COUNTERS_EX pmc;
     if (GetProcessMemoryInfo(m_self, (PROCESS_MEMORY_COUNTERS*)&pmc, sizeof(pmc))) {
         double rssMB = pmc.WorkingSetSize / (1024.0 * 1024.0);
-        return QString("%1MB RSS").arg(QString::number(rssMB, 'f', 1));
+        double virtualMB = pmc.PrivateUsage / (1024.0 * 1024.0);
+        return QString("%1MB RSS / %2MB Virtual")
+               .arg(QString::number(rssMB, 'f', 1))
+               .arg(QString::number(virtualMB, 'f', 1));
     }
     return "N/A";
 #else
