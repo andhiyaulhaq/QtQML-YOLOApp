@@ -1,5 +1,7 @@
 # Clean Architecture — YOLOApp
 
+**Last Modified**: 2026-05-02 20:01 (UTC+7)
+
 > **Scope**: This document defines the canonical clean architecture for the **QtOpenCVCamera / YOLOApp** C++/Qt/QML desktop application. It is the single source of truth for structural decisions, layer boundaries, dependency rules, and feature organization.
 
 ---
@@ -107,8 +109,8 @@ app/
 │   │   │   ├── application/
 │   │   │   │   ├── CaptureWorker.h     # QObject worker, lives on capture thread
 │   │   │   │   ├── CaptureWorker.cpp
-│   │   │   │   ├── CameraController.h  # QML_ELEMENT: fps, resolution, videoSink
-│   │   │   │   └── CameraController.cpp
+│   │   │   │   ├── YoloCameraController.h  # QML_ELEMENT: fps, resolution, videoSink
+│   │   │   │   └── YoloCameraController.cpp
 │   │   │   │
 │   │   │   └── infrastructure/
 │   │   │       ├── OpenCVCameraSource.h   # ICameraSource → cv::VideoCapture
@@ -133,27 +135,11 @@ app/
 │       ├── domain/
 │       │   └── AppConfig.h             # Compile-time constants (frame/model dims)
 │       └── application/
-│           └── AppController.h         # Root QML_ELEMENT orchestrating features
+│           ├── AppController.h         # Root QML_ELEMENT orchestrating features
 │           └── AppController.cpp
 │
 └── content/                            # QML UI files
-    ├── Main.qml                        # Root window, feature composition
-    ├── features/
-    │   ├── detection/
-    │   │   ├── DetectionHud.qml        # Pre/inference/post timing display
-    │   │   └── DetectionOverlay.qml    # Bounding box + label compositing
-    │   ├── camera/
-    │   │   ├── CameraView.qml          # VideoOutput + overlay composition
-    │   │   └── ResolutionPicker.qml    # Custom dropdown for resolution
-    │   └── monitoring/
-    │       └── SystemHud.qml           # CPU/RAM display
-    └── shared/
-        ├── components/
-        │   ├── CustomDropdown.qml      # Reusable dropdown component
-        │   └── MetricBadge.qml         # Reusable stat pill
-        └── theme/
-            └── Theme.qml              # Color tokens, typography, spacing
-```
+    └── Main.qml                        # Root window, flat structure for now
 
 ---
 
@@ -164,14 +150,20 @@ The Domain layer contains **no framework dependencies**. Every class is a plain 
 ### 4.1 Detection Domain
 
 ```cpp
-// features/detection/domain/DetectionResult.h
-// Raw inference result in pixel-space (replaces DL_RESULT)
+// Raw inference result in pixel-space
 struct DetectionResult {
     int        classId;
     float      confidence;
     cv::Rect   box;
     std::vector<cv::Point2f> keyPoints;  // pose
     cv::Mat    boxMask;                  // segmentation
+};
+
+// Internal struct for coordinate mapping
+struct LetterboxInfo {
+    float scale = 1.0f;
+    int padW = 0;
+    int padH = 0;
 };
 
 // features/detection/domain/Detection.h
@@ -194,7 +186,7 @@ class IDetectionModel {
 public:
     virtual ~IDetectionModel() = default;
     virtual const char* createSession(const InferenceConfig& config) = 0;
-    virtual char* runDetection(const cv::Mat& frame,
+    virtual char* runInference(const cv::Mat& frame,
                                std::vector<DetectionResult>& results,
                                InferenceTiming& timing) = 0;
     virtual const std::vector<std::string>& classNames() const = 0;
@@ -267,11 +259,11 @@ Application layer classes are the only ones allowed to own `QObject`, `QThread`,
 ### 6.1 Threading Model
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Main Thread (Qt Event Loop / GUI)                       │
-│  AppController · CameraController · DetectionController  │
-│  DetectionListModel · DetectionOverlayItem               │
-│  Constraint: never block > 16 ms                         │
+┌──────────────────────────────────────────────────────────────────┐
+│  Main Thread (Qt Event Loop / GUI)                                │
+│  AppController · YoloCameraController · DetectionController       │
+│  DetectionListModel · DetectionOverlayItem                        │
+│  Constraint: never block > 16 ms                                  │
 └────────┬───────────────────┬──────────────────┬──────────┘
          │ QueuedConnection  │ QueuedConnection  │ QueuedConnection
     ┌────▼────────┐   ┌──────▼──────┐   ┌───────▼──────┐
@@ -286,18 +278,16 @@ Application layer classes are the only ones allowed to own `QObject`, `QThread`,
 ### 6.2 AppController
 
 `AppController` is the single root `QML_ELEMENT`. It:
-- Holds and owns `CameraController` and `DetectionController` as properties.
+- Holds and owns `YoloCameraController` and `DetectionController` as properties.
 - Wires the `CaptureWorker::frameReady` signal to `InferenceWorker::processFrame`.
 - Wires `InferenceWorker::detectionsReady` to `DetectionController::updateDetections`.
 - Manages shared `QThread` lifetimes.
 
-This removes the "god class" burden from the current `VideoController`.
-
-### 6.3 CameraController
+### 6.3 YoloCameraController
 
 Exposes to QML:
 - `videoSink` (write-once, triggers worker startup)
-- `fps` (double, updated from CaptureWorker)
+- `cameraFps` (double, updated from CaptureWorker)
 - `currentResolution` (QSize, R/W)
 - `supportedResolutions` (QVariantList)
 
@@ -323,15 +313,12 @@ The QML layer reads Controller properties and never contains logic. All computat
 Window {
     AppController { id: app }
 
-    CameraView {
-        cameraController: app.camera
-        detectionController: app.detection
-    }
-
-    Column {  // HUD overlay
-        DetectionHud { controller: app.detection }
-        SystemHud    { controller: app.monitoring }
-    }
+    // Flat composition in Main.qml for now
+    VideoOutput { id: videoOutput ... }
+    DetectionOverlayItem { detections: detection.detections ... }
+    
+    // HUDs
+    Text { text: "FPS: " + camera.cameraFps ... }
 }
 ```
 
@@ -358,7 +345,7 @@ graph TD
 
     subgraph Application
         AppCtrl["AppController"]
-        CamCtrl["CameraController"]
+        CamCtrl["YoloCameraController"]
         DetCtrl["DetectionController"]
         CaptureW["CaptureWorker"]
         InferW["InferenceWorker"]
@@ -466,7 +453,7 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 | `features/camera/domain/ICameraSource.h` | Domain | Contract for any camera hardware adapter |
 | `features/camera/infrastructure/OpenCVCameraSource.h` | Infrastructure | OpenCV VideoCapture + ring buffer |
 | `features/camera/application/CaptureWorker.h` | Application | Thread worker: captures frames → feeds inference |
-| `features/camera/application/CameraController.h` | Application | QML_ELEMENT: exposes fps/resolution/videoSink |
+| `features/camera/application/YoloCameraController.h` | Application | QML_ELEMENT: exposes fps/resolution/videoSink |
 | `features/monitoring/domain/ISystemMonitor.h` | Domain | Contract for platform resource polling |
 | `features/monitoring/infrastructure/WindowsSystemMonitor.h` | Infrastructure | PDH CPU + PSAPI memory |
 | `features/monitoring/application/SystemMonitorWorker.h` | Application | Timer-driven worker emitting SystemStats |
