@@ -220,59 +220,138 @@ Window {
                 }
             }
 
-            // Right Panel
+            // Metrics Panel (Right Sidebar)
             Rectangle {
-                width: 240
+                id: metricsPanel
+                width: 260
                 Layout.fillHeight: true
                 color: "#1e1e1e"
-                radius: 8
                 border.color: "#333333"
+                border.width: 1
+                radius: 8
 
                 Column {
                     anchors.fill: parent
                     anchors.margins: 15
-                    spacing: 15
+                    spacing: 20
 
-                    Text { text: "METRICS"; color: "#888888"; font.bold: true }
-
-                    MetricRow { label: "Camera FPS"; value: camera.cameraFps.toFixed(1) }
-                    MetricRow { label: "Inference FPS"; value: detection.inferenceFps.toFixed(1) }
-                    
-                    Rectangle { width: parent.width; height: 1; color: "#333333" }
-                    
-                    MetricRow { label: "Pre-proc"; value: detection.preProcessTime.toFixed(2) + " ms" }
-                    MetricRow { label: "Inference"; value: detection.inferenceTime.toFixed(2) + " ms" }
-                    MetricRow { label: "Post-proc"; value: detection.postProcessTime.toFixed(2) + " ms" }
-
-                    Rectangle { width: parent.width; height: 1; color: "#333333" }
-
-                    Text { text: "SYSTEM"; color: "#888888"; font.bold: true }
                     Text {
+                        text: "PERFORMANCE METRICS"
+                        color: "#888888"
+                        font.pixelSize: 12
+                        font.bold: true
+                        font.letterSpacing: 1.2
+                    }
+
+                    // FPS Section
+                    Column {
                         width: parent.width
-                        text: monitoring.statsText
-                        color: "#FFD600"
-                        font.family: "Courier"
-                        font.pixelSize: 11
-                        wrapMode: Text.Wrap
+                        spacing: 8
+                        
+                        MetricItem {
+                            label: "Camera FPS"
+                            value: camera.cameraFps.toFixed(1)
+                            color: "#00E5FF"
+                        }
+                        MetricItem {
+                            label: "Inference FPS"
+                            value: detection.inferenceFps.toFixed(1)
+                            color: "#FF00FF"
+                        }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: "#333333" }
+
+                    // Timing Section
+                    Column {
+                        width: parent.width
+                        spacing: 10
+                        
+                        Text {
+                            text: "LATENCY (ms)"
+                            color: "#888888"
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        
+                        MetricItem { label: "Pre-Process"; value: detection.preProcessTime.toFixed(3); color: "#76FF03" }
+                        MetricItem { label: "Inference"; value: detection.inferenceTime.toFixed(3); color: "#76FF03" }
+                        MetricItem { label: "Post-Process"; value: detection.postProcessTime.toFixed(3); color: "#76FF03" }
+                    }
+
+                    Rectangle { width: parent.width; height: 1; color: "#333333" }
+
+                    // System Section
+                    Column {
+                        width: parent.width
+                        spacing: 10
+                        
+                        Text {
+                            text: "SYSTEM RESOURCES"
+                            color: "#888888"
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        
+                        Text {
+                            width: parent.width
+                            text: monitoring.statsText
+                            color: "#FFD600"
+                            font.family: "Courier"
+                            font.pixelSize: 12
+                            wrapMode: Text.Wrap
+                        }
                     }
                 }
 
-                component MetricRow : Row {
+                // Helper component for metric rows
+                component MetricItem : Row {
                     property string label: ""
                     property string value: ""
+                    property color color: "white"
                     width: parent.width
-                    Text { text: label; color: "#BBBBBB"; width: parent.width * 0.6 }
-                    Text { text: value; color: "white"; font.bold: true; width: parent.width * 0.4; horizontalAlignment: Text.AlignRight }
+                    
+                    Text {
+                        text: label
+                        color: "#BBBBBB"
+                        font.pixelSize: 14
+                        width: parent.width * 0.6
+                    }
+                    Text {
+                        text: value
+                        color: parent.color
+                        font.pixelSize: 16
+                        font.bold: true
+                        font.family: "Courier New"
+                        horizontalAlignment: Text.AlignRight
+                        width: parent.width * 0.4
+                    }
                 }
             }
         }
 
+        // Footer Section
         Button {
-            text: "EXIT"
+            text: "Exit Application"
             Layout.alignment: Qt.AlignHCenter
             onClicked: Qt.quit()
-            background: Rectangle { implicitWidth: 100; implicitHeight: 32; color: "#333"; radius: 4 }
-            contentItem: Text { text: "EXIT"; color: "white"; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+            
+            contentItem: Text {
+                text: parent.text
+                color: parent.pressed ? "#FF5252" : "#FFFFFF"
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            
+            background: Rectangle {
+                implicitWidth: 150
+                implicitHeight: 40
+                color: parent.hovered ? "#333333" : "#222222"
+                radius: 4
+                border.color: "#444444"
+                border.width: 1
+            }
         }
     }
 }
