@@ -62,7 +62,14 @@ void DetectionListModel::updateDetections(const std::vector<DetectionResult>& re
                                           const std::vector<std::string>& classNames, 
                                           const QSize& frameSize)
 {
-    if (results.empty() && m_detections.empty()) return;
+    if (results.empty() && m_detections.empty() && m_frameSize == frameSize) return;
+    
+    if (m_frameSize != frameSize) {
+        m_frameSize = frameSize;
+        emit frameSizeChanged();
+    }
+    
+    if (frameSize.isEmpty()) return;
     
     float frameW = static_cast<float>(frameSize.width());
     float frameH = static_cast<float>(frameSize.height());

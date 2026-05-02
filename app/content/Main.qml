@@ -184,15 +184,21 @@ Window {
                     anchors.fill: videoOutput
                     detections: detection.detections
                     
-                    // Optional: Hardware-accelerated bounding box rendering is handled in C++
-                    // We can still use QML for labels if we want, or keep it minimal
+                    property real videoAspectRatio: detection.detections && detection.detections.frameSize.height > 0 ? 
+                                                    detection.detections.frameSize.width / detection.detections.frameSize.height : 1.0
+                    property real itemAspectRatio: height > 0 ? width / height : 1.0
+                    property real renderW: videoAspectRatio > itemAspectRatio ? width : height * videoAspectRatio
+                    property real renderH: videoAspectRatio > itemAspectRatio ? width / videoAspectRatio : height
+                    property real offsetX: (width - renderW) / 2.0
+                    property real offsetY: (height - renderH) / 2.0
+                    
                     Repeater {
                         model: overlay.detections
                         Item {
-                            x: modelData.x * parent.width
-                            y: modelData.y * parent.height
-                            width: modelData.w * parent.width
-                            height: modelData.h * parent.height
+                            x: overlay.offsetX + modelData.x * overlay.renderW
+                            y: overlay.offsetY + modelData.y * overlay.renderH
+                            width: modelData.w * overlay.renderW
+                            height: modelData.h * overlay.renderH
                             
                             Rectangle {
                                 y: -20

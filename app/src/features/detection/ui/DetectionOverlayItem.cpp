@@ -90,11 +90,32 @@ QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
         {8, 10}, {1, 2}, {0, 1}, {0, 2}, {1, 3}, {2, 4}, {3, 5}, {4, 6}
     };
 
+    float itemW = width();
+    float itemH = height();
+    float renderW = itemW;
+    float renderH = itemH;
+    float offsetX = 0;
+    float offsetY = 0;
+
+    QSize frameSize = m_model->frameSize();
+    if (!frameSize.isEmpty() && itemW > 0 && itemH > 0) {
+        float videoAspectRatio = static_cast<float>(frameSize.width()) / static_cast<float>(frameSize.height());
+        float itemAspectRatio = itemW / itemH;
+
+        if (videoAspectRatio > itemAspectRatio) {
+            renderH = itemW / videoAspectRatio;
+            offsetY = (itemH - renderH) / 2.0f;
+        } else {
+            renderW = itemH * videoAspectRatio;
+            offsetX = (itemW - renderW) / 2.0f;
+        }
+    }
+
     for (const auto &det : detections) {
-        float x = det.x() * width();
-        float y = det.y() * height();
-        float w = det.w() * width();
-        float h = det.h() * height();
+        float x = offsetX + det.x() * renderW;
+        float y = offsetY + det.y() * renderH;
+        float w = det.w() * renderW;
+        float h = det.h() * renderH;
 
         int hue = (det.classId() * 60) % 360;
         QColor color = QColor::fromHsl(hue, 255, 127);
@@ -120,7 +141,10 @@ QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
             std::vector<QPointF> unnormalizedKpts;
             const auto& kpts = det.keyPoints();
             for (int k = 0; k < 17; k++) {
-                unnormalizedKpts.push_back(QPointF(kpts[k].x() * width(), kpts[k].y() * height()));
+                unnormalizedKpts.push_back(QPointF(
+                    offsetX + kpts[k].x() * renderW, 
+                    offsetY + kpts[k].y() * renderH
+                ));
             }
 
             for (int e = 0; e < 19; e++) {

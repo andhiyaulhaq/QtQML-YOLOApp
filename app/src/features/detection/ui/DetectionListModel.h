@@ -11,6 +11,8 @@ class DetectionListModel : public QAbstractListModel
 {
     Q_OBJECT
 
+    Q_PROPERTY(QSize frameSize READ frameSize NOTIFY frameSizeChanged)
+
 public:
     enum DetectionRoles {
         ClassIdRole = Qt::UserRole + 1,
@@ -34,7 +36,12 @@ public:
                           const QSize& frameSize);
     
     const std::vector<Detection>& getDetections() const { return m_detections; }
+    QSize frameSize() const { return m_frameSize; }
+
+signals:
+    void frameSizeChanged();
 
 private:
     std::vector<Detection> m_detections;
+    QSize m_frameSize;
 };
