@@ -131,6 +131,11 @@ target_link_libraries(appCamera
     onnxruntime_providers_shared
 )
 
+# Silence debug output in Release builds
+target_compile_definitions(appCamera PRIVATE
+    $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
+)
+
 if(WIN32)
     target_link_libraries(appCamera PRIVATE pdh psapi)
 endif()

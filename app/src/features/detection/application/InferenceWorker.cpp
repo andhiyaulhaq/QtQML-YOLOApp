@@ -1,5 +1,6 @@
 #include "InferenceWorker.h"
 #include <QDebug>
+#include "../../shared/domain/UiLogger.h"
 #include <fstream>
 #include <thread>
 #include <QSize>
@@ -24,16 +25,22 @@ void InferenceWorker::startInference(const InferenceConfig& config)
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    qDebug() << "InferenceWorker: Requesting session creation for" << QString::fromStdString(config.modelPath);
+    auto t0 = std::chrono::steady_clock::now();
+    UiLogger::ctrl("InferenceWorker: Requesting session → \"" + QString::fromStdString(config.modelPath) + "\"");
+    
     const char* status = m_model->createSession(config);
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - t0).count();
+
     if (status != nullptr) {
-        qDebug() << "InferenceWorker: Session creation failed:" << status;
+        UiLogger::ctrl("InferenceWorker: Session FAILED → " + QString(status));
         emit errorOccurred("Initialization Error", QString("[YoloPipeline]: %1").arg(status));
         return;
     }
 
     m_running = true;
-    qDebug() << "InferenceWorker: Session created successfully.";
+    UiLogger::ctrl("InferenceWorker: Session created → OK (" + QString::number(elapsed) + " ms)");
     emit modelLoaded(config.taskType, config.runtimeType);
 }
 

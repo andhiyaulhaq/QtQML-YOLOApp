@@ -1,5 +1,6 @@
 #include "DetectionController.h"
 #include <QDebug>
+#include "../../shared/domain/UiLogger.h"
 
 DetectionController::DetectionController(InferenceWorker *worker, QObject *parent)
     : QObject(parent)
@@ -11,7 +12,10 @@ DetectionController::DetectionController(InferenceWorker *worker, QObject *paren
 
 void DetectionController::setCurrentTask(YoloTask::TaskType task)
 {
-    qDebug() << "DetectionController::setCurrentTask called with task:" << (int)task;
+    static const QMap<int, QString> taskNames = {
+        {1, "ObjectDetection"}, {2, "PoseEstimation"}, {3, "ImageSegmentation"}
+    };
+    UiLogger::ctrl("DetectionController::setCurrentTask → task=" + taskNames.value((int)task, "Unknown"));
     if (m_currentTask != task) {
         m_currentTask = task;
         emit currentTaskChanged();
@@ -25,6 +29,8 @@ void DetectionController::setCurrentTask(YoloTask::TaskType task)
 
 void DetectionController::setCurrentRuntime(YoloTask::RuntimeType runtime)
 {
+    static const QMap<int, QString> runtimeNames = {{0, "OpenVINO"}, {1, "ONNXRuntime"}};
+    UiLogger::ctrl("DetectionController::setCurrentRuntime → " + runtimeNames.value((int)runtime, "Unknown"));
     if (m_currentRuntime != runtime) {
         m_currentRuntime = runtime;
         emit currentRuntimeChanged();

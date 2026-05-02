@@ -2,6 +2,7 @@
 #include <QMediaDevices>
 #include <QCameraDevice>
 #include <QMetaObject>
+#include "../../shared/domain/UiLogger.h"
 
 YoloCameraController::YoloCameraController(CaptureWorker *worker, QObject *parent)
     : QObject(parent)
@@ -29,6 +30,8 @@ void YoloCameraController::setVideoSink(QVideoSink* sink)
 
 void YoloCameraController::setCurrentResolution(const QSize& size)
 {
+    UiLogger::ctrl("YoloCameraController::setCurrentResolution → " +
+                   QString::number(size.width()) + "x" + QString::number(size.height()));
     if (m_currentResolution != size) {
         QMetaObject::invokeMethod(m_worker, "updateResolution", Qt::DirectConnection, Q_ARG(QSize, size));
     }

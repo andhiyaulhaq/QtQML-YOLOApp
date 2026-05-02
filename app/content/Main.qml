@@ -124,6 +124,7 @@ Window {
                 model: ["Detection", "Pose", "Seg"]
                 currentIndex: detection ? detection.currentTask - 1 : 0
                 onActivated: (index) => {
+                    console.log("[UI]   ComboBox 'Task' activated → index=" + index + " (" + model[index] + ")")
                     if (!detection) return;
                     if (index === 0) detection.currentTask = YoloTask.ObjectDetection
                     else if (index === 1) detection.currentTask = YoloTask.PoseEstimation
@@ -137,6 +138,7 @@ Window {
                 model: ["OpenVINO", "ONNX"]
                 currentIndex: detection ? detection.currentRuntime : 0
                 onActivated: (index) => {
+                    console.log("[UI]   ComboBox 'Runtime' activated → index=" + index + " (" + model[index] + ")")
                     if (!detection) return;
                     if (index === 0) detection.currentRuntime = YoloTask.OpenVINO
                     else if (index === 1) detection.currentRuntime = YoloTask.ONNXRuntime
@@ -159,7 +161,11 @@ Window {
                 }
                 displayText: camera ? camera.currentResolution.width + "x" + camera.currentResolution.height : "0x0"
                 onActivated: (index) => {
-                    if (camera) camera.currentResolution = camera.supportedResolutions[index]
+                    if (camera) {
+                        var res = camera.supportedResolutions[index]
+                        console.log("[UI]   ComboBox 'Resolution' activated → " + res.width + "x" + res.height)
+                        camera.currentResolution = res
+                    }
                 }
             }
         }
@@ -341,7 +347,10 @@ Window {
         Button {
             text: "Exit Application"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: Qt.quit()
+            onClicked: {
+                console.log("[UI]   Button 'Exit' clicked")
+                Qt.quit()
+            }
             
             contentItem: Text {
                 text: parent.text
