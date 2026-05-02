@@ -22,8 +22,9 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
     QQuickStyle::setStyle("Basic");
-
     qRegisterMetaType<Detection>("Detection");
+    qRegisterMetaType<YoloTask::TaskType>("YoloTask::TaskType");
+    qRegisterMetaType<YoloTask::RuntimeType>("YoloTask::RuntimeType");
     qRegisterMetaType<std::vector<DetectionResult>>("std::vector<DetectionResult>");
     qRegisterMetaType<InferenceTiming>("InferenceTiming");
     qRegisterMetaType<InferenceConfig>("InferenceConfig");

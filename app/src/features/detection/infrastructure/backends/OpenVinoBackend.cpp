@@ -34,26 +34,27 @@ InferenceOutput OpenVinoBackend::runInference(float* blobData, const std::vector
     InferenceOutput output;
     
     ov::Tensor out0 = m_inferRequest.get_output_tensor(0);
-    output.primaryData = out0.data<float>();
     
+    if (m_compiledModel.outputs().size() > 1) {
+        ov::Tensor out1 = m_inferRequest.get_output_tensor(1);
+        
+        // Ensure out0 is the detection tensor (rank 3) and out1 is the prototype tensor (rank 4)
+        if (out0.get_shape().size() == 4 && out1.get_shape().size() == 3) {
+            std::swap(out0, out1);
+        }
+        
+        output.secondaryData = out1.data<float>();
+        ov::Shape sec_shape = out1.get_shape();
+        output.secondaryShape.clear();
+        for (auto s : sec_shape) output.secondaryShape.push_back((int64_t)s);
+    } else {
+        output.secondaryData = nullptr;
+    }
+
+    output.primaryData = out0.data<float>();
     ov::Shape out_shape = out0.get_shape();
     output.primaryShape.clear();
     for (auto s : out_shape) output.primaryShape.push_back((int64_t)s);
-
-    try {
-        if (m_compiledModel.outputs().size() > 1) {
-            ov::Tensor out1 = m_inferRequest.get_output_tensor(1);
-            output.secondaryData = out1.data<float>();
-            
-            ov::Shape sec_shape = out1.get_shape();
-            output.secondaryShape.clear();
-            for (auto s : sec_shape) output.secondaryShape.push_back((int64_t)s);
-        } else {
-            output.secondaryData = nullptr;
-        }
-    } catch (...) {
-        output.secondaryData = nullptr;
-    }
 
     return output;
 }

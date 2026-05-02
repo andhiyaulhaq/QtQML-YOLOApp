@@ -122,8 +122,9 @@ Window {
             StyledComboBox {
                 id: taskCombo
                 model: ["Detection", "Pose", "Seg"]
-                currentIndex: detection.currentTask - 1
+                currentIndex: detection ? detection.currentTask - 1 : 0
                 onActivated: (index) => {
+                    if (!detection) return;
                     if (index === 0) detection.currentTask = YoloTask.ObjectDetection
                     else if (index === 1) detection.currentTask = YoloTask.PoseEstimation
                     else if (index === 2) detection.currentTask = YoloTask.ImageSegmentation
@@ -134,8 +135,9 @@ Window {
             StyledComboBox {
                 id: runtimeCombo
                 model: ["OpenVINO", "ONNX"]
-                currentIndex: detection.currentRuntime
+                currentIndex: detection ? detection.currentRuntime : 0
                 onActivated: (index) => {
+                    if (!detection) return;
                     if (index === 0) detection.currentRuntime = YoloTask.OpenVINO
                     else if (index === 1) detection.currentRuntime = YoloTask.ONNXRuntime
                 }
@@ -144,8 +146,9 @@ Window {
             Text { text: "Res:"; color: "white" }
             StyledComboBox {
                 id: resCombo
-                model: camera.supportedResolutions
+                model: camera ? camera.supportedResolutions : []
                 currentIndex: {
+                    if (!camera) return -1;
                     for (var i = 0; i < camera.supportedResolutions.length; i++) {
                         if (camera.supportedResolutions[i].width === camera.currentResolution.width &&
                             camera.supportedResolutions[i].height === camera.currentResolution.height) {
@@ -154,8 +157,10 @@ Window {
                     }
                     return -1;
                 }
-                displayText: camera.currentResolution.width + "x" + camera.currentResolution.height
-                onActivated: (index) => camera.currentResolution = camera.supportedResolutions[index]
+                displayText: camera ? camera.currentResolution.width + "x" + camera.currentResolution.height : "0x0"
+                onActivated: (index) => {
+                    if (camera) camera.currentResolution = camera.supportedResolutions[index]
+                }
             }
         }
 
@@ -176,15 +181,17 @@ Window {
                     id: videoOutput
                     anchors.fill: parent
                     fillMode: VideoOutput.PreserveAspectFit
-                    Component.onCompleted: camera.videoSink = videoOutput.videoSink
+                    Component.onCompleted: {
+                        if (camera) camera.videoSink = videoOutput.videoSink
+                    }
                 }
 
                 DetectionOverlayItem {
                     id: overlay
                     anchors.fill: videoOutput
-                    detections: detection.detections
+                    detections: detection ? detection.detections : null
                     
-                    property real videoAspectRatio: detection.detections && detection.detections.frameSize.height > 0 ? 
+                    property real videoAspectRatio: detection && detection.detections && detection.detections.frameSize.height > 0 ? 
                                                     detection.detections.frameSize.width / detection.detections.frameSize.height : 1.0
                     property real itemAspectRatio: height > 0 ? width / height : 1.0
                     property real renderW: videoAspectRatio > itemAspectRatio ? width : height * videoAspectRatio
@@ -250,12 +257,12 @@ Window {
                         
                         MetricItem {
                             label: "Camera FPS"
-                            value: camera.cameraFps.toFixed(1)
+                            value: camera ? camera.cameraFps.toFixed(1) : "0.0"
                             color: "#00E5FF"
                         }
                         MetricItem {
                             label: "Inference FPS"
-                            value: detection.inferenceFps.toFixed(1)
+                            value: detection ? detection.inferenceFps.toFixed(1) : "0.0"
                             color: "#FF00FF"
                         }
                     }
@@ -274,9 +281,9 @@ Window {
                             font.bold: true
                         }
                         
-                        MetricItem { label: "Pre-Process"; value: detection.preProcessTime.toFixed(3); color: "#76FF03" }
-                        MetricItem { label: "Inference"; value: detection.inferenceTime.toFixed(3); color: "#76FF03" }
-                        MetricItem { label: "Post-Process"; value: detection.postProcessTime.toFixed(3); color: "#76FF03" }
+                        MetricItem { label: "Pre-Process"; value: detection ? detection.preProcessTime.toFixed(3) : "0.000"; color: "#76FF03" }
+                        MetricItem { label: "Inference"; value: detection ? detection.inferenceTime.toFixed(3) : "0.000"; color: "#76FF03" }
+                        MetricItem { label: "Post-Process"; value: detection ? detection.postProcessTime.toFixed(3) : "0.000"; color: "#76FF03" }
                     }
 
                     Rectangle { width: parent.width; height: 1; color: "#333333" }
@@ -295,7 +302,7 @@ Window {
                         
                         Text {
                             width: parent.width
-                            text: monitoring.statsText
+                            text: monitoring ? monitoring.statsText : "Monitoring not available"
                             color: "#FFD600"
                             font.family: "Courier"
                             font.pixelSize: 12

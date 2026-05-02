@@ -66,28 +66,36 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
         if (currentDetections) {
             for (const auto& det : *currentDetections) {
                 if (!det.boxMask.empty()) {
-                    cv::Rect displayBox = det.box & cv::Rect(0, 0, currentFrame.cols, currentFrame.rows);
+                    cv::Rect originalBox = det.box;
+                    cv::Rect displayBox = originalBox & cv::Rect(0, 0, currentFrame.cols, currentFrame.rows);
                     if (displayBox.width > 0 && displayBox.height > 0) {
-                        cv::Mat roi = currentFrame(displayBox);
-                        int hue = (det.classId * 60) % 360;
-                        QColor color = QColor::fromHsl(hue, 255, 127);
-                        int b = color.blue();
-                        int g = color.green();
-                        int r = color.red();
+                        int dx = displayBox.x - originalBox.x;
+                        int dy = displayBox.y - originalBox.y;
+                        cv::Rect maskRoi(dx, dy, displayBox.width, displayBox.height);
+                        maskRoi = maskRoi & cv::Rect(0, 0, det.boxMask.cols, det.boxMask.rows);
                         
-                        cv::Mat activeMask = det.boxMask;
-                        if (activeMask.size() != roi.size()) {
-                            cv::resize(activeMask, activeMask, roi.size());
-                        }
+                        if (maskRoi.width > 0 && maskRoi.height > 0) {
+                            cv::Mat roi = currentFrame(displayBox);
+                            int hue = (det.classId * 60) % 360;
+                            QColor color = QColor::fromHsl(hue, 255, 127);
+                            int b = color.blue();
+                            int g = color.green();
+                            int r = color.red();
+                            
+                            cv::Mat activeMask = det.boxMask(maskRoi);
+                            if (activeMask.size() != roi.size()) {
+                                cv::resize(activeMask, activeMask, roi.size());
+                            }
 
-                        for (int y = 0; y < roi.rows; ++y) {
-                            uchar* pRoi = roi.ptr<uchar>(y);
-                            const uchar* pMask = activeMask.ptr<uchar>(y);
-                            for (int x = 0; x < roi.cols; ++x) {
-                                if (pMask[x] > 128) {
-                                    pRoi[x*3+0] = (pRoi[x*3+0] + b) >> 1;
-                                    pRoi[x*3+1] = (pRoi[x*3+1] + g) >> 1;
-                                    pRoi[x*3+2] = (pRoi[x*3+2] + r) >> 1;
+                            for (int y = 0; y < roi.rows; ++y) {
+                                uchar* pRoi = roi.ptr<uchar>(y);
+                                const uchar* pMask = activeMask.ptr<uchar>(y);
+                                for (int x = 0; x < roi.cols; ++x) {
+                                    if (pMask[x] > 128) {
+                                        pRoi[x*3+0] = (pRoi[x*3+0] + b) >> 1;
+                                        pRoi[x*3+1] = (pRoi[x*3+1] + g) >> 1;
+                                        pRoi[x*3+2] = (pRoi[x*3+2] + r) >> 1;
+                                    }
                                 }
                             }
                         }

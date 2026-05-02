@@ -3,6 +3,7 @@
 #include <numeric>
 #include <algorithm>
 #include <iostream>
+#include <QDebug>
 
 // ============================================================================
 // DetectionPostProcessor
@@ -319,7 +320,7 @@ void SegmentationPostProcessor::initBuffers(size_t strideNum) {
 
 void SegmentationPostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     if (!secondaryOutput) {
-        std::cout << "[YOLO]: Segmentation requires secondary output tensor!" << std::endl;
+        qDebug() << "[YOLO]: Segmentation requires secondary output tensor! Output is null.";
         return;
     }
 

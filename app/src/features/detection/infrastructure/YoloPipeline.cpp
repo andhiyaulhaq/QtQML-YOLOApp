@@ -76,7 +76,6 @@ const char* YoloPipeline::createSession(const InferenceConfig& config) {
 char* YoloPipeline::runInference(const cv::Mat& frame,
                                  std::vector<DetectionResult>& results,
                                  InferenceTiming& timing) {
-    qDebug() << "[YoloPipeline]: runInference starting pre-process";
     auto start_pre = std::chrono::high_resolution_clock::now();
 
     LetterboxInfo info = m_preProcessor->preProcess(frame, m_letterboxBuffer);
@@ -93,13 +92,11 @@ char* YoloPipeline::runInference(const cv::Mat& frame,
     auto end_pre = std::chrono::high_resolution_clock::now();
     timing.preProcess = std::chrono::duration<double, std::milli>(end_pre - start_pre).count();
 
-    qDebug() << "[YoloPipeline]: pre-process done, starting backend inference";
     auto start_infer = std::chrono::high_resolution_clock::now();
     InferenceOutput out = m_backend->runInference(blob_data, inputNodeDims);
     auto end_infer = std::chrono::high_resolution_clock::now();
     timing.inference = std::chrono::duration<double, std::milli>(end_infer - start_infer).count();
 
-    qDebug() << "[YoloPipeline]: backend inference done, starting post-process";
     auto start_post = std::chrono::high_resolution_clock::now();
     m_postProcessor->postProcess(out.primaryData, out.primaryShape, results, 
                                  info, m_classes, 
@@ -108,7 +105,6 @@ char* YoloPipeline::runInference(const cv::Mat& frame,
     timing.postProcess = std::chrono::duration<double, std::milli>(end_post - start_post).count();
     
     timing.total = timing.preProcess + timing.inference + timing.postProcess;
-    qDebug() << "[YoloPipeline]: runInference completed. Results:" << results.size();
     return nullptr; // OK
 }
 

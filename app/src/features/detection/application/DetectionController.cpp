@@ -11,6 +11,7 @@ DetectionController::DetectionController(InferenceWorker *worker, QObject *paren
 
 void DetectionController::setCurrentTask(YoloTask::TaskType task)
 {
+    qDebug() << "DetectionController::setCurrentTask called with task:" << (int)task;
     if (m_currentTask != task) {
         m_currentTask = task;
         emit currentTaskChanged();

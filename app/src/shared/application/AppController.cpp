@@ -27,7 +27,9 @@ AppController::~AppController()
 {
     if (m_captureWorker) m_captureWorker->stopCapturing();
     if (m_inferenceWorker) m_inferenceWorker->stopInference();
-    if (m_monitoringWorker) m_monitoringWorker->stop();
+    if (m_monitoringWorker) {
+        QMetaObject::invokeMethod(m_monitoringWorker, "stop", Qt::BlockingQueuedConnection);
+    }
 
     m_cameraThread.quit();
     m_inferenceThread.quit();
@@ -104,7 +106,7 @@ void AppController::wireEverything()
 
     // Cross-Feature
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame);
-    connect(m_inferenceWorker, &InferenceWorker::latestDetectionsReady, m_captureWorker, &CaptureWorker::updateLatestDetections);
+    connect(m_inferenceWorker, &InferenceWorker::latestDetectionsReady, m_captureWorker, &CaptureWorker::updateLatestDetections, Qt::DirectConnection);
     m_captureWorker->setInferenceProcessingFlag(m_inferenceWorker->getProcessingFlag());
 
     // Initial Model Load

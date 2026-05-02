@@ -107,13 +107,23 @@ InferenceOutput OnnxRuntimeBackend::runInference(float* blobData, const std::vec
     m_lastOutputs = sess->Run(m_options, m_inputNodeNames.data(), &inputTensor, 1, m_outputNodeNames.data(), m_outputNodeNames.size());
 
     InferenceOutput output;
-    output.primaryData = m_lastOutputs[0].GetTensorMutableData<void>();
-    output.primaryShape = m_lastOutputs[0].GetTensorTypeAndShapeInfo().GetShape();
     
     if (m_lastOutputs.size() > 1) {
+        auto shape0 = m_lastOutputs[0].GetTensorTypeAndShapeInfo().GetShape();
+        auto shape1 = m_lastOutputs[1].GetTensorTypeAndShapeInfo().GetShape();
+        
+        if (shape0.size() == 4 && shape1.size() == 3) {
+            std::swap(m_lastOutputs[0], m_lastOutputs[1]);
+            std::swap(shape0, shape1);
+        }
+        
+        output.primaryData = m_lastOutputs[0].GetTensorMutableData<void>();
+        output.primaryShape = shape0;
         output.secondaryData = m_lastOutputs[1].GetTensorMutableData<void>();
-        output.secondaryShape = m_lastOutputs[1].GetTensorTypeAndShapeInfo().GetShape();
+        output.secondaryShape = shape1;
     } else {
+        output.primaryData = m_lastOutputs[0].GetTensorMutableData<void>();
+        output.primaryShape = m_lastOutputs[0].GetTensorTypeAndShapeInfo().GetShape();
         output.secondaryData = nullptr;
     }
 
