@@ -66,7 +66,9 @@ The AI returns coordinates relative to the 640x640 square. These must be transfo
 ### 2. Backend Logic: CaptureWorker
 #### [MODIFY] [VideoController.cpp](../app/src/core/VideoController.cpp)
 *   Update `CaptureWorker::startCapturing` to handle dynamic `QSize`.
-*   Implement `m_capture.release()` logic before re-opening with new `cv::CAP_PROP_FRAME_WIDTH`.
+*   Implement `m_capture.release()` and full object reset (`m_capture = cv::VideoCapture()`) before re-opening.
+*   **Backend Switch**: Use `cv::CAP_MSMF` (Media Foundation) on Windows to ensure cleaner resource reclamation compared to `CAP_DSHOW`.
+*   **Buffer Reuse**: Implement member buffers in `SegmentationPostProcessor` to reuse large matrices for mask processing, avoiding heap fragmentation.
 
 ### 3. UI Implementation
 #### [MODIFY] [Main.qml](../app/content/Main.qml)

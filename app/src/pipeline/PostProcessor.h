@@ -72,6 +72,11 @@ private:
     std::vector<int> m_nmsIndices;
     std::vector<int> m_sortIndices;
     std::vector<bool> m_suppressed;
+
+    // Reuseable buffers for memory stability
+    cv::Mat m_protoMat;
+    cv::Mat m_maskMat;
+    cv::Mat m_maskResized;
 };
 
 

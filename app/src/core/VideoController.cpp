@@ -13,14 +13,23 @@ void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT
     m_latestDetections = detections;
 }
 
+void CaptureWorker::clearDetections() {
+    std::lock_guard<std::mutex> lock(m_detectionsMutex);
+    m_latestDetections.reset();
+}
+
 void CaptureWorker::startCapturing(QVideoSink* sink) {
     if (m_running) return;
     m_running = true;
     m_sink = sink;
 
     auto openCamera = [&]() {
-        // Open Camera (DSHOW for Windows usually faster)
-        m_capture.open(0, cv::CAP_DSHOW);
+        // Open Camera (MSMF for Windows is generally better at resource cleanup than DSHOW)
+#ifdef _WIN32
+        m_capture.open(0, cv::CAP_MSMF);
+#else
+        m_capture.open(0);
+#endif
         if (!m_capture.isOpened()) {
             m_capture.open(0);
         }
@@ -46,14 +55,21 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
         int actualWidth = static_cast<int>(m_capture.get(cv::CAP_PROP_FRAME_WIDTH));
         int actualHeight = static_cast<int>(m_capture.get(cv::CAP_PROP_FRAME_HEIGHT));
         
+        // Explicitly release old frames to ensure GPU/Driver memory is returned
+        m_reusableFrames[0] = QVideoFrame();
+        m_reusableFrames[1] = QVideoFrame();
+
         // Initialize UI double-buffer with ACTUAL resolution
         QVideoFrameFormat format(QSize(actualWidth, actualHeight),
                                  QVideoFrameFormat::Format_RGBA8888);
         m_reusableFrames[0] = QVideoFrame(format);
         m_reusableFrames[1] = QVideoFrame(format);
 
-        // Clear pools
-        for(int i=0; i<3; ++i) m_framePool[i].release();
+        // Clear pools and stale detections
+        for(int i=0; i<3; ++i) {
+            m_framePool[i] = cv::Mat(); // Explicitly reset to null mat
+        }
+        clearDetections();
         
         emit resolutionChanged(QSize(actualWidth, actualHeight));
         return true;
@@ -71,6 +87,7 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
     while (m_running) {
         if (m_resolutionUpdatePending.load()) {
             m_capture.release();
+            m_capture = cv::VideoCapture(); // Fully reset the object to clear internal backend state
             if (!openCamera()) {
                 m_running = false;
                 break;
@@ -113,16 +130,28 @@ void CaptureWorker::startCapturing(QVideoSink* sink) {
                             cv::Mat roi = currentFrame(displayBox);
                             int hue = (det.classId * 60) % 360;
                             QColor color = QColor::fromHsl(hue, 255, 127);
-                            cv::Mat colorRoi(displayBox.size(), currentFrame.type(), cv::Scalar(color.blue(), color.green(), color.red()));
+                            int b = color.blue();
+                            int g = color.green();
+                            int r = color.red();
                             
-                            cv::Mat blended;
-                            cv::addWeighted(roi, 0.5, colorRoi, 0.5, 0.0, blended);
-                            
-                            cv::Mat activeMask = det.boxMask(maskRoi).clone();
+                            // Get mask view (no clone needed as currentDetections is pinned in this scope)
+                            cv::Mat activeMask = det.boxMask(maskRoi);
                             if (activeMask.size() != roi.size()) {
                                 cv::resize(activeMask, activeMask, roi.size());
                             }
-                            blended.copyTo(roi, activeMask);
+
+                            // Manual blending to avoid temporary cv::Mat allocations (Zero-Copy/Zero-Allocation)
+                            for (int y = 0; y < roi.rows; ++y) {
+                                uchar* pRoi = roi.ptr<uchar>(y);
+                                const uchar* pMask = activeMask.ptr<uchar>(y);
+                                for (int x = 0; x < roi.cols; ++x) {
+                                    if (pMask[x] > 128) { // Only blend if mask is active
+                                        pRoi[x*3+0] = (pRoi[x*3+0] + b) >> 1; // Fast 50% alpha
+                                        pRoi[x*3+1] = (pRoi[x*3+1] + g) >> 1;
+                                        pRoi[x*3+2] = (pRoi[x*3+2] + r) >> 1;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -337,11 +366,8 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
     // Initialize Model
     m_detections = new DetectionListModel(this);
     // 1. Create Workers
-    auto captureWorker = std::make_unique<CaptureWorker>();
-    m_captureWorker = captureWorker.get();
-    
-    auto inferenceWorker = std::make_unique<InferenceWorker>();
-    m_inferenceWorker = inferenceWorker.get();
+    m_captureWorker = new CaptureWorker();
+    m_inferenceWorker = new InferenceWorker();
     
     // Link synchronization flags to avoid allocating and queuing frames during busy interference loop
     m_captureWorker->setInferenceProcessingFlag(m_inferenceWorker->getProcessingFlag());
@@ -353,8 +379,9 @@ VideoController::VideoController(QObject *parent) : QObject(parent) {
         m_captureWorker->updateResolution(m_currentResolution);
     }
 
-    captureWorker.release(); // Qt takes ownership via moveToThread logic expectation
-    inferenceWorker.release();
+    // Ensure workers are deleted when threads finish
+    connect(&m_captureThread, &QThread::finished, m_captureWorker, &QObject::deleteLater);
+    connect(&m_inferenceThread, &QThread::finished, m_inferenceWorker, &QObject::deleteLater);
 
     m_captureWorker->moveToThread(&m_captureThread);
     m_inferenceWorker->moveToThread(&m_inferenceThread);

@@ -427,7 +427,8 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
         float* protoData = static_cast<float*>(secondaryOutput);
 
         // Reshape to [32, 25600]
-        cv::Mat protoMat(maskChannels, maskH * maskW, CV_32F, protoData);
+        // Reuse or create the protoMat (header only, no allocation)
+        m_protoMat = cv::Mat(maskChannels, maskH * maskW, CV_32F, protoData);
 
         for (size_t i = 0; i < m_nmsIndices.size(); ++i) {
             int idx = m_nmsIndices[i];
@@ -438,33 +439,30 @@ void SegmentationPostProcessor::PostProcess(void* output, const std::vector<int6
 
             // Matrix multiplication for the mask
             cv::Mat coeffMat(1, maskChannels, CV_32F, m_maskCoeffs[idx].data());
-            cv::Mat maskMat = coeffMat * protoMat; // [1, 25600]
+            m_maskMat = coeffMat * m_protoMat; // [1, 25600]
 
             // Sigmoid and reshape
-            cv::exp(-maskMat, maskMat);
-            maskMat = 1.0 / (1.0 + maskMat);
-            maskMat = maskMat.reshape(1, maskH); // [160, 160]
+            cv::exp(-m_maskMat, m_maskMat);
+            m_maskMat = 1.0 / (1.0 + m_maskMat);
+            m_maskMat = m_maskMat.reshape(1, maskH); // [160, 160]
 
             // Resize the mask up to the original image coordinates to crop via bounding box
-            cv::Mat maskResized;
-            // The secondary mask is 160x160 (or similar), and it's relative to the letterboxed input.
-            // We need to resize it to the FULL 640x640 (target) size first, then crop the valid area, then scale.
-            // But a simpler way: just scale by 4x (as is done here) and then use info.scale
-            cv::resize(maskMat, maskResized, cv::Size(maskW * 4, maskH * 4)); 
+            cv::resize(m_maskMat, m_maskResized, cv::Size(maskW * 4, maskH * 4)); 
             
             // Now we need to remove the padding from the maskResized before using it
             cv::Rect validRoi(info.padW, info.padH, maskW * 4 - 2 * info.padW, maskH * 4 - 2 * info.padH);
-            validRoi = validRoi & cv::Rect(0, 0, maskResized.cols, maskResized.rows);
+            validRoi = validRoi & cv::Rect(0, 0, m_maskResized.cols, m_maskResized.rows);
             if (validRoi.width > 0 && validRoi.height > 0) {
-                cv::Mat maskUnpadded = maskResized(validRoi);
-                cv::resize(maskUnpadded, maskResized, cv::Size(maskUnpadded.cols * info.scale, maskUnpadded.rows * info.scale));
+                cv::Mat maskUnpadded = m_maskResized(validRoi);
+                cv::resize(maskUnpadded, m_maskResized, cv::Size(maskUnpadded.cols * info.scale, maskUnpadded.rows * info.scale));
             }
 
             // Crop mask to bounding box bounds 
             // Clamp rect to mask bounds
-            cv::Rect clipBox = result.box & cv::Rect(0, 0, maskResized.cols, maskResized.rows);
+            cv::Rect clipBox = result.box & cv::Rect(0, 0, m_maskResized.cols, m_maskResized.rows);
             if (clipBox.width > 0 && clipBox.height > 0) {
-                cv::Mat roiMask = maskResized(clipBox) > 0.5f; // Threshold
+                // Use thresholding to convert to binary mask (8UC1)
+                cv::Mat roiMask = m_maskResized(clipBox) > 0.5f; 
                 result.boxMask = roiMask.clone();
             } else {
                 result.boxMask = cv::Mat();

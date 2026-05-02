@@ -169,6 +169,7 @@ public slots:
     void stopCapturing();
     void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
     void updateLatestDetections(std::shared_ptr<std::vector<DL_RESULT>> detections);
+    void clearDetections();
     void updateResolution(const QSize& size);
 
 private:
