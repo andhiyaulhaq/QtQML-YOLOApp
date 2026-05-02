@@ -14,8 +14,9 @@ class InferenceWorker;
 class IDetectionModel;
 
 class YoloCameraController;
+class VideoFileController;
 class CaptureWorker;
-class ICameraSource;
+class ICaptureSource;
 
 class AppController : public QObject {
     Q_OBJECT
@@ -41,10 +42,11 @@ private:
     DetectionController *m_detectionController;
     QThread m_inferenceThread;
 
-    // Camera Feature
-    ICameraSource *m_cameraSourceImpl;
+    // Capture/Camera Feature
+    ICaptureSource *m_captureSourceImpl;
     CaptureWorker *m_captureWorker;
     YoloCameraController *m_cameraController;
+    VideoFileController *m_videoFileController;
     QThread m_cameraThread;
 
     void setupMonitoring();

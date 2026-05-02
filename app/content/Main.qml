@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import QtMultimedia 6.0
 import CameraModule 1.0
 
@@ -8,15 +9,25 @@ Window {
     width: 1000
     height: 700
     visible: true
-    title: "YOLOApp - Clean Architecture"
+    title: "YOLOApp - Dual Input Source"
     color: "#121212"
 
-    // Component logic moved to controllers (monitoring, detection, camera)
-    
-    Connections {
-        target: camera
-        function onVideoSinkChanged() {
-            // Already handled by property binding in VideoOutput but just in case
+    property string inputMode: "camera" // "camera" or "video"
+
+    FileDialog {
+        id: videoFileDialog
+        title: "Select Video File"
+        nameFilters: ["Video files (*.mp4 *.avi *.mkv *.mov *.wmv)"]
+        onAccepted: {
+            inputMode = "video"
+            videoFile.setFilePath(selectedFile)
+        }
+        onRejected: {
+            if (inputMode === "video" && !videoFile.hasFile) {
+                sourceCombo.currentIndex = 0
+                inputMode = "camera"
+                camera.activate()
+            }
         }
     }
 
@@ -111,12 +122,27 @@ Window {
         RowLayout {
             Layout.fillWidth: true
             Text {
-                text: "YOLO Clean Architecture"
+                text: "YOLO Dual Source"
                 color: "#FFFFFF"
                 font.pixelSize: 24
                 font.bold: true
             }
             Item { Layout.fillWidth: true }
+
+            Text { text: "Source:"; color: "white" }
+            StyledComboBox {
+                id: sourceCombo
+                model: ["Live Camera", "Video File"]
+                currentIndex: inputMode === "camera" ? 0 : 1
+                onActivated: (index) => {
+                    if (index === 0) {
+                        inputMode = "camera"
+                        camera.activate()
+                    } else {
+                        videoFileDialog.open()
+                    }
+                }
+            }
             
             Text { text: "Task:"; color: "white" }
             StyledComboBox {
@@ -124,7 +150,6 @@ Window {
                 model: ["Detection", "Pose", "Seg"]
                 currentIndex: detection ? detection.currentTask - 1 : 0
                 onActivated: (index) => {
-                    console.log("[UI]   ComboBox 'Task' activated → index=" + index + " (" + model[index] + ")")
                     if (!detection) return;
                     if (index === 0) detection.currentTask = YoloTask.ObjectDetection
                     else if (index === 1) detection.currentTask = YoloTask.PoseEstimation
@@ -138,7 +163,6 @@ Window {
                 model: ["OpenVINO", "ONNX"]
                 currentIndex: detection ? detection.currentRuntime : 0
                 onActivated: (index) => {
-                    console.log("[UI]   ComboBox 'Runtime' activated → index=" + index + " (" + model[index] + ")")
                     if (!detection) return;
                     if (index === 0) detection.currentRuntime = YoloTask.OpenVINO
                     else if (index === 1) detection.currentRuntime = YoloTask.ONNXRuntime
@@ -148,6 +172,8 @@ Window {
             Text { text: "Res:"; color: "white" }
             StyledComboBox {
                 id: resCombo
+                enabled: inputMode === "camera"
+                opacity: enabled ? 1.0 : 0.5
                 model: camera ? camera.supportedResolutions : []
                 currentIndex: {
                     if (!camera) return -1;
@@ -163,7 +189,6 @@ Window {
                 onActivated: (index) => {
                     if (camera) {
                         var res = camera.supportedResolutions[index]
-                        console.log("[UI]   ComboBox 'Resolution' activated → " + res.width + "x" + res.height)
                         camera.currentResolution = res
                     }
                 }
@@ -233,7 +258,7 @@ Window {
                 }
             }
 
-            // Metrics Panel (Right Sidebar)
+            // Metrics Panel
             Rectangle {
                 id: metricsPanel
                 width: 260
@@ -256,13 +281,12 @@ Window {
                         font.letterSpacing: 1.2
                     }
 
-                    // FPS Section
                     Column {
                         width: parent.width
                         spacing: 8
                         
                         MetricItem {
-                            label: "Camera FPS"
+                            label: "Input FPS"
                             value: camera ? camera.cameraFps.toFixed(1) : "0.0"
                             color: "#00E5FF"
                         }
@@ -275,7 +299,6 @@ Window {
 
                     Rectangle { width: parent.width; height: 1; color: "#333333" }
 
-                    // Timing Section
                     Column {
                         width: parent.width
                         spacing: 10
@@ -294,7 +317,6 @@ Window {
 
                     Rectangle { width: parent.width; height: 1; color: "#333333" }
 
-                    // System Section
                     Column {
                         width: parent.width
                         spacing: 10
@@ -317,7 +339,6 @@ Window {
                     }
                 }
 
-                // Helper component for metric rows
                 component MetricItem : Row {
                     property string label: ""
                     property string value: ""
@@ -343,14 +364,11 @@ Window {
             }
         }
 
-        // Footer Section
+        // Footer
         Button {
             text: "Exit Application"
             Layout.alignment: Qt.AlignHCenter
-            onClicked: {
-                console.log("[UI]   Button 'Exit' clicked")
-                Qt.quit()
-            }
+            onClicked: Qt.quit()
             
             contentItem: Text {
                 text: parent.text

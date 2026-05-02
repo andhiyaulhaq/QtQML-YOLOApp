@@ -12,10 +12,11 @@
 #include "../../features/detection/application/InferenceWorker.h"
 #include "../../features/detection/application/DetectionController.h"
 
-// Camera
+// Capture/Camera
 #include "../../features/camera/infrastructure/OpenCVCameraSource.h"
 #include "../../features/camera/application/CaptureWorker.h"
 #include "../../features/camera/application/YoloCameraController.h"
+#include "../../features/camera/application/VideoFileController.h"
 
 AppController::AppController(QQmlApplicationEngine *engine, QObject *parent)
     : QObject(parent)
@@ -50,6 +51,7 @@ void AppController::initialize()
     m_engine->rootContext()->setContextProperty("monitoring", m_monitoringController);
     m_engine->rootContext()->setContextProperty("detection", m_detectionController);
     m_engine->rootContext()->setContextProperty("camera", m_cameraController);
+    m_engine->rootContext()->setContextProperty("videoFile", m_videoFileController);
 
     m_monitoringThread.start(QThread::LowPriority);
     m_inferenceThread.start(QThread::HighPriority);
@@ -81,9 +83,10 @@ void AppController::setupDetection()
 
 void AppController::setupCamera()
 {
-    m_cameraSourceImpl = new OpenCVCameraSource();
-    m_captureWorker = new CaptureWorker(m_cameraSourceImpl);
+    m_captureSourceImpl = new OpenCVCameraSource();
+    m_captureWorker = new CaptureWorker(m_captureSourceImpl);
     m_cameraController = new YoloCameraController(m_captureWorker, this);
+    m_videoFileController = new VideoFileController(this);
 
     m_captureWorker->moveToThread(&m_cameraThread);
     connect(&m_cameraThread, &QThread::finished, m_captureWorker, &QObject::deleteLater);
@@ -98,11 +101,15 @@ void AppController::wireEverything()
     connect(m_inferenceWorker, &InferenceWorker::detectionsReady, m_detectionController, &DetectionController::updateDetections);
     connect(m_detectionController, &DetectionController::requestModelChange, m_inferenceWorker, &InferenceWorker::startInference);
 
-    // Camera
+    // Capture (Common)
     connect(m_cameraController, &YoloCameraController::startCapture, m_captureWorker, &CaptureWorker::startCapturing);
     connect(m_cameraController, &YoloCameraController::stopCapture, m_captureWorker, &CaptureWorker::stopCapturing);
     connect(m_captureWorker, &CaptureWorker::fpsUpdated, m_cameraController, &YoloCameraController::updateFps);
     connect(m_captureWorker, &CaptureWorker::resolutionChanged, m_cameraController, &YoloCameraController::handleResolutionChanged);
+
+    // Source Ready Requests
+    connect(m_cameraController, &YoloCameraController::sourceReadyRequested, m_captureWorker, &CaptureWorker::setSource);
+    connect(m_videoFileController, &VideoFileController::sourceReadyRequested, m_captureWorker, &CaptureWorker::setSource);
 
     // Cross-Feature
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame);
@@ -113,5 +120,8 @@ void AppController::wireEverything()
     QTimer::singleShot(500, [this](){
         m_detectionController->setCurrentRuntime(YoloTask::RuntimeType::OpenVINO);
         m_detectionController->setCurrentTask(YoloTask::TaskType::ObjectDetection);
+        
+        // Default to live camera on start
+        m_cameraController->activate();
     });
 }

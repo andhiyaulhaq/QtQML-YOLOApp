@@ -12,7 +12,7 @@ if(MSVC)
 endif()
 
 # 1. Setup Qt6
-find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia QuickControls2)
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia QuickControls2 QuickDialogs2)
 qt_standard_project_setup()
 
 # 2. Setup OpenCV
@@ -38,6 +38,7 @@ qt_add_executable(appCamera
     # ── Shared Application (Composition Root) ──
     src/shared/application/AppController.h
     src/shared/application/AppController.cpp
+    src/shared/domain/UiLogger.h
 
     # ── Monitoring Feature ──
     src/features/monitoring/domain/SystemStats.h
@@ -78,15 +79,19 @@ qt_add_executable(appCamera
     src/features/detection/ui/DetectionOverlayItem.cpp
 
     # ── Camera Feature ──
-    src/features/camera/domain/CameraConfig.h
+    src/features/camera/domain/SourceConfig.h
     src/features/camera/domain/CameraFrame.h
-    src/features/camera/domain/ICameraSource.h
+    src/features/camera/domain/ICaptureSource.h
     src/features/camera/infrastructure/OpenCVCameraSource.h
     src/features/camera/infrastructure/OpenCVCameraSource.cpp
+    src/features/camera/infrastructure/OpenCVVideoFileSource.h
+    src/features/camera/infrastructure/OpenCVVideoFileSource.cpp
     src/features/camera/application/CaptureWorker.h
     src/features/camera/application/CaptureWorker.cpp
     src/features/camera/application/YoloCameraController.h
     src/features/camera/application/YoloCameraController.cpp
+    src/features/camera/application/VideoFileController.h
+    src/features/camera/application/VideoFileController.cpp
 )
 
 # Optimization Flags
@@ -102,7 +107,7 @@ qt_add_qml_module(appCamera
     URI "CameraModule"
     VERSION 1.0
     QML_FILES
-        content/Main.qml
+    content/Main.qml
 )
 
 # 7. Include Directories (Clean Architecture approach)
@@ -115,6 +120,9 @@ target_include_directories(appCamera PRIVATE
     src/features/monitoring/domain
     src/features/monitoring/application
     src/features/monitoring/infrastructure
+    src/features/camera/domain
+    src/features/camera/application
+    src/features/camera/infrastructure
     src/shared/domain
     src/shared/application
 )
@@ -124,6 +132,7 @@ target_link_libraries(appCamera
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::QuickDialogs2
     Qt6::Multimedia
     ${OpenCV_LIBS}
     openvino::runtime
@@ -132,9 +141,9 @@ target_link_libraries(appCamera
 )
 
 # Silence debug output in Release builds
-target_compile_definitions(appCamera PRIVATE
-    $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
-)
+# target_compile_definitions(appCamera PRIVATE
+#     $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
+# )
 
 if(WIN32)
     target_link_libraries(appCamera PRIVATE pdh psapi)

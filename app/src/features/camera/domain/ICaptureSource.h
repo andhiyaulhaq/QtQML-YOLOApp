@@ -2,12 +2,13 @@
 
 #include <opencv2/opencv.hpp>
 #include <QSize>
-#include "CameraConfig.h"
+#include "SourceConfig.h"
 
-class ICameraSource {
+class ICaptureSource {
 public:
-    virtual ~ICameraSource() = default;
-    virtual bool open(const CameraConfig& config) = 0;
+    virtual ~ICaptureSource() = default;
+
+    virtual bool open(const SourceConfig& config) = 0;
     virtual void close() = 0;
     virtual bool readFrame(cv::Mat& outFrame) = 0;
     virtual QSize currentResolution() const = 0;

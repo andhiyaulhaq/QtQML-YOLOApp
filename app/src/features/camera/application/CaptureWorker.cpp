@@ -1,11 +1,14 @@
 #include "CaptureWorker.h"
 #include <QThread>
+#include <QCoreApplication>
 #include <QVideoFrameFormat>
 #include <QColor>
 #include <chrono>
 #include <QDebug>
+#include "../../shared/domain/UiLogger.h"
+#include "../infrastructure/OpenCVVideoFileSource.h"
 
-CaptureWorker::CaptureWorker(ICameraSource *source, QObject *parent)
+CaptureWorker::CaptureWorker(ICaptureSource *source, QObject *parent)
     : QObject(parent)
     , m_source(source)
 {
@@ -22,38 +25,50 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
     m_running = true;
     m_sink = sink;
 
-    CameraConfig config;
+    SourceConfig config;
     {
-        std::lock_guard<std::mutex> lock(m_resolutionMutex);
-        config.resolution = m_requestedResolution;
+        std::lock_guard<std::mutex> lock(m_configMutex);
+        config = m_requestedConfig;
     }
 
-    if (!openCamera(config)) {
-        qDebug() << "CaptureWorker: Failed to open camera.";
+    if (!openSource(config)) {
+        UiLogger::ctrl("CaptureWorker: Failed to open initial source.");
         m_running = false;
         return;
     }
 
-    qDebug() << "CaptureWorker: Camera opened, starting capture loop...";
+    UiLogger::ctrl("CaptureWorker: Source opened, starting capture loop...");
 
     int frames = 0;
     auto startTime = std::chrono::high_resolution_clock::now();
 
     while (m_running) {
-        if (m_resolutionUpdatePending.load()) {
-            config.resolution = m_requestedResolution;
-            openCamera(config);
-            m_resolutionUpdatePending = false;
+        QCoreApplication::processEvents();
+        auto now = std::chrono::high_resolution_clock::now();
+
+        if (m_configUpdatePending.load()) {
+            SourceConfig configUpdate;
+            {
+                std::lock_guard<std::mutex> lock(m_configMutex);
+                configUpdate = m_requestedConfig;
+            }
+            openSource(configUpdate);
+            m_configUpdatePending = false;
             
-            // Reset FPS counters to avoid hardware reconfiguration latency dip
+            // Sync local config for pacing logic
+            config = configUpdate;
+
             frames = 0;
             startTime = std::chrono::high_resolution_clock::now();
         }
 
         cv::Mat& currentFrame = m_framePool[m_poolIndex];
-        if (!m_source->readFrame(currentFrame) || currentFrame.empty()) {
-            QThread::msleep(10);
-            continue;
+        {
+            std::lock_guard<std::mutex> lock(m_sourceMutex);
+            if (!m_source || !m_source->readFrame(currentFrame) || currentFrame.empty()) {
+                QThread::msleep(10);
+                continue;
+            }
         }
 
         if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
@@ -136,20 +151,49 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
         m_poolIndex = (m_poolIndex + 1) % 3;
 
         frames++;
-        auto now = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
         if (duration >= 1000) {
             emit fpsUpdated(frames * 1000.0 / duration);
             frames = 0;
             startTime = now;
         }
+
+        // Pacing for video files to prevent 1000+ FPS processing
+        if (config.sourceType == InputSourceType::VideoFile) {
+            auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
+            if (fileSource) {
+                double targetFps = fileSource->nativeFps();
+                int targetMs = static_cast<int>(1000.0 / targetFps);
+                
+                auto loopEnd = std::chrono::high_resolution_clock::now();
+                auto loopElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - now).count();
+                if (loopElapsed < targetMs) {
+                    QThread::msleep(targetMs - loopElapsed);
+                }
+            }
+        }
     }
-    m_source->close();
+    {
+        std::lock_guard<std::mutex> lock(m_sourceMutex);
+        if (m_source) m_source->close();
+    }
     emit cleanUp();
 }
 
-bool CaptureWorker::openCamera(const CameraConfig& config) {
-    if (!m_source->open(config)) return false;
+bool CaptureWorker::openSource(const SourceConfig& config) {
+    std::lock_guard<std::mutex> lock(m_sourceMutex);
+    if (!m_source) {
+        UiLogger::ctrl("CaptureWorker: Error - No source to open.");
+        return false;
+    }
+
+    UiLogger::ctrl("CaptureWorker: Opening source (Mode=" + 
+                   QString(config.sourceType == InputSourceType::LiveCamera ? "Camera" : "Video") + ")");
+
+    if (!m_source->open(config)) {
+        UiLogger::ctrl("CaptureWorker: Failed to open source.");
+        return false;
+    }
 
     QSize actual = m_source->currentResolution();
     QVideoFrameFormat format(actual, QVideoFrameFormat::Format_RGBA8888);
@@ -169,10 +213,29 @@ void CaptureWorker::stopCapturing() {
 
 void CaptureWorker::updateResolution(const QSize& size) {
     {
-        std::lock_guard<std::mutex> lock(m_resolutionMutex);
-        m_requestedResolution = size;
+        std::lock_guard<std::mutex> lock(m_configMutex);
+        m_requestedConfig.resolution = size;
     }
-    m_resolutionUpdatePending = true;
+    m_configUpdatePending = true;
+}
+
+void CaptureWorker::setSource(ICaptureSource* source, const SourceConfig& config) {
+    UiLogger::ctrl("CaptureWorker: setSource requested.");
+    {
+        std::lock_guard<std::mutex> configLock(m_configMutex);
+        m_requestedConfig = config;
+    }
+    
+    {
+        std::lock_guard<std::mutex> sourceLock(m_sourceMutex);
+        if (m_source) {
+            UiLogger::ctrl("CaptureWorker: Closing old source.");
+            m_source->close();
+        }
+        m_source = source;
+    }
+    
+    m_configUpdatePending = true;
 }
 
 void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DetectionResult>> detections, const QSize& frameSize) {

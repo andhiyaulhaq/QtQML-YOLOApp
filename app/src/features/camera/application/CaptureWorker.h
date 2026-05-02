@@ -7,15 +7,16 @@
 #include <QSize>
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <opencv2/opencv.hpp>
-#include "../domain/ICameraSource.h"
+#include "../domain/ICaptureSource.h"
 #include "../../detection/domain/DetectionResult.h"
 
 class CaptureWorker : public QObject {
     Q_OBJECT
 
 public:
-    explicit CaptureWorker(ICameraSource *source, QObject *parent = nullptr);
+    explicit CaptureWorker(ICaptureSource *source, QObject *parent = nullptr);
     ~CaptureWorker() override;
 
     void setInferenceProcessingFlag(std::atomic<bool>* flag) { m_inferenceProcessingFlag = flag; }
@@ -32,9 +33,12 @@ public slots:
     void updateLatestDetections(std::shared_ptr<std::vector<DetectionResult>> detections, const QSize& frameSize);
     void clearDetections();
     void updateResolution(const QSize& size);
+    void setSource(ICaptureSource* source, const SourceConfig& config);
 
 private:
-    ICameraSource *m_source;
+    ICaptureSource *m_source;
+    std::mutex m_sourceMutex;
+
     std::atomic<bool> m_running{false};
     std::atomic<bool>* m_inferenceProcessingFlag = nullptr;
     QVideoSink* m_sink = nullptr;
@@ -42,9 +46,9 @@ private:
     std::mutex m_detectionsMutex;
     std::shared_ptr<std::vector<DetectionResult>> m_latestDetections;
 
-    std::mutex m_resolutionMutex;
-    QSize m_requestedResolution = QSize(640, 480);
-    std::atomic<bool> m_resolutionUpdatePending{false};
+    std::mutex m_configMutex;
+    SourceConfig m_requestedConfig;
+    std::atomic<bool> m_configUpdatePending{false};
 
     cv::Mat m_framePool[3]; 
     int m_poolIndex = 0;
@@ -52,5 +56,5 @@ private:
     QVideoFrame m_reusableFrames[2];
     int m_reusableFrameIndex = 0;
 
-    bool openCamera(const CameraConfig& config);
+    bool openSource(const SourceConfig& config);
 };

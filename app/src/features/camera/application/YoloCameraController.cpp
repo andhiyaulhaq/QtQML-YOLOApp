@@ -1,18 +1,15 @@
 #include "YoloCameraController.h"
 #include <QMediaDevices>
 #include <QCameraDevice>
-#include <QMetaObject>
+#include <QVideoFrameFormat>
 #include "../../shared/domain/UiLogger.h"
 
 YoloCameraController::YoloCameraController(CaptureWorker *worker, QObject *parent)
     : QObject(parent)
     , m_worker(worker)
+    , m_source(std::make_unique<OpenCVCameraSource>())
 {
     refreshResolutions();
-    if (!m_supportedResolutions.isEmpty()) {
-        m_currentResolution = m_supportedResolutions.last().toSize();
-        m_worker->updateResolution(m_currentResolution);
-    }
 }
 
 void YoloCameraController::setVideoSink(QVideoSink* sink)
@@ -30,10 +27,11 @@ void YoloCameraController::setVideoSink(QVideoSink* sink)
 
 void YoloCameraController::setCurrentResolution(const QSize& size)
 {
-    UiLogger::ctrl("YoloCameraController::setCurrentResolution → " +
-                   QString::number(size.width()) + "x" + QString::number(size.height()));
     if (m_currentResolution != size) {
-        QMetaObject::invokeMethod(m_worker, "updateResolution", Qt::DirectConnection, Q_ARG(QSize, size));
+        m_currentResolution = size;
+        UiLogger::ctrl("YoloCameraController: Resolution change requested → " + QString::number(size.width()) + "x" + QString::number(size.height()));
+        emit currentResolutionChanged();
+        m_worker->updateResolution(size);
     }
 }
 
@@ -51,6 +49,16 @@ void YoloCameraController::handleResolutionChanged(QSize size)
         m_currentResolution = size;
         emit currentResolutionChanged();
     }
+}
+
+void YoloCameraController::activate() {
+    UiLogger::ctrl("YoloCameraController: Activating live camera source.");
+    
+    SourceConfig config;
+    config.sourceType = InputSourceType::LiveCamera;
+    config.resolution = m_currentResolution;
+    
+    emit sourceReadyRequested(m_source.get(), config);
 }
 
 void YoloCameraController::refreshResolutions()

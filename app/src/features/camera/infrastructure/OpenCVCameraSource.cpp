@@ -6,7 +6,7 @@ OpenCVCameraSource::~OpenCVCameraSource() {
     close();
 }
 
-bool OpenCVCameraSource::open(const CameraConfig& config) {
+bool OpenCVCameraSource::open(const SourceConfig& config) {
     close();
     
 #ifdef _WIN32

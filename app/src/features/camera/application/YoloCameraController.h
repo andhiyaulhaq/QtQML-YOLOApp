@@ -5,7 +5,9 @@
 #include <QVideoSink>
 #include <QVariantList>
 #include <QSize>
+#include <memory>
 #include "CaptureWorker.h"
+#include "../infrastructure/OpenCVCameraSource.h"
 
 class YoloCameraController : public QObject {
     Q_OBJECT
@@ -29,6 +31,7 @@ public slots:
     void setCurrentResolution(const QSize& size);
     void updateFps(double fps);
     void handleResolutionChanged(QSize size);
+    void activate();
 
 signals:
     void videoSinkChanged();
@@ -38,6 +41,7 @@ signals:
     
     void startCapture(QVideoSink* sink);
     void stopCapture();
+    void sourceReadyRequested(ICaptureSource* source, SourceConfig config);
 
 private:
     CaptureWorker *m_worker;
@@ -45,6 +49,7 @@ private:
     double m_cameraFps = 0.0;
     QVariantList m_supportedResolutions;
     QSize m_currentResolution = QSize(640, 480);
+    std::unique_ptr<OpenCVCameraSource> m_source;
 
     void refreshResolutions();
 };
