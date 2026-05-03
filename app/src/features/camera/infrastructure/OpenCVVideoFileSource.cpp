@@ -57,6 +57,19 @@ bool OpenCVVideoFileSource::readFrame(cv::Mat& outFrame) {
     return true;
 }
 
+bool OpenCVVideoFileSource::skipFrame() {
+    if (!m_capture.isOpened()) return false;
+    
+    if (!m_capture.grab()) {
+        if (m_loop) {
+            m_capture.set(cv::CAP_PROP_POS_FRAMES, 0);
+            return m_capture.grab();
+        }
+        return false;
+    }
+    return true;
+}
+
 QSize OpenCVVideoFileSource::currentResolution() const {
     return m_currentResolution;
 }

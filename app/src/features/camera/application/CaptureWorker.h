@@ -56,5 +56,10 @@ private:
     QVideoFrame m_reusableFrames[2];
     int m_reusableFrameIndex = 0;
 
+    // Video Sync
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_videoStartTime;
+    int64_t m_videoFramesRead = 0;
+    bool m_isFirstFrame = true;
+
     bool openSource(const SourceConfig& config);
 };

@@ -12,6 +12,7 @@ public:
     bool open(const SourceConfig& config) override;
     void close() override;
     bool readFrame(cv::Mat& outFrame) override;
+    bool skipFrame();
     QSize currentResolution() const override;
 
     double nativeFps() const;

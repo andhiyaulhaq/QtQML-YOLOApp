@@ -60,6 +60,26 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
             startTime = std::chrono::high_resolution_clock::now();
         }
 
+        // Sync logic for Video File mode
+        if (config.sourceType == InputSourceType::VideoFile) {
+            auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
+            if (fileSource) {
+                if (m_isFirstFrame) {
+                    m_videoStartTime = std::chrono::high_resolution_clock::now();
+                    m_isFirstFrame = false;
+                } else {
+                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_videoStartTime).count();
+                    int64_t expectedFrame = static_cast<int64_t>(elapsed * fileSource->nativeFps() / 1000.0);
+                    
+                    // Skip frames if we are behind
+                    while (m_videoFramesRead < expectedFrame) {
+                        if (!fileSource->skipFrame()) break;
+                        m_videoFramesRead++;
+                    }
+                }
+            }
+        }
+
         cv::Mat& currentFrame = m_framePool[m_poolIndex];
         {
             std::lock_guard<std::mutex> lock(m_sourceMutex);
@@ -67,6 +87,7 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
                 QThread::msleep(10);
                 continue;
             }
+            if (config.sourceType == InputSourceType::VideoFile) m_videoFramesRead++;
         }
 
         if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
@@ -156,17 +177,17 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
             startTime = now;
         }
 
-        // Pacing for video files to prevent 1000+ FPS processing
+        // Pacing for video files to maintain target FPS
         if (config.sourceType == InputSourceType::VideoFile) {
             auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
             if (fileSource) {
                 double targetFps = fileSource->nativeFps();
-                int targetMs = static_cast<int>(1000.0 / targetFps);
-                
                 auto loopEnd = std::chrono::high_resolution_clock::now();
-                auto loopElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - now).count();
-                if (loopElapsed < targetMs) {
-                    QThread::msleep(targetMs - loopElapsed);
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - m_videoStartTime).count();
+                int64_t nextFrameTime = static_cast<int64_t>((m_videoFramesRead) * 1000.0 / targetFps);
+                
+                if (elapsed < nextFrameTime) {
+                    QThread::msleep(nextFrameTime - elapsed);
                 }
             }
         }
@@ -200,6 +221,11 @@ bool CaptureWorker::openSource(const SourceConfig& config) {
 
     for(int i=0; i<3; ++i) m_framePool[i] = cv::Mat();
     clearDetections();
+
+    // Reset sync state
+    m_videoStartTime = std::chrono::high_resolution_clock::now();
+    m_videoFramesRead = 0;
+    m_isFirstFrame = true;
     
     emit resolutionChanged(actual);
     return true;
