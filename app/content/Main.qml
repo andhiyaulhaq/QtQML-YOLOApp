@@ -112,10 +112,12 @@ Window {
         delegate: ItemDelegate {
             id: delegateItem
             width: control.width
-            implicitHeight: 32
+            implicitHeight: index === control.currentIndex ? 0 : 32
+            visible: index !== control.currentIndex
             padding: 0
             highlighted: control.highlightedIndex === index
             contentItem: Text {
+                visible: delegateItem.visible
                 text: control.textRole ? (Array.isArray(control.model) ? modelData[control.textRole] : model[control.textRole]) : (modelData.width ? modelData.width + "x" + modelData.height : modelData)
                 color: "white"
                 font: control.font
