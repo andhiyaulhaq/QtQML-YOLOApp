@@ -12,12 +12,12 @@
 #include "../../features/detection/application/InferenceWorker.h"
 #include "../../features/detection/application/DetectionController.h"
 
-// Capture/Camera
-#include "../../features/camera/infrastructure/OpenCVCameraSource.h"
-#include "../../features/camera/application/CaptureWorker.h"
-#include "../../features/camera/application/YoloCameraController.h"
-#include "../../features/camera/application/VideoFileController.h"
-#include "../../features/camera/application/ImageFileController.h"
+// Capture
+#include "../../features/capture/infrastructure/OpenCVCameraSource.h"
+#include "../../features/capture/application/CaptureWorker.h"
+#include "../../features/capture/application/YoloCameraController.h"
+#include "../../features/capture/application/VideoFileController.h"
+#include "../../features/capture/application/ImageFileController.h"
 
 AppController::AppController(QQmlApplicationEngine *engine, QObject *parent)
     : QObject(parent)

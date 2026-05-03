@@ -83,24 +83,24 @@ qt_add_executable(appCamera
     src/features/detection/ui/DetectionOverlayItem.h
     src/features/detection/ui/DetectionOverlayItem.cpp
 
-    # ── Camera Feature ──
-    src/features/camera/domain/SourceConfig.h
-    src/features/camera/domain/CameraFrame.h
-    src/features/camera/domain/ICaptureSource.h
-    src/features/camera/infrastructure/OpenCVCameraSource.h
-    src/features/camera/infrastructure/OpenCVCameraSource.cpp
-    src/features/camera/infrastructure/OpenCVImageFileSource.h
-    src/features/camera/infrastructure/OpenCVImageFileSource.cpp
-    src/features/camera/infrastructure/FFmpegVideoSource.h
-    src/features/camera/infrastructure/FFmpegVideoSource.cpp
-    src/features/camera/application/CaptureWorker.h
-    src/features/camera/application/CaptureWorker.cpp
-    src/features/camera/application/YoloCameraController.h
-    src/features/camera/application/YoloCameraController.cpp
-    src/features/camera/application/VideoFileController.h
-    src/features/camera/application/VideoFileController.cpp
-    src/features/camera/application/ImageFileController.h
-    src/features/camera/application/ImageFileController.cpp
+    # ── Capture Feature ──
+    src/features/capture/domain/SourceConfig.h
+    src/features/capture/domain/CameraFrame.h
+    src/features/capture/domain/ICaptureSource.h
+    src/features/capture/infrastructure/OpenCVCameraSource.h
+    src/features/capture/infrastructure/OpenCVCameraSource.cpp
+    src/features/capture/infrastructure/OpenCVImageFileSource.h
+    src/features/capture/infrastructure/OpenCVImageFileSource.cpp
+    src/features/capture/infrastructure/FFmpegVideoSource.h
+    src/features/capture/infrastructure/FFmpegVideoSource.cpp
+    src/features/capture/application/CaptureWorker.h
+    src/features/capture/application/CaptureWorker.cpp
+    src/features/capture/application/YoloCameraController.h
+    src/features/capture/application/YoloCameraController.cpp
+    src/features/capture/application/VideoFileController.h
+    src/features/capture/application/VideoFileController.cpp
+    src/features/capture/application/ImageFileController.h
+    src/features/capture/application/ImageFileController.cpp
 )
 
 # Optimization Flags
@@ -135,9 +135,9 @@ target_include_directories(appCamera PRIVATE
     src/features/monitoring/domain
     src/features/monitoring/application
     src/features/monitoring/infrastructure
-    src/features/camera/domain
-    src/features/camera/application
-    src/features/camera/infrastructure
+    src/features/capture/domain
+    src/features/capture/application
+    src/features/capture/infrastructure
     src/shared/domain
     src/shared/application
 )

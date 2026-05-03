@@ -1,7 +1,7 @@
 # Feature: Video Playback Controls (Playtime Bar)
 
 **Created**: 2026-05-03 10:48 (UTC+7)
-**Last Modified**: 2026-05-03 10:51 (UTC+7)
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 > **Scope**: This document outlines the architecture and implementation plan for adding a interactive playtime bar (seek bar) and time status (Current/Total) for the **Video File** input mode.
 

@@ -1,7 +1,7 @@
 # Feature: Image Input Source
 
 **Created**: 2026-05-03 08:35 (UTC+7)
-**Last Modified**: 2026-05-03 08:35 (UTC+7)
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 > **Scope**: This document defines the implementation strategy for allowing the user to select a **static image file** as the inference input source, integrating it seamlessly into the existing `ICaptureSource` clean architecture pipeline.
 
@@ -49,7 +49,7 @@ Domain:
 ### 3.1 Extend `SourceConfig`
 
 ```cpp
-// features/camera/domain/SourceConfig.h
+// features/capture/domain/SourceConfig.h
 enum class InputSourceType { 
     LiveCamera, 
     VideoFile, 
@@ -63,7 +63,7 @@ enum class InputSourceType {
 
 ### 4.1 New: `OpenCVImageFileSource`
 
-**File**: `features/camera/infrastructure/OpenCVImageFileSource.h/.cpp`
+**File**: `features/capture/infrastructure/OpenCVImageFileSource.h/.cpp`
 
 Implements `ICaptureSource`. Since an image is static, `readFrame()` will repeatedly return the same loaded `cv::Mat`. 
 
@@ -95,7 +95,7 @@ private:
 
 ### 5.1 New: `ImageFileController`
 
-**File**: `features/camera/application/ImageFileController.h/.cpp`
+**File**: `features/capture/application/ImageFileController.h/.cpp`
 
 Identical in structure to `VideoFileController`.
 

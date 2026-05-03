@@ -7,7 +7,7 @@
 #include <QtQml>
 #include <QQuickStyle>
 #include "shared/application/AppController.h"
-#include "features/camera/application/YoloCameraController.h"
+#include "features/capture/application/YoloCameraController.h"
 #include "features/monitoring/application/MonitoringController.h"
 #include "features/detection/application/DetectionController.h"
 #include "features/detection/ui/DetectionListModel.h"

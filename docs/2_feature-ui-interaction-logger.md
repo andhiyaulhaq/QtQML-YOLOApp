@@ -1,6 +1,7 @@
 # Feature: UI Interaction Logger
 
 **Created**: 2026-05-02 20:35 (UTC+7)
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 > **Scope**: This document defines the strategy for implementing a lightweight, non-invasive **UI Interaction Logger** that traces every user action and significant application lifecycle event to the debug terminal. The goal is to make it easy to reproduce bugs, understand user flows, and verify that UI actions correctly reach the C++ backend.
 
@@ -212,7 +213,7 @@ void InferenceWorker::startInference(const InferenceConfig& config)
 | `shared/domain/UiLogger.h` | **NEW** — header-only logger utility |
 | `content/Main.qml` | Add `console.log(...)` to each interactive element |
 | `features/detection/application/DetectionController.cpp` | Add `UiLogger::ctrl()` in task/runtime setters |
-| `features/camera/application/YoloCameraController.cpp` | Add `UiLogger::ctrl()` in resolution setter |
+| `features/capture/application/YoloCameraController.cpp` | Add `UiLogger::ctrl()` in resolution setter |
 | `features/detection/application/InferenceWorker.cpp` | Replace bare `qDebug()` with `UiLogger::ctrl()` + timing |
 
 ---

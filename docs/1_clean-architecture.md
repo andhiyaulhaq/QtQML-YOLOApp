@@ -1,6 +1,6 @@
 # Clean Architecture — YOLOApp
 
-**Last Modified**: 2026-05-02 20:01 (UTC+7)
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 > **Scope**: This document defines the canonical clean architecture for the **QtOpenCVCamera / YOLOApp** C++/Qt/QML desktop application. It is the single source of truth for structural decisions, layer boundaries, dependency rules, and feature organization.
 
@@ -100,7 +100,7 @@ app/
 │   │   │       ├── DetectionOverlayItem.h # QQuickItem Scene Graph renderer
 │   │   │       └── DetectionOverlayItem.cpp
 │   │   │
-│   │   ├── camera/                     # ── CAMERA FEATURE ─────────────────
+│   │   ├── capture/                    # ── CAPTURE FEATURE ────────────────
 │   │   │   ├── domain/
 │   │   │   │   ├── SourceConfig.h      # Input type, resolution, file path
 │   │   │   │   ├── CameraFrame.h       # Value type wrapping shared_ptr<cv::Mat>
@@ -110,7 +110,9 @@ app/
 │   │   │   │   ├── CaptureWorker.h     # QObject worker, lives on capture thread
 │   │   │   │   ├── CaptureWorker.cpp
 │   │   │   │   ├── YoloCameraController.h  # QML_ELEMENT: fps, resolution, videoSink
-│   │   │   │   └── YoloCameraController.cpp
+│   │   │   │   ├── YoloCameraController.cpp
+│   │   │   │   ├── VideoFileController.h
+│   │   │   │   └── VideoFileController.cpp
 │   │   │   │
 │   │   │   └── infrastructure/
 │   │   │       ├── OpenCVCameraSource.h   # ICaptureSource → cv::VideoCapture
@@ -201,7 +203,7 @@ public:
 ### 4.2 Camera Domain
 
 ```cpp
-// features/camera/domain/ICaptureSource.h
+// features/capture/domain/ICaptureSource.h
 class ICaptureSource {
 public:
     virtual ~ICaptureSource() = default;
@@ -359,14 +361,14 @@ graph TD
     end
 
     subgraph Domain
-        ICamSrc["ICameraSource"]
+        ICapSrc["ICaptureSource"]
         IDetModel["IDetectionModel"]
         ISysMon["ISystemMonitor"]
         DetectionD["Detection (Q_GADGET)"]
     end
 
     subgraph Infrastructure
-        OpenCVSrc["OpenCVCameraSource"]
+        CaptureSrc["CaptureSource Implementation"]
         YoloPipe["YoloPipeline"]
         WinMon["WindowsSystemMonitor"]
     end
@@ -382,11 +384,11 @@ graph TD
     DetCtrl --> InferW
     AppCtrl --> MonitorW
 
-    CaptureW --> ICamSrc
+    CaptureW --> ICapSrc
     InferW --> IDetModel
     MonitorW --> ISysMon
 
-    ICamSrc --> OpenCVSrc
+    ICapSrc --> CaptureSrc
     IDetModel --> YoloPipe
     ISysMon --> WinMon
 
@@ -456,11 +458,11 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 | `features/detection/application/DetectionController.h` | Application | QML_ELEMENT: exposes task/runtime/timing/detections |
 | `features/detection/ui/DetectionListModel.h` | Presentation | QAbstractListModel bridging detections to QML |
 | `features/detection/ui/DetectionOverlayItem.h` | Presentation | QQuickItem scene-graph bounding box renderer |
-| `features/camera/domain/ICaptureSource.h` | Domain | Contract for any camera or video adapter |
-| `features/camera/infrastructure/OpenCVCameraSource.h` | Infrastructure | OpenCV VideoCapture (DirectShow) adapter |
-| `features/camera/infrastructure/FFmpegVideoSource.h` | Infrastructure | Native FFmpeg (libav) high-performance adapter |
-| `features/camera/application/CaptureWorker.h` | Application | Thread worker: captures frames → feeds inference |
-| `features/camera/application/YoloCameraController.h` | Application | QML_ELEMENT: exposes fps/resolution/videoSink |
+| `features/capture/domain/ICaptureSource.h` | Domain | Contract for any camera or video adapter |
+| `features/capture/infrastructure/OpenCVCameraSource.h` | Infrastructure | OpenCV VideoCapture (DirectShow) adapter |
+| `features/capture/infrastructure/FFmpegVideoSource.h` | Infrastructure | Native FFmpeg (libav) high-performance adapter |
+| `features/capture/application/CaptureWorker.h` | Application | Thread worker: captures frames → feeds inference |
+| `features/capture/application/YoloCameraController.h` | Application | QML_ELEMENT: exposes fps/resolution/videoSink |
 | `features/monitoring/domain/ISystemMonitor.h` | Domain | Contract for platform resource polling |
 | `features/monitoring/infrastructure/WindowsSystemMonitor.h` | Infrastructure | PDH CPU + PSAPI memory |
 | `features/monitoring/application/SystemMonitorWorker.h` | Application | Timer-driven worker emitting SystemStats |

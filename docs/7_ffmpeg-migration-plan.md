@@ -1,6 +1,7 @@
 # 7. FFmpeg Native Migration Plan
 
 ## Status: COMPLETED
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 Transitioning from OpenCV's `cv::VideoCapture` to the native FFmpeg C++ libraries (`libavcodec`, `libavformat`, etc.) has been successfully implemented, resolving performance bottlenecks and orientation issues.
 

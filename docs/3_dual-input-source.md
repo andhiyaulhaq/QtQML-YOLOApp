@@ -1,7 +1,7 @@
 # Feature: Dual Input Source — Live Camera & Video File
 
 **Created**: 2026-05-02 20:30 (UTC+7)
-**Last Modified**: 2026-05-02 22:16 (UTC+7)
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 > **Scope**: This document defines the complete implementation strategy for allowing the user to switch between a **live camera feed** and a **local video file** as the inference input source, while preserving all existing architecture constraints and zero regressions.
 
@@ -91,7 +91,7 @@ AppController wires → CaptureWorker::setSource(ICameraSource*)
 ### 3.1 Rename and Extend `SourceConfig`
 
 ```cpp
-// features/camera/domain/SourceConfig.h (Renamed from CameraConfig.h)
+// features/capture/domain/SourceConfig.h (Renamed from CameraConfig.h)
 enum class InputSourceType { LiveCamera, VideoFile };
 
 struct SourceConfig {
@@ -112,7 +112,7 @@ struct SourceConfig {
 
 ### 4.1 New: `OpenCVVideoFileSource`
 
-**File**: `features/camera/infrastructure/OpenCVVideoFileSource.h/.cpp`
+**File**: `features/capture/infrastructure/OpenCVVideoFileSource.h/.cpp`
 
 Implements `ICaptureSource`, same contract as `OpenCVCameraSource`.
 
@@ -182,7 +182,7 @@ Responsibilities **strictly limited to**:
 
 ### 5.3 New: `VideoFileController` — File Playback Controller
 
-**File**: `features/camera/application/VideoFileController.h/.cpp`
+**File**: `features/capture/application/VideoFileController.h/.cpp`
 
 ```cpp
 class VideoFileController : public QObject {
@@ -314,16 +314,16 @@ void AppController::wireEverything() {
 
 | File | Action |
 |:-----|:-------|
-| `features/camera/domain/SourceConfig.h` | **RENAME** — from `CameraConfig.h`; add `InputSourceType` enum + `filePath`, `loop` fields |
-| `features/camera/domain/ICaptureSource.h` | **RENAME** — from `ICameraSource.h` |
-| `features/camera/infrastructure/OpenCVVideoFileSource.h` | **NEW** |
-| `features/camera/infrastructure/OpenCVVideoFileSource.cpp` | **NEW** |
-| `features/camera/application/CaptureWorker.h` | **MODIFY** — replace switch slots with `setSource()` |
-| `features/camera/application/CaptureWorker.cpp` | **MODIFY** — source swap logic, FPS throttle |
-| `features/camera/application/YoloCameraController.h` | **MODIFY** — strip video state, add `activate()` |
-| `features/camera/application/YoloCameraController.cpp` | **MODIFY** — implement `activate()` |
-| `features/camera/application/VideoFileController.h` | **NEW** |
-| `features/camera/application/VideoFileController.cpp` | **NEW** |
+| `features/capture/domain/SourceConfig.h` | **RENAME** — from `CameraConfig.h`; add `InputSourceType` enum + `filePath`, `loop` fields |
+| `features/capture/domain/ICaptureSource.h` | **RENAME** — from `ICameraSource.h` |
+| `features/capture/infrastructure/OpenCVVideoFileSource.h` | **NEW** |
+| `features/capture/infrastructure/OpenCVVideoFileSource.cpp` | **NEW** |
+| `features/capture/application/CaptureWorker.h` | **MODIFY** — replace switch slots with `setSource()` |
+| `features/capture/application/CaptureWorker.cpp` | **MODIFY** — source swap logic, FPS throttle |
+| `features/capture/application/YoloCameraController.h` | **MODIFY** — strip video state, add `activate()` |
+| `features/capture/application/YoloCameraController.cpp` | **MODIFY** — implement `activate()` |
+| `features/capture/application/VideoFileController.h` | **NEW** |
+| `features/capture/application/VideoFileController.cpp` | **NEW** |
 | `shared/application/AppController.cpp` | **MODIFY** — wire new controllers |
 | `content/Main.qml` | **MODIFY** — ComboBox + FileDialog + mode-aware resolution picker |
 | `CMakeLists.txt` | **MODIFY** — add `Qt6::QuickDialogs2`, new source files |

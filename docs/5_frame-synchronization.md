@@ -1,7 +1,7 @@
 # Feature: Frame Synchronization & Real-Time Playback
 
 **Created**: 2026-05-03 10:22 (UTC+7)
-**Last Modified**: 2026-05-03 10:30 (UTC+7)
+**Last Modified**: 2026-05-03 22:05 (UTC+7)
 
 > **Scope**: This document defines the strategy for ensuring video file playback stays synchronized with the wall clock ("Real-Time"), even when computationally expensive inference takes longer than the video's native frame duration.
 
