@@ -32,12 +32,10 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
     }
 
     if (!openSource(config)) {
-        UiLogger::ctrl("CaptureWorker: Failed to open initial source.");
-        m_running = false;
-        return;
+        UiLogger::ctrl("CaptureWorker: Initial source not ready (waiting for input).");
+    } else {
+        UiLogger::ctrl("CaptureWorker: Source opened, starting capture loop...");
     }
-
-    UiLogger::ctrl("CaptureWorker: Source opened, starting capture loop...");
 
     int frames = 0;
     auto startTime = std::chrono::high_resolution_clock::now();

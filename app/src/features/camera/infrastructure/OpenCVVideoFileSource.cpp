@@ -6,6 +6,7 @@ OpenCVVideoFileSource::~OpenCVVideoFileSource() {
 }
 
 bool OpenCVVideoFileSource::open(const SourceConfig& config) {
+    if (config.sourceType != InputSourceType::VideoFile) return false;
     close();
     
     m_filePath = config.filePath;

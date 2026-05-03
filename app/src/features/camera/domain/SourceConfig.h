@@ -10,7 +10,7 @@ enum class InputSourceType {
 };
 
 struct SourceConfig {
-    InputSourceType sourceType = InputSourceType::LiveCamera;
+    InputSourceType sourceType = InputSourceType::ImageFile;
     int             deviceId   = 0;
     QString         filePath   = "";       // used when sourceType == VideoFile
     QSize           resolution = QSize(640, 480);

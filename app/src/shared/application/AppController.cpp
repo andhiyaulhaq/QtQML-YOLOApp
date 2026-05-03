@@ -125,7 +125,7 @@ void AppController::wireEverything()
         m_detectionController->setCurrentRuntime(YoloTask::RuntimeType::OpenVINO);
         m_detectionController->setCurrentTask(YoloTask::TaskType::ObjectDetection);
         
-        // Default to live camera on start
-        m_cameraController->activate();
+        // Default to image file on start
+        m_imageFileController->activate();
     });
 }

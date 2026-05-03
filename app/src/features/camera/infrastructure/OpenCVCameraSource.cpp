@@ -7,6 +7,7 @@ OpenCVCameraSource::~OpenCVCameraSource() {
 }
 
 bool OpenCVCameraSource::open(const SourceConfig& config) {
+    if (config.sourceType != InputSourceType::LiveCamera) return false;
     close();
     
 #ifdef _WIN32

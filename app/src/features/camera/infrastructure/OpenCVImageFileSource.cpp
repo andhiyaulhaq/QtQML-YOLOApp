@@ -7,6 +7,7 @@ OpenCVImageFileSource::~OpenCVImageFileSource() {
 }
 
 bool OpenCVImageFileSource::open(const SourceConfig& config) {
+    if (config.sourceType != InputSourceType::ImageFile) return false;
     close();
     
     m_image = cv::imread(config.filePath.toStdString());

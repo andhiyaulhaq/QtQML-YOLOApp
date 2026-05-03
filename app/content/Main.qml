@@ -12,7 +12,7 @@ Window {
     title: "YOLOApp - Dual Input Source"
     color: "#121212"
 
-    property string inputMode: "camera" // "camera", "video", "image"
+    property string inputMode: "image" // "camera", "video", "image"
 
     FileDialog {
         id: videoFileDialog
@@ -196,8 +196,8 @@ Window {
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
                         text: {
-                            if (inputMode === "video") return videoFile.filePath.split('/').pop();
-                            if (inputMode === "image") return imageFile.filePath.split('/').pop();
+                            if (inputMode === "video" && videoFile) return videoFile.filePath.split('/').pop();
+                            if (inputMode === "image" && imageFile) return imageFile.filePath.split('/').pop();
                             return "";
                         }
                         color: "#AAAAAA"
