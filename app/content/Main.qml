@@ -127,6 +127,9 @@ Window {
             }
             background: Rectangle {
                 color: delegateItem.highlighted ? "#333333" : "transparent"
+                radius: 4
+                anchors.fill: parent
+                anchors.margins: 2
                 visible: delegateItem.highlighted
             }
         }
