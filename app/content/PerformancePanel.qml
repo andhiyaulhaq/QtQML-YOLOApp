@@ -9,6 +9,7 @@ Rectangle {
     border.width: 1
     radius: 8
 
+    property string inputMode: ""
     property var cameraSource: null
     property var detectionController: null
     property var monitoringSource: null
@@ -32,12 +33,12 @@ Rectangle {
             
             MetricItem {
                 label: "Input FPS"
-                value: cameraSource ? cameraSource.cameraFps.toFixed(1) : "0.0"
+                value: (inputMode === "image" || !cameraSource) ? "-" : cameraSource.cameraFps.toFixed(1)
                 color: "#00E5FF"
             }
             MetricItem {
                 label: "Inference FPS"
-                value: detectionController ? detectionController.inferenceFps.toFixed(1) : "0.0"
+                value: (inputMode === "image" || !detectionController) ? "-" : detectionController.inferenceFps.toFixed(1)
                 color: "#FF00FF"
             }
         }

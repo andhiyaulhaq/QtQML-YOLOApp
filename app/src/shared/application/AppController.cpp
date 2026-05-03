@@ -103,6 +103,7 @@ void AppController::wireEverything()
     // Detection
     connect(m_inferenceWorker, &InferenceWorker::detectionsReady, m_detectionController, &DetectionController::updateDetections);
     connect(m_detectionController, &DetectionController::requestModelChange, m_inferenceWorker, &InferenceWorker::startInference);
+    connect(m_detectionController, &DetectionController::requestModelChange, m_captureWorker, &CaptureWorker::forceReinference);
 
     // Capture (Common)
     connect(m_cameraController, &YoloCameraController::startCapture, m_captureWorker, &CaptureWorker::startCapturing);

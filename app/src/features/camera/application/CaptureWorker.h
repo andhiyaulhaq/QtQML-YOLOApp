@@ -37,8 +37,10 @@ public slots:
     void updateResolution(const QSize& size);
     void setSource(ICaptureSource* source, const SourceConfig& config);
     void requestSeek(int64_t frame);
+    void forceReinference() { m_needsStaticInference = true; }
 
 private:
+    std::atomic<bool> m_needsStaticInference{true};
     ICaptureSource *m_source;
     std::mutex m_sourceMutex;
 

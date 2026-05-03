@@ -19,7 +19,7 @@ RowLayout {
     signal resChanged(int index)
 
     Text {
-        text: "YOLO Dual Source"
+        text: "YOLOApp"
         color: "#FFFFFF"
         font.pixelSize: 24
         font.bold: true

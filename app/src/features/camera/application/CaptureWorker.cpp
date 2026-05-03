@@ -102,9 +102,13 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
             }
         }
 
+        bool isImage = (config.sourceType == InputSourceType::ImageFile);
         if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
-            auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
-            emit frameReady(shared);
+            if (!isImage || m_needsStaticInference.load()) {
+                auto shared = std::make_shared<cv::Mat>(currentFrame.clone());
+                emit frameReady(shared);
+                m_needsStaticInference = false;
+            }
         }
 
         std::shared_ptr<std::vector<DetectionResult>> currentDetections;
@@ -181,7 +185,12 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
         
         m_poolIndex = (m_poolIndex + 1) % 3;
 
-        frames++;
+        if (config.sourceType != InputSourceType::ImageFile) {
+            frames++;
+        } else {
+            frames = 0; // Keep at 0 for static images
+        }
+
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime).count();
         if (duration >= 1000) {
             emit fpsUpdated(frames * 1000.0 / duration);
@@ -246,6 +255,7 @@ bool CaptureWorker::openSource(const SourceConfig& config) {
     m_videoStartTime = std::chrono::high_resolution_clock::now();
     m_videoFramesRead = 0;
     m_isFirstFrame = true;
+    m_needsStaticInference = true;
     
     emit resolutionChanged(actual);
     return true;

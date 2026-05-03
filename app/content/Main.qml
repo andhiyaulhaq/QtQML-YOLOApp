@@ -7,10 +7,10 @@ import CameraModule 1.0
 
 Window {
     id: root
-    width: 1000
-    height: 700
+    width: 1400
+    height: 800
     visible: true
-    title: "YOLOApp - Dual Input Source"
+    title: "YOLOApp"
     color: "#121212"
 
     property string inputMode: "image" // "camera", "video", "image"
@@ -20,13 +20,13 @@ Window {
         title: "Select Video File"
         nameFilters: ["Video files (*.mp4 *.avi *.mkv *.mov *.wmv)"]
         onAccepted: {
-            inputMode = "video"
+            root.inputMode = "video"
             videoFile.setFilePath(selectedFile)
         }
         onRejected: {
-            if (inputMode === "video" && !videoFile.hasFile) {
+            if (root.inputMode === "video" && !videoFile.hasFile) {
                 sourceCombo.currentIndex = 0
-                inputMode = "camera"
+                root.inputMode = "camera"
                 camera.activate()
             }
         }
@@ -37,13 +37,13 @@ Window {
         title: "Select Image File"
         nameFilters: ["Image files (*.jpg *.jpeg *.png *.bmp)"]
         onAccepted: {
-            inputMode = "image"
+            root.inputMode = "image"
             imageFile.setFilePath(selectedFile)
         }
         onRejected: {
-            if (inputMode === "image" && !imageFile.hasFile) {
+            if (root.inputMode === "image" && !imageFile.hasFile) {
                 sourceCombo.currentIndex = 0
-                inputMode = "camera"
+                root.inputMode = "camera"
                 camera.activate()
             }
         }
@@ -64,18 +64,18 @@ Window {
             
             onSourceChanged: (index) => {
                 if (index === 0) {
-                    inputMode = "camera"
+                    root.inputMode = "camera"
                     camera.activate()
                 } else if (index === 1) {
                     if (videoFile.hasFile) {
-                        inputMode = "video"
+                        root.inputMode = "video"
                         videoFile.activate()
                     } else {
                         videoFileDialog.open()
                     }
                 } else if (index === 2) {
                     if (imageFile.hasFile) {
-                        inputMode = "image"
+                        root.inputMode = "image"
                         imageFile.activate()
                     } else {
                         imageFileDialog.open()
@@ -147,6 +147,7 @@ Window {
 
             PerformancePanel {
                 Layout.fillHeight: true
+                inputMode: root.inputMode
                 cameraSource: camera
                 detectionController: detection
                 monitoringSource: monitoring
