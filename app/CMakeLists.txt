@@ -112,6 +112,12 @@ qt_add_qml_module(appCamera
     VERSION 1.0
     QML_FILES
     content/Main.qml
+    content/AppHeader.qml
+    content/PlaybackControls.qml
+    content/PerformancePanel.qml
+    content/YoloOverlay.qml
+    content/CustomComboBox.qml
+    content/MetricItem.qml
 )
 
 # 7. Include Directories (Clean Architecture approach)
