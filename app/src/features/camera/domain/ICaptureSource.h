@@ -12,4 +12,5 @@ public:
     virtual void close() = 0;
     virtual bool readFrame(cv::Mat& outFrame) = 0;
     virtual QSize currentResolution() const = 0;
+    virtual int64_t frameCount() const { return -1; }
 };

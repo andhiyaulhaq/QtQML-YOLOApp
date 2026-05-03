@@ -64,10 +64,18 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
         if (config.sourceType == InputSourceType::VideoFile) {
             auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
             if (fileSource) {
+                int64_t total = fileSource->frameCount();
+                
                 if (m_isFirstFrame) {
                     m_videoStartTime = std::chrono::high_resolution_clock::now();
                     m_isFirstFrame = false;
                 } else {
+                    // Check for loop reset
+                    if (total > 0 && m_videoFramesRead >= total) {
+                        m_videoStartTime = std::chrono::high_resolution_clock::now();
+                        m_videoFramesRead = 0;
+                    }
+
                     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_videoStartTime).count();
                     int64_t expectedFrame = static_cast<int64_t>(elapsed * fileSource->nativeFps() / 1000.0);
                     
@@ -75,6 +83,9 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
                     while (m_videoFramesRead < expectedFrame) {
                         if (!fileSource->skipFrame()) break;
                         m_videoFramesRead++;
+                        
+                        // Prevent infinite loop if something goes wrong with frame counting
+                        if (total > 0 && m_videoFramesRead >= total) break; 
                     }
                 }
             }

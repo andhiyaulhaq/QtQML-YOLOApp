@@ -16,11 +16,13 @@ public:
     QSize currentResolution() const override;
 
     double nativeFps() const;
+    int64_t frameCount() const override { return m_frameCount; }
 
 private:
     cv::VideoCapture m_capture;
     QSize m_currentResolution;
     double m_nativeFps = 30.0;
+    int64_t m_frameCount = -1;
     bool m_loop = true;
     QString m_filePath;
 };

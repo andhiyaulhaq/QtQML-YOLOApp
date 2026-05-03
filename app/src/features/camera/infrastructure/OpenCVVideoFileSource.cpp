@@ -31,6 +31,8 @@ bool OpenCVVideoFileSource::open(const SourceConfig& config) {
     m_nativeFps = m_capture.get(cv::CAP_PROP_FPS);
     if (m_nativeFps <= 0) m_nativeFps = 30.0;
 
+    m_frameCount = static_cast<int64_t>(m_capture.get(cv::CAP_PROP_FRAME_COUNT));
+
     qDebug() << "[OpenCVVideoFileSource]: Opened" << m_filePath 
              << "Res:" << m_currentResolution << "FPS:" << m_nativeFps;
 
