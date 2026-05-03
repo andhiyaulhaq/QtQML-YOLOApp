@@ -139,32 +139,62 @@ Window {
                         inputMode = "camera"
                         camera.activate()
                     } else {
-                        if (videoFile.hasFile) {
-                            inputMode = "video"
-                            videoFile.activate()
-                        } else {
+                        inputMode = "video"
+                        if (!videoFile.hasFile) {
                             videoFileDialog.open()
+                        } else {
+                            videoFile.activate()
                         }
                     }
                 }
             }
 
-            Button {
-                text: "Browse..."
-                visible: sourceCombo.currentIndex === 1
-                onClicked: videoFileDialog.open()
-                contentItem: Text {
-                    text: parent.text
-                    color: "white"
-                    font.pixelSize: 12
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    implicitWidth: 70
+            // Path Display & Browse Button (only for Video mode)
+            RowLayout {
+                visible: inputMode === "video"
+                spacing: 8
+                
+                Rectangle {
+                    implicitWidth: 200
                     implicitHeight: 32
-                    color: parent.hovered ? "#333333" : "#1e1e1e"
+                    color: "#1e1e1e"
                     border.color: "#333333"
                     radius: 4
+                    clip: true
+                    
+                    Text {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        text: videoFile.filePath.split('/').pop() // Show filename only
+                        color: "#AAAAAA"
+                        font.pixelSize: 11
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideMiddle
+                    }
+                }
+
+                Button {
+                    id: browseBtn
+                    text: "Browse..."
+                    onClicked: videoFileDialog.open()
+                    
+                    contentItem: Text {
+                        text: browseBtn.text
+                        color: "white"
+                        font.pixelSize: 12
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    
+                    background: Rectangle {
+                        implicitWidth: 80
+                        implicitHeight: 32
+                        color: browseBtn.hovered ? "#444444" : "#333333"
+                        border.color: "#555555"
+                        radius: 4
+                    }
                 }
             }
             
