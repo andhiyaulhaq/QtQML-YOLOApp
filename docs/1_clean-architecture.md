@@ -102,9 +102,9 @@ app/
 │   │   │
 │   │   ├── camera/                     # ── CAMERA FEATURE ─────────────────
 │   │   │   ├── domain/
-│   │   │   │   ├── CameraConfig.h      # Resolution, codec, FPS preferences
+│   │   │   │   ├── SourceConfig.h      # Input type, resolution, file path
 │   │   │   │   ├── CameraFrame.h       # Value type wrapping shared_ptr<cv::Mat>
-│   │   │   │   └── ICameraSource.h     # Interface: open/close/nextFrame()
+│   │   │   │   └── ICaptureSource.h    # Interface: open/close/readFrame()
 │   │   │   │
 │   │   │   ├── application/
 │   │   │   │   ├── CaptureWorker.h     # QObject worker, lives on capture thread
@@ -113,8 +113,12 @@ app/
 │   │   │   │   └── YoloCameraController.cpp
 │   │   │   │
 │   │   │   └── infrastructure/
-│   │   │       ├── OpenCVCameraSource.h   # ICameraSource → cv::VideoCapture
-│   │   │       └── OpenCVCameraSource.cpp
+│   │   │       ├── OpenCVCameraSource.h   # ICaptureSource → cv::VideoCapture
+│   │   │       ├── OpenCVCameraSource.cpp
+│   │   │       ├── OpenCVImageFileSource.h # ICaptureSource → cv::imread
+│   │   │       ├── OpenCVImageFileSource.cpp
+│   │   │       ├── FFmpegVideoSource.h    # ICaptureSource → libavcodec/format
+│   │   │       └── FFmpegVideoSource.cpp
 │   │   │
 │   │   └── monitoring/                 # ── MONITORING FEATURE ──────────────
 │   │       ├── domain/
@@ -197,14 +201,16 @@ public:
 ### 4.2 Camera Domain
 
 ```cpp
-// features/camera/domain/ICameraSource.h
-class ICameraSource {
+// features/camera/domain/ICaptureSource.h
+class ICaptureSource {
 public:
-    virtual ~ICameraSource() = default;
-    virtual bool open(const CameraConfig& config) = 0;
+    virtual ~ICaptureSource() = default;
+    virtual bool open(const SourceConfig& config) = 0;
     virtual void close() = 0;
     virtual bool readFrame(cv::Mat& outFrame) = 0;
     virtual QSize currentResolution() const = 0;
+    virtual int64_t frameCount() const;
+    virtual double nativeFps() const;
 };
 ```
 
@@ -244,7 +250,7 @@ IDetectionModel  ←  YoloPipeline
 
 ### 5.2 Camera Infrastructure
 
-`OpenCVCameraSource` adapts `cv::VideoCapture` to `ICameraSource`. It owns the 3-frame ring buffer and double-buffered `QVideoFrame` allocation, keeping all OpenCV coupling inside the infrastructure layer.
+`OpenCVCameraSource` and `FFmpegVideoSource` implement `ICaptureSource`. They own the frame ring buffers and multi-buffered `QVideoFrame` allocation (4-frame pool), keeping all OpenCV/FFmpeg coupling inside the infrastructure layer.
 
 ### 5.3 Monitoring Infrastructure
 
@@ -450,8 +456,9 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 | `features/detection/application/DetectionController.h` | Application | QML_ELEMENT: exposes task/runtime/timing/detections |
 | `features/detection/ui/DetectionListModel.h` | Presentation | QAbstractListModel bridging detections to QML |
 | `features/detection/ui/DetectionOverlayItem.h` | Presentation | QQuickItem scene-graph bounding box renderer |
-| `features/camera/domain/ICameraSource.h` | Domain | Contract for any camera hardware adapter |
-| `features/camera/infrastructure/OpenCVCameraSource.h` | Infrastructure | OpenCV VideoCapture + ring buffer |
+| `features/camera/domain/ICaptureSource.h` | Domain | Contract for any camera or video adapter |
+| `features/camera/infrastructure/OpenCVCameraSource.h` | Infrastructure | OpenCV VideoCapture (DirectShow) adapter |
+| `features/camera/infrastructure/FFmpegVideoSource.h` | Infrastructure | Native FFmpeg (libav) high-performance adapter |
 | `features/camera/application/CaptureWorker.h` | Application | Thread worker: captures frames → feeds inference |
 | `features/camera/application/YoloCameraController.h` | Application | QML_ELEMENT: exposes fps/resolution/videoSink |
 | `features/monitoring/domain/ISystemMonitor.h` | Domain | Contract for platform resource polling |
