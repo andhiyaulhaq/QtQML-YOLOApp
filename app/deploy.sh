@@ -11,7 +11,7 @@ echo "------------------------------------------------"
 
 # 1. Deploy Qt dependencies into libs/
 echo "[$(date '+%H:%M:%S')] [1/7] Running windeployqt..."
-C:/Qt/6.8.3/msvc2022_64/bin/windeployqt.exe --release --qmldir content --dir "$LIBS_DIR" "$RELEASE_DIR/appCamera.exe"
+C:/Qt/6.8.3/msvc2022_64/bin/windeployqt.exe --release --qmldir src/ui --dir "$LIBS_DIR" "$RELEASE_DIR/appCamera.exe"
 
 # 2. Organize Qt DLLs into libs/qt/
 echo "[$(date '+%H:%M:%S')] [2/7] Organizing Qt libraries..."

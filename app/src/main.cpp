@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     AppController controller(&engine);
     controller.initialize();
 
-    const QUrl url(u"qrc:/qt/qml/CameraModule/content/Main.qml"_qs);
+    const QUrl url(u"qrc:/qt/qml/CameraModule/src/ui/Main.qml"_qs);
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
         &app, [url](QObject *obj, const QUrl &objUrl) {
             if (!obj && url == objUrl)
