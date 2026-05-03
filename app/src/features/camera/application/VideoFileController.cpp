@@ -1,5 +1,6 @@
 #include "VideoFileController.h"
 #include "../../shared/domain/UiLogger.h"
+#include "../infrastructure/FFmpegVideoSource.h"
 #include <QTime>
 
 VideoFileController::VideoFileController(QObject *parent)
@@ -48,7 +49,8 @@ void VideoFileController::activate() {
     // We pass a new instance or the factory should handle it.
     // For now, we create a temporary source just to pass its pointer if needed,
     // but the architecture implies AppController manages the transition.
-    emit sourceReadyRequested(new OpenCVVideoFileSource(), config);
+    // Use the optimized FFmpeg source for better responsiveness
+    emit sourceReadyRequested(new FFmpegVideoSource(), config);
 }
 
 void VideoFileController::onMetadataUpdated(double fps, int64_t totalFrames) {

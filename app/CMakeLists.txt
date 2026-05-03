@@ -27,6 +27,11 @@ find_package(OpenVINO REQUIRED)
 include_directories("C:/onnxruntime/include")
 link_directories("C:/onnxruntime/lib")
 
+# 5. Setup FFmpeg
+set(FFMPEG_DIR "C:/ffmpeg")
+include_directories("${FFMPEG_DIR}/include")
+link_directories("${FFMPEG_DIR}/lib")
+
 # 5. Create Executable
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
@@ -88,6 +93,8 @@ qt_add_executable(appCamera
     src/features/camera/infrastructure/OpenCVVideoFileSource.cpp
     src/features/camera/infrastructure/OpenCVImageFileSource.h
     src/features/camera/infrastructure/OpenCVImageFileSource.cpp
+    src/features/camera/infrastructure/FFmpegVideoSource.h
+    src/features/camera/infrastructure/FFmpegVideoSource.cpp
     src/features/camera/application/CaptureWorker.h
     src/features/camera/application/CaptureWorker.cpp
     src/features/camera/application/YoloCameraController.h
@@ -148,6 +155,10 @@ target_link_libraries(appCamera
     openvino::runtime
     onnxruntime
     onnxruntime_providers_shared
+    avcodec
+    avformat
+    avutil
+    swscale
 )
 
 # Silence debug output in Release builds

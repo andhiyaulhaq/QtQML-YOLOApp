@@ -64,6 +64,7 @@ private:
     // Video Sync
     std::chrono::time_point<std::chrono::high_resolution_clock> m_videoStartTime;
     int64_t m_videoFramesRead = 0;
+    int64_t m_startFrameIndex = 0;
     bool m_isFirstFrame = true;
 
     bool openSource(const SourceConfig& config);

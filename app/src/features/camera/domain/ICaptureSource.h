@@ -14,5 +14,7 @@ public:
     virtual QSize currentResolution() const = 0;
     virtual int64_t frameCount() const { return -1; }
     virtual int64_t currentFrameIndex() const { return -1; }
+    virtual double nativeFps() const { return 0.0; }
     virtual bool seekToFrame(int64_t frameIndex) { Q_UNUSED(frameIndex); return false; }
+    virtual bool skipFrame() { cv::Mat dummy; return readFrame(dummy); }
 };
