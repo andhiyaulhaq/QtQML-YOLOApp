@@ -3,16 +3,17 @@
 #include <QObject>
 #include <QQmlEngine>
 #include "InferenceWorker.h"
-#include "../ui/DetectionListModel.h"
+#include "../ui/InferenceListModel.h"
 #include "../domain/TaskType.h"
 #include "../domain/InferenceConfig.h"
+#include "../domain/InferenceResult.h"
 #include <chrono>
 #include <QSize>
 
-class DetectionController : public QObject {
+class InferenceController : public QObject {
     Q_OBJECT
 
-    Q_PROPERTY(QObject* detections READ detections NOTIFY detectionsChanged)
+    Q_PROPERTY(QObject* visionObjects READ visionObjects NOTIFY visionObjectsChanged)
     Q_PROPERTY(YoloTask::TaskType currentTask READ currentTask WRITE setCurrentTask NOTIFY currentTaskChanged)
     Q_PROPERTY(YoloTask::RuntimeType currentRuntime READ currentRuntime WRITE setCurrentRuntime NOTIFY currentRuntimeChanged)
     Q_PROPERTY(double preProcessTime READ preProcessTime NOTIFY timingChanged)
@@ -21,9 +22,9 @@ class DetectionController : public QObject {
     Q_PROPERTY(double inferenceFps READ inferenceFps NOTIFY inferenceFpsChanged)
 
 public:
-    explicit DetectionController(InferenceWorker *worker, QObject *parent = nullptr);
+    explicit InferenceController(InferenceWorker *worker, QObject *parent = nullptr);
 
-    QObject* detections() const { return m_model; }
+    QObject* visionObjects() const { return m_model; }
     YoloTask::TaskType currentTask() const { return m_currentTask; }
     YoloTask::RuntimeType currentRuntime() const { return m_currentRuntime; }
     
@@ -35,13 +36,13 @@ public:
 public slots:
     void setCurrentTask(YoloTask::TaskType task);
     void setCurrentRuntime(YoloTask::RuntimeType runtime);
-    void updateDetections(const std::vector<DetectionResult>& results, 
+    void updateDetections(const std::vector<InferenceResult>& results, 
                           const std::vector<std::string>& classNames, 
                           const InferenceTiming& timing, 
                           const QSize& frameSize);
 
 signals:
-    void detectionsChanged();
+    void visionObjectsChanged();
     void currentTaskChanged();
     void currentRuntimeChanged();
     void timingChanged();
@@ -52,7 +53,7 @@ signals:
 
 private:
     InferenceWorker *m_worker;
-    DetectionListModel *m_model;
+    InferenceListModel *m_model;
     
     YoloTask::TaskType m_currentTask = static_cast<YoloTask::TaskType>(-1);
     YoloTask::RuntimeType m_currentRuntime = static_cast<YoloTask::RuntimeType>(-1);

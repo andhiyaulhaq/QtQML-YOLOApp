@@ -11,7 +11,7 @@ Rectangle {
 
     property string inputMode: ""
     property var cameraSource: null
-    property var detectionController: null
+    property var inferenceController: null
     property var monitoringSource: null
 
     Column {
@@ -38,7 +38,7 @@ Rectangle {
             }
             MetricItem {
                 label: "Inference FPS"
-                value: (inputMode === "image" || !detectionController) ? "-" : detectionController.inferenceFps.toFixed(1)
+                value: (inputMode === "image" || !inferenceController) ? "-" : inferenceController.inferenceFps.toFixed(1)
                 color: "#FF00FF"
             }
         }
@@ -56,9 +56,9 @@ Rectangle {
                 font.bold: true
             }
             
-            MetricItem { label: "Pre-Process"; value: detectionController ? detectionController.preProcessTime.toFixed(3) : "0.000"; color: "#76FF03" }
-            MetricItem { label: "Inference"; value: detectionController ? detectionController.inferenceTime.toFixed(3) : "0.000"; color: "#76FF03" }
-            MetricItem { label: "Post-Process"; value: detectionController ? detectionController.postProcessTime.toFixed(3) : "0.000"; color: "#76FF03" }
+            MetricItem { label: "Pre-Process"; value: inferenceController ? inferenceController.preProcessTime.toFixed(3) : "0.000"; color: "#76FF03" }
+            MetricItem { label: "Inference"; value: inferenceController ? inferenceController.inferenceTime.toFixed(3) : "0.000"; color: "#76FF03" }
+            MetricItem { label: "Post-Process"; value: inferenceController ? inferenceController.postProcessTime.toFixed(3) : "0.000"; color: "#76FF03" }
         }
 
         Rectangle { width: parent.width; height: 1; color: "#333333" }

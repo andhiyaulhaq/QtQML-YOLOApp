@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include "../domain/TaskType.h"
-#include "../domain/DetectionResult.h"
+#include "../domain/InferenceResult.h"
 
 class ImagePreProcessor {
 public:

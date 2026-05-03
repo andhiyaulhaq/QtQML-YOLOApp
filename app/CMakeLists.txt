@@ -55,33 +55,33 @@ qt_add_executable(appCamera
     src/features/monitoring/infrastructure/WindowsSystemMonitor.h
     src/features/monitoring/infrastructure/WindowsSystemMonitor.cpp
 
-    # ── Detection Feature ──
-    src/features/detection/domain/TaskType.h
-    src/features/detection/domain/DetectionResult.h
-    src/features/detection/domain/InferenceConfig.h
-    src/features/detection/domain/InferenceTiming.h
-    src/features/detection/domain/IDetectionModel.h
-    src/features/detection/infrastructure/SimdUtils.h
-    src/features/detection/infrastructure/PreProcessor.h
-    src/features/detection/infrastructure/PreProcessor.cpp
-    src/features/detection/infrastructure/PostProcessor.h
-    src/features/detection/infrastructure/PostProcessor.cpp
-    src/features/detection/infrastructure/YoloPipeline.h
-    src/features/detection/infrastructure/YoloPipeline.cpp
-    src/features/detection/infrastructure/backends/IInferenceBackend.h
-    src/features/detection/infrastructure/backends/OnnxRuntimeBackend.h
-    src/features/detection/infrastructure/backends/OnnxRuntimeBackend.cpp
-    src/features/detection/infrastructure/backends/OpenVinoBackend.h
-    src/features/detection/infrastructure/backends/OpenVinoBackend.cpp
-    src/features/detection/domain/Detection.h
-    src/features/detection/application/InferenceWorker.h
-    src/features/detection/application/InferenceWorker.cpp
-    src/features/detection/application/DetectionController.h
-    src/features/detection/application/DetectionController.cpp
-    src/features/detection/ui/DetectionListModel.h
-    src/features/detection/ui/DetectionListModel.cpp
-    src/features/detection/ui/DetectionOverlayItem.h
-    src/features/detection/ui/DetectionOverlayItem.cpp
+    # ── Inference Feature ──
+    src/features/inference/domain/TaskType.h
+    src/features/inference/domain/InferenceResult.h
+    src/features/inference/domain/InferenceConfig.h
+    src/features/inference/domain/InferenceTiming.h
+    src/features/inference/domain/IInferenceModel.h
+    src/features/inference/infrastructure/SimdUtils.h
+    src/features/inference/infrastructure/PreProcessor.h
+    src/features/inference/infrastructure/PreProcessor.cpp
+    src/features/inference/infrastructure/PostProcessor.h
+    src/features/inference/infrastructure/PostProcessor.cpp
+    src/features/inference/infrastructure/YoloPipeline.h
+    src/features/inference/infrastructure/YoloPipeline.cpp
+    src/features/inference/infrastructure/backends/IInferenceBackend.h
+    src/features/inference/infrastructure/backends/OnnxRuntimeBackend.h
+    src/features/inference/infrastructure/backends/OnnxRuntimeBackend.cpp
+    src/features/inference/infrastructure/backends/OpenVinoBackend.h
+    src/features/inference/infrastructure/backends/OpenVinoBackend.cpp
+    src/features/inference/domain/VisionObject.h
+    src/features/inference/application/InferenceWorker.h
+    src/features/inference/application/InferenceWorker.cpp
+    src/features/inference/application/InferenceController.h
+    src/features/inference/application/InferenceController.cpp
+    src/features/inference/ui/InferenceListModel.h
+    src/features/inference/ui/InferenceListModel.cpp
+    src/features/inference/ui/InferenceOverlayItem.h
+    src/features/inference/ui/InferenceOverlayItem.cpp
 
     # ── Capture Feature ──
     src/features/capture/domain/SourceConfig.h
@@ -128,10 +128,10 @@ qt_add_qml_module(appCamera
 # 7. Include Directories (Clean Architecture approach)
 target_include_directories(appCamera PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
-    src/features/detection/domain
-    src/features/detection/application
-    src/features/detection/infrastructure
-    src/features/detection/ui
+    src/features/inference/domain
+    src/features/inference/application
+    src/features/inference/infrastructure
+    src/features/inference/ui
     src/features/monitoring/domain
     src/features/monitoring/application
     src/features/monitoring/infrastructure

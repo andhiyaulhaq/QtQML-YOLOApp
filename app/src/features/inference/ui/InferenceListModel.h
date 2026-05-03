@@ -4,17 +4,17 @@
 #include <QQmlEngine>
 #include <QSize>
 #include <vector>
-#include "../domain/Detection.h"
-#include "../domain/DetectionResult.h"
+#include "../domain/VisionObject.h"
+#include "../domain/InferenceResult.h"
 
-class DetectionListModel : public QAbstractListModel
+class InferenceListModel : public QAbstractListModel
 {
     Q_OBJECT
 
     Q_PROPERTY(QSize frameSize READ frameSize NOTIFY frameSizeChanged)
 
 public:
-    enum DetectionRoles {
+    enum InferenceRoles {
         ClassIdRole = Qt::UserRole + 1,
         ConfidenceRole,
         LabelRole,
@@ -25,23 +25,23 @@ public:
         DataRole 
     };
 
-    explicit DetectionListModel(QObject *parent = nullptr);
+    explicit InferenceListModel(QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    void updateDetections(const std::vector<DetectionResult>& results, 
+    void updateResults(const std::vector<InferenceResult>& results, 
                           const std::vector<std::string>& classNames, 
                           const QSize& frameSize);
     
-    const std::vector<Detection>& getDetections() const { return m_detections; }
+    const std::vector<VisionObject>& getVisionObjects() const { return m_visionObjects; }
     QSize frameSize() const { return m_frameSize; }
 
 signals:
     void frameSizeChanged();
 
 private:
-    std::vector<Detection> m_detections;
+    std::vector<VisionObject> m_visionObjects;
     QSize m_frameSize;
 };

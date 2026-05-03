@@ -5,7 +5,7 @@
 #include <QPointF>
 #include <QList>
 
-struct Detection {
+struct VisionObject {
     Q_GADGET
     Q_PROPERTY(int classId READ classId CONSTANT)
     Q_PROPERTY(float confidence READ confidence CONSTANT)
@@ -33,4 +33,4 @@ public:
     QList<QPointF> m_keyPoints;
 };
 
-Q_DECLARE_METATYPE(Detection)
+Q_DECLARE_METATYPE(VisionObject)

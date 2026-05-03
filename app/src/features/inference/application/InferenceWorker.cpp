@@ -5,7 +5,7 @@
 #include <thread>
 #include <QSize>
 
-InferenceWorker::InferenceWorker(IDetectionModel *model, QObject *parent)
+InferenceWorker::InferenceWorker(IInferenceModel *model, QObject *parent)
     : QObject(parent)
     , m_model(model)
 {
@@ -58,14 +58,14 @@ void InferenceWorker::processFrame(std::shared_ptr<cv::Mat> frame)
         return; 
     }
 
-    std::vector<DetectionResult> results;
+    std::vector<InferenceResult> results;
     InferenceTiming timing;
     
     QSize frameSize(frame->cols, frame->rows);
     m_model->runInference(*frame, results, timing);
 
     emit detectionsReady(results, m_model->classNames(), timing, frameSize);
-    emit latestDetectionsReady(std::make_shared<std::vector<DetectionResult>>(results), frameSize);
+    emit latestDetectionsReady(std::make_shared<std::vector<InferenceResult>>(results), frameSize);
 
     m_isProcessing = false;
 }

@@ -4,20 +4,20 @@
 #include <vector>
 #include <string>
 #include "../domain/TaskType.h"
-#include "../domain/DetectionResult.h"
+#include "../domain/InferenceResult.h"
 
 class IPostProcessor {
 public:
     virtual ~IPostProcessor() = default;
     virtual void initBuffers(size_t strideNum) = 0;
-    virtual void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) = 0;
+    virtual void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) = 0;
 };
 
 class DetectionPostProcessor : public IPostProcessor {
 public:
     DetectionPostProcessor(YoloTask::TaskType taskType, float rectConfidenceThreshold, float iouThreshold);
     void initBuffers(size_t strideNum) override;
-    void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
+    void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
 private:
     void greedyNMS(float iouThresh);
     YoloTask::TaskType m_taskType;
@@ -37,7 +37,7 @@ class PosePostProcessor : public IPostProcessor {
 public:
     PosePostProcessor(YoloTask::TaskType taskType, float rectConfidenceThreshold, float iouThreshold);
     void initBuffers(size_t strideNum) override;
-    void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
+    void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
 private:
     void greedyNMS(float iouThresh);
     YoloTask::TaskType m_taskType;
@@ -58,7 +58,7 @@ class SegmentationPostProcessor : public IPostProcessor {
 public:
     SegmentationPostProcessor(YoloTask::TaskType taskType, float rectConfidenceThreshold, float iouThreshold);
     void initBuffers(size_t strideNum) override;
-    void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
+    void postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult>& oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput = nullptr, const std::vector<int64_t>& secondaryDims = {}) override;
 private:
     void greedyNMS(float iouThresh);
     YoloTask::TaskType m_taskType;

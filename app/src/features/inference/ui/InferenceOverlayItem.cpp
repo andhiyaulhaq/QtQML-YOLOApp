@@ -1,18 +1,18 @@
-#include "DetectionOverlayItem.h"
+#include "InferenceOverlayItem.h"
 #include <QSGVertexColorMaterial>
 #include <QSGGeometryNode>
 #include <QSGGeometry>
 #include <QColor>
 
-DetectionOverlayItem::DetectionOverlayItem(QQuickItem *parent)
+InferenceOverlayItem::InferenceOverlayItem(QQuickItem *parent)
     : QQuickItem(parent)
 {
     setFlag(ItemHasContents, true);
 }
 
-void DetectionOverlayItem::setDetections(QObject *detections)
+void InferenceOverlayItem::setVisionObjects(QObject *visionObjects)
 {
-    DetectionListModel* newModel = qobject_cast<DetectionListModel*>(detections);
+    InferenceListModel* newModel = qobject_cast<InferenceListModel*>(visionObjects);
     
     if (m_model != newModel) {
         if (m_model) {
@@ -20,23 +20,23 @@ void DetectionOverlayItem::setDetections(QObject *detections)
         }
         m_model = newModel;
         if (m_model) {
-            connect(m_model, &QAbstractListModel::modelReset, this, &DetectionOverlayItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::layoutChanged, this, &DetectionOverlayItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::rowsInserted, this, &DetectionOverlayItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::rowsRemoved, this, &DetectionOverlayItem::onModelUpdated);
-            connect(m_model, &QAbstractListModel::dataChanged, this, &DetectionOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::modelReset, this, &InferenceOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::layoutChanged, this, &InferenceOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::rowsInserted, this, &InferenceOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::rowsRemoved, this, &InferenceOverlayItem::onModelUpdated);
+            connect(m_model, &QAbstractListModel::dataChanged, this, &InferenceOverlayItem::onModelUpdated);
         }
-        emit detectionsChanged();
+        emit visionObjectsChanged();
         update(); 
     }
 }
 
-void DetectionOverlayItem::onModelUpdated()
+void InferenceOverlayItem::onModelUpdated()
 {
     update();
 }
 
-QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
+QSGNode *InferenceOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     QSGGeometryNode *node = static_cast<QSGGeometryNode *>(oldNode);
     
@@ -45,10 +45,10 @@ QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
         return nullptr;
     }
 
-    const auto& detections = m_model->getDetections();
-    int detectionCount = static_cast<int>(detections.size());
+    const auto& visionObjects = m_model->getVisionObjects();
+    int visionObjectCount = static_cast<int>(visionObjects.size());
     
-    if (detectionCount == 0) {
+    if (visionObjectCount == 0) {
         if (node) {
             node->geometry()->allocate(0);
             node->markDirty(QSGNode::DirtyGeometry);
@@ -72,7 +72,7 @@ QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
     QSGGeometry *geometry = node->geometry();
 
     int totalVertices = 0;
-    for (const auto &det : detections) {
+    for (const auto &det : visionObjects) {
         totalVertices += 8; 
         if (det.keyPoints().size() == 17) {
             totalVertices += 19 * 2; 
@@ -111,7 +111,7 @@ QSGNode *DetectionOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
         }
     }
 
-    for (const auto &det : detections) {
+    for (const auto &det : visionObjects) {
         float x = offsetX + det.x() * renderW;
         float y = offsetY + det.y() * renderH;
         float w = det.w() * renderW;

@@ -60,7 +60,7 @@ Window {
             cameraSource: camera
             videoSource: videoFile
             imageSource: imageFile
-            detectionController: detection
+            inferenceController: inference
             
             onSourceChanged: (index) => {
                 if (index === 0) {
@@ -89,16 +89,16 @@ Window {
             }
             
             onTaskChanged: (index) => {
-                if (!detection) return;
-                if (index === 0) detection.currentTask = YoloTask.ObjectDetection
-                else if (index === 1) detection.currentTask = YoloTask.PoseEstimation
-                else if (index === 2) detection.currentTask = YoloTask.ImageSegmentation
+                if (!inference) return;
+                if (index === 0) inference.currentTask = YoloTask.ObjectDetection
+                else if (index === 1) inference.currentTask = YoloTask.PoseEstimation
+                else if (index === 2) inference.currentTask = YoloTask.ImageSegmentation
             }
             
             onRuntimeChanged: (index) => {
-                if (!detection) return;
-                if (index === 0) detection.currentRuntime = YoloTask.OpenVINO
-                else if (index === 1) detection.currentRuntime = YoloTask.ONNXRuntime
+                if (!inference) return;
+                if (index === 0) inference.currentRuntime = YoloTask.OpenVINO
+                else if (index === 1) inference.currentRuntime = YoloTask.ONNXRuntime
             }
             
             onResChanged: (index) => {
@@ -133,7 +133,7 @@ Window {
 
                 YoloOverlay {
                     anchors.fill: videoOutput
-                    detectionController: detection
+                    inferenceController: inference
                 }
 
                 PlaybackControls {
@@ -149,7 +149,7 @@ Window {
                 Layout.fillHeight: true
                 inputMode: root.inputMode
                 cameraSource: camera
-                detectionController: detection
+                inferenceController: inference
                 monitoringSource: monitoring
             }
         }

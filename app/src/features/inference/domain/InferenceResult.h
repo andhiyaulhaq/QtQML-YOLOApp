@@ -9,8 +9,7 @@ struct LetterboxInfo {
     int padH = 0;
 };
 
-struct DetectionResult {
-
+struct InferenceResult {
     int        classId;
     float      confidence;
     cv::Rect   box;

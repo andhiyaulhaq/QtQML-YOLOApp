@@ -113,7 +113,7 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
             }
         }
 
-        std::shared_ptr<std::vector<DetectionResult>> currentDetections;
+        std::shared_ptr<std::vector<InferenceResult>> currentDetections;
         {
             std::lock_guard<std::mutex> lock(m_detectionsMutex);
             currentDetections = m_latestDetections;
@@ -320,7 +320,7 @@ void CaptureWorker::setSource(ICaptureSource* source, const SourceConfig& config
     m_configUpdatePending = true;
 }
 
-void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<DetectionResult>> detections, const QSize& frameSize) {
+void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<InferenceResult>> detections, const QSize& frameSize) {
     Q_UNUSED(frameSize);
     std::lock_guard<std::mutex> lock(m_detectionsMutex);
     m_latestDetections = detections;

@@ -1,14 +1,14 @@
 import QtQuick
 import CameraModule 1.0
 
-DetectionOverlayItem {
+InferenceOverlayItem {
     id: overlay
     
-    property var detectionController: null // Link to detection controller
-    detections: detectionController ? detectionController.detections : null
+    property var inferenceController: null // Link to inference controller
+    visionObjects: inferenceController ? inferenceController.visionObjects : null
     
-    property real videoAspectRatio: detectionController && detectionController.detections && detectionController.detections.frameSize.height > 0 ? 
-                                    detectionController.detections.frameSize.width / detectionController.detections.frameSize.height : 1.0
+    property real videoAspectRatio: inferenceController && inferenceController.visionObjects && inferenceController.visionObjects.frameSize.height > 0 ? 
+                                    inferenceController.visionObjects.frameSize.width / inferenceController.visionObjects.frameSize.height : 1.0
     property real itemAspectRatio: height > 0 ? width / height : 1.0
     property real renderW: videoAspectRatio > itemAspectRatio ? width : height * videoAspectRatio
     property real renderH: videoAspectRatio > itemAspectRatio ? width / videoAspectRatio : height
@@ -16,7 +16,7 @@ DetectionOverlayItem {
     property real offsetY: (height - renderH) / 2.0
     
     Repeater {
-        model: overlay.detections
+        model: overlay.visionObjects
         Item {
             x: overlay.offsetX + modelData.x * overlay.renderW
             y: overlay.offsetY + modelData.y * overlay.renderH

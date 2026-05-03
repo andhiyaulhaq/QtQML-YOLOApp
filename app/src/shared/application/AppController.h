@@ -9,9 +9,9 @@ class MonitoringController;
 class SystemMonitorWorker;
 class ISystemMonitor;
 
-class DetectionController;
+class InferenceController;
 class InferenceWorker;
-class IDetectionModel;
+class IInferenceModel;
 
 class YoloCameraController;
 class VideoFileController;
@@ -37,10 +37,10 @@ private:
     MonitoringController *m_monitoringController;
     QThread m_monitoringThread;
 
-    // Detection Feature
-    IDetectionModel *m_detectionModelImpl;
+    // Inference Feature
+    IInferenceModel *m_inferenceModelImpl;
     InferenceWorker *m_inferenceWorker;
-    DetectionController *m_detectionController;
+    InferenceController *m_inferenceController;
     QThread m_inferenceThread;
 
     // Capture/Camera Feature
@@ -52,7 +52,7 @@ private:
     QThread m_cameraThread;
 
     void setupMonitoring();
-    void setupDetection();
+    void setupInference();
     void setupCamera();
     void wireEverything();
 };

@@ -10,7 +10,7 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 #include "../domain/ICaptureSource.h"
-#include "../../detection/domain/DetectionResult.h"
+#include "../../inference/domain/InferenceResult.h"
 
 class CaptureWorker : public QObject {
     Q_OBJECT
@@ -32,7 +32,7 @@ signals:
 public slots:
     void startCapturing(QVideoSink* sink);
     void stopCapturing();
-    void updateLatestDetections(std::shared_ptr<std::vector<DetectionResult>> detections, const QSize& frameSize);
+    void updateLatestDetections(std::shared_ptr<std::vector<InferenceResult>> detections, const QSize& frameSize);
     void clearDetections();
     void updateResolution(const QSize& size);
     void setSource(ICaptureSource* source, const SourceConfig& config);
@@ -49,7 +49,7 @@ private:
     QVideoSink* m_sink = nullptr;
 
     std::mutex m_detectionsMutex;
-    std::shared_ptr<std::vector<DetectionResult>> m_latestDetections;
+    std::shared_ptr<std::vector<InferenceResult>> m_latestDetections;
 
     std::mutex m_configMutex;
     SourceConfig m_requestedConfig;

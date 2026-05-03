@@ -1,26 +1,26 @@
-#include "DetectionListModel.h"
+#include "InferenceListModel.h"
 #include <QVariant>
 #include <QDebug>
 #include <algorithm>
 
-DetectionListModel::DetectionListModel(QObject *parent)
+InferenceListModel::InferenceListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
 }
 
-int DetectionListModel::rowCount(const QModelIndex &parent) const
+int InferenceListModel::rowCount(const QModelIndex &parent) const
 {
     if (parent.isValid())
         return 0;
-    return static_cast<int>(m_detections.size());
+    return static_cast<int>(m_visionObjects.size());
 }
 
-QVariant DetectionListModel::data(const QModelIndex &index, int role) const
+QVariant InferenceListModel::data(const QModelIndex &index, int role) const
 {
-    if (!index.isValid() || index.row() >= static_cast<int>(m_detections.size()))
+    if (!index.isValid() || index.row() >= static_cast<int>(m_visionObjects.size()))
         return QVariant();
 
-    const Detection &det = m_detections[index.row()];
+    const VisionObject &det = m_visionObjects[index.row()];
 
     switch (role) {
     case ClassIdRole:
@@ -44,7 +44,7 @@ QVariant DetectionListModel::data(const QModelIndex &index, int role) const
     }
 }
 
-QHash<int, QByteArray> DetectionListModel::roleNames() const
+QHash<int, QByteArray> InferenceListModel::roleNames() const
 {
     QHash<int, QByteArray> roles;
     roles[ClassIdRole] = "classId";
@@ -58,11 +58,11 @@ QHash<int, QByteArray> DetectionListModel::roleNames() const
     return roles;
 }
 
-void DetectionListModel::updateDetections(const std::vector<DetectionResult>& results, 
-                                          const std::vector<std::string>& classNames, 
-                                          const QSize& frameSize)
+void InferenceListModel::updateResults(const std::vector<InferenceResult>& results, 
+                                        const std::vector<std::string>& classNames, 
+                                        const QSize& frameSize)
 {
-    if (results.empty() && m_detections.empty() && m_frameSize == frameSize) return;
+    if (results.empty() && m_visionObjects.empty() && m_frameSize == frameSize) return;
     
     if (m_frameSize != frameSize) {
         m_frameSize = frameSize;
@@ -74,8 +74,8 @@ void DetectionListModel::updateDetections(const std::vector<DetectionResult>& re
     float frameW = static_cast<float>(frameSize.width());
     float frameH = static_cast<float>(frameSize.height());
 
-    auto buildDetection = [&](const DetectionResult& res) -> Detection {
-        Detection det; 
+    auto buildVisionObject = [&](const InferenceResult& res) -> VisionObject {
+        VisionObject det; 
         det.m_classId = res.classId;
         det.m_confidence = res.confidence;
         if (res.classId >= 0 && res.classId < classNames.size()) {
@@ -96,24 +96,24 @@ void DetectionListModel::updateDetections(const std::vector<DetectionResult>& re
         return det;
     };
 
-    int oldSize = m_detections.size();
+    int oldSize = m_visionObjects.size();
     int newSize = results.size();
 
     int updateCount = std::min(oldSize, newSize);
     for (int i = 0; i < updateCount; ++i) {
-        m_detections[i] = buildDetection(results[i]);
+        m_visionObjects[i] = buildVisionObject(results[i]);
         emit dataChanged(index(i), index(i));
     }
 
     if (newSize > oldSize) {
         beginInsertRows(QModelIndex(), oldSize, newSize - 1);
         for (int i = oldSize; i < newSize; ++i)
-            m_detections.push_back(buildDetection(results[i]));
+            m_visionObjects.push_back(buildVisionObject(results[i]));
         endInsertRows();
     }
     else if (newSize < oldSize) {
         beginRemoveRows(QModelIndex(), newSize, oldSize - 1);
-        m_detections.resize(newSize);
+        m_visionObjects.resize(newSize);
         endRemoveRows();
     }
 }

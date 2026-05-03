@@ -10,7 +10,7 @@ RowLayout {
     property var cameraSource: null
     property var videoSource: null
     property var imageSource: null
-    property var detectionController: null
+    property var inferenceController: null
     
     signal sourceChanged(int index)
     signal browseRequested()
@@ -97,7 +97,7 @@ RowLayout {
     CustomComboBox {
         id: taskCombo
         model: ["Detection", "Pose", "Seg"]
-        currentIndex: detectionController ? detectionController.currentTask - 1 : 0
+        currentIndex: inferenceController ? inferenceController.currentTask - 1 : 0
         onActivated: (index) => root.taskChanged(index)
     }
 
@@ -105,7 +105,7 @@ RowLayout {
     CustomComboBox {
         id: runtimeCombo
         model: ["OpenVINO", "ONNX"]
-        currentIndex: detectionController ? detectionController.currentRuntime : 0
+        currentIndex: inferenceController ? inferenceController.currentRuntime : 0
         onActivated: (index) => root.runtimeChanged(index)
     }
 

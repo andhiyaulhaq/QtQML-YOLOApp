@@ -74,7 +74,7 @@ const char* YoloPipeline::createSession(const InferenceConfig& config) {
 }
 
 char* YoloPipeline::runInference(const cv::Mat& frame,
-                                 std::vector<DetectionResult>& results,
+                                 std::vector<InferenceResult>& results,
                                  InferenceTiming& timing) {
     auto start_pre = std::chrono::high_resolution_clock::now();
 

@@ -4,19 +4,19 @@
 #include <vector>
 #include <string>
 #include <opencv2/opencv.hpp>
-#include "../domain/IDetectionModel.h"
+#include "../domain/IInferenceModel.h"
 #include "PreProcessor.h"
 #include "PostProcessor.h"
 #include "backends/IInferenceBackend.h"
 
-class YoloPipeline : public IDetectionModel {
+class YoloPipeline : public IInferenceModel {
 public:
     YoloPipeline();
     ~YoloPipeline() override;
 
     const char* createSession(const InferenceConfig& config) override;
     char* runInference(const cv::Mat& frame,
-                       std::vector<DetectionResult>& results,
+                       std::vector<InferenceResult>& results,
                        InferenceTiming& timing) override;
     const std::vector<std::string>& classNames() const override { return m_classes; }
     void warmUp() override;

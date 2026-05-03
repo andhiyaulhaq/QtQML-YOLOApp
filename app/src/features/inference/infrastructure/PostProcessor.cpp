@@ -22,7 +22,7 @@ void DetectionPostProcessor::initBuffers(size_t strideNum) {
     m_sortIndices.reserve(256);
 }
 
-void DetectionPostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
+void DetectionPostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     int signalResultNum = outputNodeDims[1]; 
     int strideNum = outputNodeDims[2];       
     int numClasses = signalResultNum - 4;    
@@ -94,7 +94,7 @@ void DetectionPostProcessor::postProcess(void* output, const std::vector<int64_t
 
     for (size_t i = 0; i < m_nmsIndices.size(); ++i) {
         int idx = m_nmsIndices[i];
-        DetectionResult result;
+        InferenceResult result;
         result.classId    = m_classIds[idx];
         result.confidence = m_confidences[idx];
         result.box        = m_boxes[idx];
@@ -167,7 +167,7 @@ void PosePostProcessor::initBuffers(size_t strideNum) {
     m_sortIndices.reserve(256);
 }
 
-void PosePostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
+void PosePostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     int strideNum = outputNodeDims[2];       
 
     float* data = static_cast<float*>(output);
@@ -245,7 +245,7 @@ void PosePostProcessor::postProcess(void* output, const std::vector<int64_t>& ou
 
     for (size_t i = 0; i < m_nmsIndices.size(); ++i) {
         int idx = m_nmsIndices[i];
-        DetectionResult result;
+        InferenceResult result;
         result.classId    = m_classIds[idx];
         result.confidence = m_confidences[idx];
         result.box        = m_boxes[idx];
@@ -318,7 +318,7 @@ void SegmentationPostProcessor::initBuffers(size_t strideNum) {
     m_sortIndices.reserve(256);
 }
 
-void SegmentationPostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<DetectionResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
+void SegmentationPostProcessor::postProcess(void* output, const std::vector<int64_t>& outputNodeDims, std::vector<InferenceResult> &oResult, const LetterboxInfo& info, const std::vector<std::string>& classes, void* secondaryOutput, const std::vector<int64_t>& secondaryDims) {
     if (!secondaryOutput) {
         qDebug() << "[YOLO]: Segmentation requires secondary output tensor! Output is null.";
         return;
@@ -418,7 +418,7 @@ void SegmentationPostProcessor::postProcess(void* output, const std::vector<int6
 
         for (size_t i = 0; i < m_nmsIndices.size(); ++i) {
             int idx = m_nmsIndices[i];
-            DetectionResult result;
+            InferenceResult result;
             result.classId    = m_classIds[idx];
             result.confidence = m_confidences[idx];
             result.box        = m_boxes[idx];

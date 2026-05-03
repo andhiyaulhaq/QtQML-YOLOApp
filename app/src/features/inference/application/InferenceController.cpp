@@ -1,21 +1,21 @@
-#include "DetectionController.h"
+#include "InferenceController.h"
 #include <QDebug>
 #include "../../shared/domain/UiLogger.h"
 
-DetectionController::DetectionController(InferenceWorker *worker, QObject *parent)
+InferenceController::InferenceController(InferenceWorker *worker, QObject *parent)
     : QObject(parent)
     , m_worker(worker)
-    , m_model(new DetectionListModel(this))
+    , m_model(new InferenceListModel(this))
 {
     m_lastInferenceTime = std::chrono::steady_clock::now();
 }
 
-void DetectionController::setCurrentTask(YoloTask::TaskType task)
+void InferenceController::setCurrentTask(YoloTask::TaskType task)
 {
     static const QMap<int, QString> taskNames = {
         {1, "ObjectDetection"}, {2, "PoseEstimation"}, {3, "ImageSegmentation"}
     };
-    UiLogger::ctrl("DetectionController::setCurrentTask → task=" + taskNames.value((int)task, "Unknown"));
+    UiLogger::ctrl("InferenceController::setCurrentTask → task=" + taskNames.value((int)task, "Unknown"));
     if (m_currentTask != task) {
         m_currentTask = task;
         emit currentTaskChanged();
@@ -27,10 +27,10 @@ void DetectionController::setCurrentTask(YoloTask::TaskType task)
     }
 }
 
-void DetectionController::setCurrentRuntime(YoloTask::RuntimeType runtime)
+void InferenceController::setCurrentRuntime(YoloTask::RuntimeType runtime)
 {
     static const QMap<int, QString> runtimeNames = {{0, "OpenVINO"}, {1, "ONNXRuntime"}};
-    UiLogger::ctrl("DetectionController::setCurrentRuntime → " + runtimeNames.value((int)runtime, "Unknown"));
+    UiLogger::ctrl("InferenceController::setCurrentRuntime → " + runtimeNames.value((int)runtime, "Unknown"));
     if (m_currentRuntime != runtime) {
         m_currentRuntime = runtime;
         emit currentRuntimeChanged();
@@ -42,12 +42,12 @@ void DetectionController::setCurrentRuntime(YoloTask::RuntimeType runtime)
     }
 }
 
-void DetectionController::updateDetections(const std::vector<DetectionResult>& results, 
-                                          const std::vector<std::string>& classNames, 
-                                          const InferenceTiming& timing, 
-                                          const QSize& frameSize)
+void InferenceController::updateDetections(const std::vector<InferenceResult>& results, 
+                                           const std::vector<std::string>& classNames, 
+                                           const InferenceTiming& timing, 
+                                           const QSize& frameSize)
 {
-    m_model->updateDetections(results, classNames, frameSize);
+    m_model->updateResults(results, classNames, frameSize);
     
     m_preProcessTime = timing.preProcess;
     m_inferenceTime = timing.inference;
@@ -66,7 +66,7 @@ void DetectionController::updateDetections(const std::vector<DetectionResult>& r
     m_lastInferenceTime = now;
 }
 
-InferenceConfig DetectionController::createCurrentConfig() const
+InferenceConfig InferenceController::createCurrentConfig() const
 {
     InferenceConfig config;
     config.taskType = m_currentTask;
@@ -99,7 +99,7 @@ InferenceConfig DetectionController::createCurrentConfig() const
     return config;
 }
 
-void DetectionController::resetFps()
+void InferenceController::resetFps()
 {
     m_inferenceFps = 0.0;
     m_lastInferenceTime = std::chrono::steady_clock::now();

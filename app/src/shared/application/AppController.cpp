@@ -7,10 +7,10 @@
 #include "../../features/monitoring/application/SystemMonitorWorker.h"
 #include "../../features/monitoring/application/MonitoringController.h"
 
-// Detection
-#include "../../features/detection/infrastructure/YoloPipeline.h"
-#include "../../features/detection/application/InferenceWorker.h"
-#include "../../features/detection/application/DetectionController.h"
+// Inference
+#include "../../features/inference/infrastructure/YoloPipeline.h"
+#include "../../features/inference/application/InferenceWorker.h"
+#include "../../features/inference/application/InferenceController.h"
 
 // Capture
 #include "../../features/capture/infrastructure/OpenCVCameraSource.h"
@@ -45,12 +45,12 @@ AppController::~AppController()
 void AppController::initialize()
 {
     setupMonitoring();
-    setupDetection();
+    setupInference();
     setupCamera();
     wireEverything();
 
     m_engine->rootContext()->setContextProperty("monitoring", m_monitoringController);
-    m_engine->rootContext()->setContextProperty("detection", m_detectionController);
+    m_engine->rootContext()->setContextProperty("inference", m_inferenceController);
     m_engine->rootContext()->setContextProperty("camera", m_cameraController);
     m_engine->rootContext()->setContextProperty("videoFile", m_videoFileController);
     m_engine->rootContext()->setContextProperty("imageFile", m_imageFileController);
@@ -73,11 +73,11 @@ void AppController::setupMonitoring()
     connect(&m_monitoringThread, &QThread::finished, m_monitoringWorker, &QObject::deleteLater);
 }
 
-void AppController::setupDetection()
+void AppController::setupInference()
 {
-    m_detectionModelImpl = new YoloPipeline();
-    m_inferenceWorker = new InferenceWorker(m_detectionModelImpl);
-    m_detectionController = new DetectionController(m_inferenceWorker, this);
+    m_inferenceModelImpl = new YoloPipeline();
+    m_inferenceWorker = new InferenceWorker(m_inferenceModelImpl);
+    m_inferenceController = new InferenceController(m_inferenceWorker, this);
 
     m_inferenceWorker->moveToThread(&m_inferenceThread);
     connect(&m_inferenceThread, &QThread::finished, m_inferenceWorker, &QObject::deleteLater);
@@ -100,10 +100,10 @@ void AppController::wireEverything()
     // Monitoring
     connect(m_monitoringWorker, &SystemMonitorWorker::statsUpdated, m_monitoringController, &MonitoringController::updateStats);
 
-    // Detection
-    connect(m_inferenceWorker, &InferenceWorker::detectionsReady, m_detectionController, &DetectionController::updateDetections);
-    connect(m_detectionController, &DetectionController::requestModelChange, m_inferenceWorker, &InferenceWorker::startInference);
-    connect(m_detectionController, &DetectionController::requestModelChange, m_captureWorker, &CaptureWorker::forceReinference);
+    // Inference
+    connect(m_inferenceWorker, &InferenceWorker::detectionsReady, m_inferenceController, &InferenceController::updateDetections);
+    connect(m_inferenceController, &InferenceController::requestModelChange, m_inferenceWorker, &InferenceWorker::startInference);
+    connect(m_inferenceController, &InferenceController::requestModelChange, m_captureWorker, &CaptureWorker::forceReinference);
 
     // Capture (Common)
     connect(m_cameraController, &YoloCameraController::startCapture, m_captureWorker, &CaptureWorker::startCapturing);
@@ -128,8 +128,8 @@ void AppController::wireEverything()
 
     // Initial Model Load
     QTimer::singleShot(500, [this](){
-        m_detectionController->setCurrentRuntime(YoloTask::RuntimeType::OpenVINO);
-        m_detectionController->setCurrentTask(YoloTask::TaskType::ObjectDetection);
+        m_inferenceController->setCurrentRuntime(YoloTask::RuntimeType::OpenVINO);
+        m_inferenceController->setCurrentTask(YoloTask::TaskType::ObjectDetection);
         
         // Default to image file on start
         m_imageFileController->activate();

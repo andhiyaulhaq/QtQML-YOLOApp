@@ -1,6 +1,6 @@
 # Clean Architecture — YOLOApp
 
-**Last Modified**: 2026-05-03 22:05 (UTC+7)
+**Last Modified**: 2026-05-03 22:35 (UTC+7)
 
 > **Scope**: This document defines the canonical clean architecture for the **QtOpenCVCamera / YOLOApp** C++/Qt/QML desktop application. It is the single source of truth for structural decisions, layer boundaries, dependency rules, and feature organization.
 
@@ -13,7 +13,7 @@
 | **Dependency inversion** | Inner layers (domain) never depend on outer layers (infrastructure, UI). Interfaces always point inward. |
 | **Separation of concerns** | AI pipeline, camera hardware, UI rendering, and system metrics are completely isolated from each other. |
 | **Testability** | Business logic lives in pure C++ classes with no Qt/OpenCV coupling, enabling unit tests without a running application. |
-| **Feature cohesion** | Code is organized by **feature** (detection, camera, monitoring), not by technical type (controllers, models, views). Each feature folder is a self-contained vertical slice. |
+| **Feature cohesion** | Code is organized by **feature** (inference, capture, monitoring), not by technical type (controllers, models, views). Each feature folder is a self-contained vertical slice. |
 | **Performance preservation** | The architecture adds no runtime overhead. Interfaces and strategy patterns are resolved at compile/link time wherever possible. |
 
 ---
@@ -61,24 +61,24 @@ Each top-level folder under `src/features/` is a self-contained **feature module
 app/
 ├── CMakeLists.txt
 ├── src/
-│   ├── main.cpp                        # Entry point — wires QML engine only
+├── main.cpp                        # Entry point — wires QML engine only
 │   │
 │   ├── features/                       # Feature modules (vertical slices)
 │   │   │
-│   │   ├── detection/                  # ── DETECTION FEATURE ──────────────
+│   │   ├── inference/                  # ── INFERENCE FEATURE ──────────────
 │   │   │   ├── domain/
-│   │   │   │   ├── Detection.h         # Q_GADGET value type (normalized coords)
-│   │   │   │   ├── DetectionResult.h   # Pure-C++ raw inference result (replaces DL_RESULT)
-│   │   │   │   ├── InferenceConfig.h   # Init params (replaces DL_INIT_PARAM)
+│   │   │   │   ├── VisionObject.h      # Q_GADGET value type (normalized coords)
+│   │   │   │   ├── InferenceResult.h   # Pure-C++ raw inference result
+│   │   │   │   ├── InferenceConfig.h   # Init params
 │   │   │   │   ├── InferenceTiming.h   # Per-phase timing struct
 │   │   │   │   ├── TaskType.h          # Enum: Detect / Pose / Segment
-│   │   │   │   └── IDetectionModel.h   # Interface: runDetection(frame) → results
+│   │   │   │   └── IInferenceModel.h   # Interface: runInference(frame) → results
 │   │   │   │
 │   │   │   ├── application/
 │   │   │   │   ├── InferenceWorker.h   # QObject worker, lives on inference thread
 │   │   │   │   ├── InferenceWorker.cpp
-│   │   │   │   ├── DetectionController.h  # QML_ELEMENT, exposes detections/timing/runtime
-│   │   │   │   └── DetectionController.cpp
+│   │   │   │   ├── InferenceController.h  # QML_ELEMENT, exposes detections/timing/runtime
+│   │   │   │   └── InferenceController.cpp
 │   │   │   │
 │   │   │   ├── infrastructure/
 │   │   │   │   ├── IInferenceBackend.h    # Strategy interface (pure C++)
@@ -95,10 +95,10 @@ app/
 │   │   │   │   └── SimdUtils.h            # SSE4.1 intrinsics (header-only)
 │   │   │   │
 │   │   │   └── ui/
-│   │   │       ├── DetectionListModel.h   # QAbstractListModel bridge
-│   │   │       ├── DetectionListModel.cpp
-│   │   │       ├── DetectionOverlayItem.h # QQuickItem Scene Graph renderer
-│   │   │       └── DetectionOverlayItem.cpp
+│   │   │       ├── InferenceListModel.h   # QAbstractListModel bridge
+│   │   │       ├── InferenceListModel.cpp
+│   │   │       ├── InferenceOverlayItem.h # QQuickItem Scene Graph renderer
+│   │   │       └── InferenceOverlayItem.cpp
 │   │   │
 │   │   ├── capture/                    # ── CAPTURE FEATURE ────────────────
 │   │   │   ├── domain/
@@ -144,7 +144,7 @@ app/
 │           ├── AppController.h         # Root QML_ELEMENT orchestrating features
 │           └── AppController.cpp
 │
-└── content/                            # QML UI files
+└── src/ui/                             # QML UI files
     └── Main.qml                        # Root window, flat structure for now
 
 ---
@@ -153,11 +153,11 @@ app/
 
 The Domain layer contains **no framework dependencies**. Every class is a plain C++ struct or pure-virtual interface.
 
-### 4.1 Detection Domain
+### 4.1 Inference Domain
 
 ```cpp
 // Raw inference result in pixel-space
-struct DetectionResult {
+struct InferenceResult {
     int        classId;
     float      confidence;
     cv::Rect   box;
@@ -172,9 +172,9 @@ struct LetterboxInfo {
     int padH = 0;
 };
 
-// features/detection/domain/Detection.h
+// features/inference/domain/VisionObject.h
 // Normalized [0,1] coordinate value-type for QML (Q_GADGET)
-struct Detection {
+struct VisionObject {
     Q_GADGET
     Q_PROPERTY(int classId ...)
     Q_PROPERTY(float confidence ...)
@@ -186,21 +186,21 @@ struct Detection {
     Q_PROPERTY(QList<QPointF> keyPoints ...)
 };
 
-// features/detection/domain/IDetectionModel.h
+// features/inference/domain/IInferenceModel.h
 // Pure interface — infrastructure implements, application consumes
-class IDetectionModel {
+class IInferenceModel {
 public:
-    virtual ~IDetectionModel() = default;
+    virtual ~IInferenceModel() = default;
     virtual const char* createSession(const InferenceConfig& config) = 0;
     virtual char* runInference(const cv::Mat& frame,
-                               std::vector<DetectionResult>& results,
+                               std::vector<InferenceResult>& results,
                                InferenceTiming& timing) = 0;
     virtual const std::vector<std::string>& classNames() const = 0;
     virtual void warmUp() = 0;
 };
 ```
 
-### 4.2 Camera Domain
+### 4.2 Capture Domain
 
 ```cpp
 // features/capture/domain/ICaptureSource.h
@@ -238,19 +238,20 @@ Infrastructure classes implement domain interfaces using concrete third-party li
 ### 5.1 Inference Infrastructure
 
 ```
-IDetectionModel  ←  YoloPipeline
-                         │
-              ┌──────────┴──────────┐
-              │                     │
+IInferenceModel  ←  YoloPipeline
+                          │
+               ┌──────────┴──────────┐
+               │                     │
     IInferenceBackend       IPostProcessor
               │                     │
     ┌─────────┴──────┐    ┌─────────┴──────────────────┐
+    │                │    │          │                   │
     │                │    │          │                   │
  OnnxRuntime   OpenVINO  Detect   Pose           Segmentation
  Backend       Backend   PostProcessor PostProcessor PostProcessor
 ```
 
-### 5.2 Camera Infrastructure
+### 5.2 Capture Infrastructure
 
 `OpenCVCameraSource` and `FFmpegVideoSource` implement `ICaptureSource`. They own the frame ring buffers and multi-buffered `QVideoFrame` allocation (4-frame pool), keeping all OpenCV/FFmpeg coupling inside the infrastructure layer.
 
@@ -269,8 +270,8 @@ Application layer classes are the only ones allowed to own `QObject`, `QThread`,
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  Main Thread (Qt Event Loop / GUI)                                │
-│  AppController · YoloCameraController · DetectionController       │
-│  DetectionListModel · DetectionOverlayItem                        │
+│  AppController · YoloCameraController · InferenceController       │
+│  InferenceListModel · InferenceOverlayItem                        │
 │  Constraint: never block > 16 ms                                  │
 └────────┬───────────────────┬──────────────────┬──────────┘
          │ QueuedConnection  │ QueuedConnection  │ QueuedConnection
@@ -286,9 +287,9 @@ Application layer classes are the only ones allowed to own `QObject`, `QThread`,
 ### 6.2 AppController
 
 `AppController` is the single root `QML_ELEMENT`. It:
-- Holds and owns `YoloCameraController` and `DetectionController` as properties.
+- Holds and owns `YoloCameraController` and `InferenceController` as properties.
 - Wires the `CaptureWorker::frameReady` signal to `InferenceWorker::processFrame`.
-- Wires `InferenceWorker::detectionsReady` to `DetectionController::updateDetections`.
+- Wires `InferenceWorker::detectionsReady` to `InferenceController::updateDetections`.
 - Manages shared `QThread` lifetimes.
 
 ### 6.3 YoloCameraController
@@ -299,10 +300,10 @@ Exposes to QML:
 - `currentResolution` (QSize, R/W)
 - `supportedResolutions` (QVariantList)
 
-### 6.4 DetectionController
+### 6.4 InferenceController
 
 Exposes to QML:
-- `detections` (QObject* → DetectionListModel)
+- `detections` (QObject* → InferenceListModel)
 - `currentTask` (TaskType enum)
 - `currentRuntime` (RuntimeType enum)
 - `preProcessTime`, `inferenceTime`, `postProcessTime` (double, ms)
@@ -323,21 +324,12 @@ Window {
 
     // Flat composition in Main.qml for now
     VideoOutput { id: videoOutput ... }
-    DetectionOverlayItem { detections: detection.detections ... }
+    InferenceOverlayItem { inferenceController: inference ... }
     
     // HUDs
     Text { text: "FPS: " + camera.cameraFps ... }
 }
 ```
-
-### 7.2 QML–C++ Boundary Rules
-
-| What | Where |
-|:-----|:------|
-| Color constants / theming | `shared/theme/Theme.qml` |
-| Reusable atomic widgets | `shared/components/` |
-| Feature-specific composites | `features/<name>/` QML folder |
-| Business logic | **Never in QML** — always C++ domain/application |
 
 ---
 
@@ -348,13 +340,13 @@ graph TD
     subgraph Presentation
         Main["Main.qml"]
         CamView["CameraView.qml"]
-        DetOverlay["DetectionOverlay.qml"]
+        DetOverlay["YoloOverlay.qml"]
     end
 
     subgraph Application
         AppCtrl["AppController"]
         CamCtrl["YoloCameraController"]
-        DetCtrl["DetectionController"]
+        DetCtrl["InferenceController"]
         CaptureW["CaptureWorker"]
         InferW["InferenceWorker"]
         MonitorW["SystemMonitorWorker"]
@@ -362,9 +354,9 @@ graph TD
 
     subgraph Domain
         ICapSrc["ICaptureSource"]
-        IDetModel["IDetectionModel"]
+        IInfModel["IInferenceModel"]
         ISysMon["ISystemMonitor"]
-        DetectionD["Detection (Q_GADGET)"]
+        VisionObj["VisionObject (Q_GADGET)"]
     end
 
     subgraph Infrastructure
@@ -385,14 +377,14 @@ graph TD
     AppCtrl --> MonitorW
 
     CaptureW --> ICapSrc
-    InferW --> IDetModel
+    InferW --> IInfModel
     MonitorW --> ISysMon
 
     ICapSrc --> CaptureSrc
-    IDetModel --> YoloPipe
+    IInfModel --> YoloPipe
     ISysMon --> WinMon
 
-    DetCtrl --> DetectionD
+    DetCtrl --> VisionObj
     DetOverlay --> DetCtrl
     CamView --> CamCtrl
 ```
@@ -404,15 +396,13 @@ graph TD
 Features communicate exclusively through the **Application layer**. No feature's domain or infrastructure may import from another feature's domain or infrastructure.
 
 ```
-camera::CaptureWorker  ──frameReady()──►  detection::InferenceWorker
+camera::CaptureWorker  ──frameReady()──►  inference::InferenceWorker
                                                (wired by AppController)
 
-detection::InferenceWorker  ──detectionsReady()──►  detection::DetectionController
+inference::InferenceWorker  ──detectionsReady()──►  inference::InferenceController
                                                      ──latestDetectionsReady()──►  camera::CaptureWorker
-                                                             (for on-frame overlay blending)
+                                                              (for on-frame overlay blending)
 ```
-
-All cross-feature signals are wired inside `AppController::setupPipeline()` using `Qt::QueuedConnection`.
 
 ---
 
@@ -426,10 +416,10 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 | **Template Method** | `IPostProcessor::PostProcess` | Skeleton algorithm with task-specific overrides |
 | **Factory** | `YoloPipeline::CreateSession` | Selects backend + post-processor based on `InferenceConfig` |
 | **Observer / Reactive** | Qt signals/slots across threads | Decoupled event propagation without shared state |
-| **Repository / Model** | `DetectionListModel` | Normalizes and serves detection data to QML |
+| **Repository / Model** | `InferenceListModel` | Normalizes and serves inference data to QML |
 | **Worker Thread** | `CaptureWorker`, `InferenceWorker`, `SystemMonitorWorker` | Offload blocking ops from GUI thread |
-| **Adapter** | `OpenCVCameraSource` | Adapts `cv::VideoCapture` to `ICameraSource` |
-| **Value Object** | `Detection`, `SystemStats`, `CameraFrame` | Immutable data carriers with no behavior |
+| **Adapter** | `OpenCVCameraSource` | Adapts `cv::VideoCapture` to `ICaptureSource` |
+| **Value Object** | `VisionObject`, `SystemStats`, `CameraFrame` | Immutable data carriers with no behavior |
 
 ---
 
@@ -449,15 +439,15 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 
 | File | Layer | Responsibility |
 |:-----|:------|:---------------|
-| `features/detection/domain/IDetectionModel.h` | Domain | Contract for any YOLO-compatible model |
-| `features/detection/domain/Detection.h` | Domain | Normalized, QML-safe detection value object |
-| `features/detection/infrastructure/YoloPipeline.h` | Infrastructure | Facade orchestrating ONNX/OpenVINO inference |
-| `features/detection/infrastructure/OnnxRuntimeBackend.h` | Infrastructure | ONNX Runtime session pool + inference |
-| `features/detection/infrastructure/OpenVinoBackend.h` | Infrastructure | OpenVINO compiled model + infer request |
-| `features/detection/application/InferenceWorker.h` | Application | Thread worker: receives frames → runs pipeline |
-| `features/detection/application/DetectionController.h` | Application | QML_ELEMENT: exposes task/runtime/timing/detections |
-| `features/detection/ui/DetectionListModel.h` | Presentation | QAbstractListModel bridging detections to QML |
-| `features/detection/ui/DetectionOverlayItem.h` | Presentation | QQuickItem scene-graph bounding box renderer |
+| `features/inference/domain/IInferenceModel.h` | Domain | Contract for any YOLO-compatible model |
+| `features/inference/domain/VisionObject.h` | Domain | Normalized, QML-safe inference value object |
+| `features/inference/infrastructure/YoloPipeline.h` | Infrastructure | Facade orchestrating ONNX/OpenVINO inference |
+| `features/inference/infrastructure/OnnxRuntimeBackend.h` | Infrastructure | ONNX Runtime session pool + inference |
+| `features/inference/infrastructure/OpenVinoBackend.h` | Infrastructure | OpenVINO compiled model + infer request |
+| `features/inference/application/InferenceWorker.h` | Application | Thread worker: receives frames → runs pipeline |
+| `features/inference/application/InferenceController.h` | Application | QML_ELEMENT: exposes task/runtime/timing/detections |
+| `features/inference/ui/InferenceListModel.h` | Presentation | QAbstractListModel bridging results to QML |
+| `features/inference/ui/InferenceOverlayItem.h` | Presentation | QQuickItem scene-graph renderer |
 | `features/capture/domain/ICaptureSource.h` | Domain | Contract for any camera or video adapter |
 | `features/capture/infrastructure/OpenCVCameraSource.h` | Infrastructure | OpenCV VideoCapture (DirectShow) adapter |
 | `features/capture/infrastructure/FFmpegVideoSource.h` | Infrastructure | Native FFmpeg (libav) high-performance adapter |
@@ -470,7 +460,7 @@ All cross-feature signals are wired inside `AppController::setupPipeline()` usin
 | `shared/application/AppController.h` | Application | Root orchestrator: wires all feature controllers |
 
 | `shared/domain/AppConfig.h` | Domain | Compile-time constants (frame size, model dims) |
-| `content/Main.qml` | Presentation | Root QML window |
+| `src/ui/Main.qml` | Presentation | Root QML window |
 
 ---
 
