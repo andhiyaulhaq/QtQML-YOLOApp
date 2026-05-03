@@ -27,4 +27,5 @@ private:
     int64_t m_frameCount = -1;
     bool m_loop = true;
     QString m_filePath;
+    cv::Mat m_lastFrame;
 };

@@ -47,6 +47,8 @@ private:
 
     QString m_filePath;
     double m_durationSeconds = 0;
+    int64_t m_targetFrame = -1;
+    bool m_isSeeking = false;
     int64_t m_totalFrames = 0;
     int64_t m_currentFrame = 0;
     double m_fps = 30.0;

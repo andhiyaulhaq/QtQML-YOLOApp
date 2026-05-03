@@ -60,6 +60,17 @@ void VideoFileController::onMetadataUpdated(double fps, int64_t totalFrames) {
 }
 
 void VideoFileController::onProgressUpdated(int64_t frame) {
+    // If we are seeking, only accept progress updates that are close to our target
+    if (m_isSeeking) {
+        if (std::abs(frame - m_targetFrame) <= 5) {
+            m_isSeeking = false;
+            // Now we can accept regular updates again
+        } else {
+            // Ignore "old" frames from before the seek landed
+            return;
+        }
+    }
+
     if (m_currentFrame != frame) {
         m_currentFrame = frame;
         emit progressChanged();
@@ -70,6 +81,20 @@ void VideoFileController::seek(double position) {
     if (m_totalFrames <= 0) return;
     
     int64_t targetFrame = static_cast<int64_t>(position * m_totalFrames);
+    
+    // If we are already seeking to this area, ignore
+    if (m_isSeeking && std::abs(targetFrame - m_targetFrame) <= 2) return;
+    
+    // If we are already AT this area, ignore
+    if (!m_isSeeking && std::abs(targetFrame - m_currentFrame) <= 2) return;
+    
+    m_targetFrame = targetFrame;
+    m_isSeeking = true;
+    
+    // Optimistically update current frame to avoid jitter
+    m_currentFrame = targetFrame;
+    emit progressChanged();
+    
     emit requestSeek(targetFrame);
 }
 

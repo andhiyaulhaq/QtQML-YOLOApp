@@ -34,7 +34,7 @@ bool OpenCVVideoFileSource::open(const SourceConfig& config) {
     m_frameCount = static_cast<int64_t>(m_capture.get(cv::CAP_PROP_FRAME_COUNT));
 
     qDebug() << "[OpenCVVideoFileSource]: Opened" << m_filePath 
-             << "Res:" << m_currentResolution << "FPS:" << m_nativeFps;
+             << "Res:" << m_currentResolution << "FPS:" << m_nativeFps << "Frames:" << m_frameCount;
 
     return true;
 }
@@ -51,11 +51,21 @@ bool OpenCVVideoFileSource::readFrame(cv::Mat& outFrame) {
     if (!m_capture.read(outFrame) || outFrame.empty()) {
         if (m_loop) {
             m_capture.set(cv::CAP_PROP_POS_FRAMES, 0);
-            return m_capture.read(outFrame);
+            if (m_capture.read(outFrame)) {
+                m_lastFrame = outFrame.clone();
+                return true;
+            }
+        } else {
+            // Pausing on last frame: if we have a last frame, use it
+            if (!m_lastFrame.empty()) {
+                outFrame = m_lastFrame.clone();
+                return true;
+            }
         }
         return false;
     }
 
+    m_lastFrame = outFrame.clone();
     return true;
 }
 
@@ -67,7 +77,9 @@ bool OpenCVVideoFileSource::skipFrame() {
             m_capture.set(cv::CAP_PROP_POS_FRAMES, 0);
             return m_capture.grab();
         }
-        return false;
+        // If we hit the end, we "succeed" but don't move.
+        // This allows CaptureWorker's sync loop to stay at the last frame.
+        return true; 
     }
     return true;
 }
@@ -92,5 +104,17 @@ bool OpenCVVideoFileSource::seekToFrame(int64_t frameIndex) {
     if (frameIndex < 0) frameIndex = 0;
     if (m_frameCount > 0 && frameIndex >= m_frameCount) frameIndex = m_frameCount - 1;
     
-    return m_capture.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(frameIndex));
+    bool ok = m_capture.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(frameIndex));
+    
+    if (!ok) {
+        // Some backends (like FFMPEG on Windows) can get stuck after EOF.
+        // Try to re-open and then seek.
+        m_capture.open(m_filePath.toStdString());
+        if (m_capture.isOpened()) {
+            ok = m_capture.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(frameIndex));
+        }
+    }
+    
+    if (ok) m_capture.grab(); // Ensure state is updated
+    return ok;
 }

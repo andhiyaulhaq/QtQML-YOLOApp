@@ -368,7 +368,7 @@ Window {
                         spacing: 10
                         
                         Text {
-                            text: videoFile.currentTimeStr
+                            text: (typeof videoFile !== "undefined" && videoFile) ? videoFile.currentTimeStr : "00:00"
                             color: "white"
                             font.pixelSize: 12
                             font.family: "Courier"
@@ -379,10 +379,10 @@ Window {
                             Layout.fillWidth: true
                             from: 0
                             to: 1.0
-                            value: videoFile.totalFrames > 0 ? videoFile.currentFrame / videoFile.totalFrames : 0
+                            value: (typeof videoFile !== "undefined" && videoFile && videoFile.totalFrames > 0) ? videoFile.currentFrame / videoFile.totalFrames : 0
                             
                             onMoved: {
-                                videoFile.seek(value)
+                                if (typeof videoFile !== "undefined" && videoFile) videoFile.seek(value)
                             }
                             
                             background: Rectangle {
@@ -416,7 +416,7 @@ Window {
                         }
                         
                         Text {
-                            text: videoFile.totalTimeStr
+                            text: (typeof videoFile !== "undefined" && videoFile) ? videoFile.totalTimeStr : "00:00"
                             color: "white"
                             font.pixelSize: 12
                             font.family: "Courier"

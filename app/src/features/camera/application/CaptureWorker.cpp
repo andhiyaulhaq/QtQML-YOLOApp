@@ -70,12 +70,6 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
                     m_videoStartTime = std::chrono::high_resolution_clock::now();
                     m_isFirstFrame = false;
                 } else {
-                    // Check for loop reset
-                    if (total > 0 && m_videoFramesRead >= total) {
-                        m_videoStartTime = std::chrono::high_resolution_clock::now();
-                        m_videoFramesRead = 0;
-                    }
-
                     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_videoStartTime).count();
                     int64_t expectedFrame = static_cast<int64_t>(elapsed * fileSource->nativeFps() / 1000.0);
                     
@@ -99,7 +93,11 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
                 continue;
             }
             if (config.sourceType == InputSourceType::VideoFile) {
-                m_videoFramesRead++;
+                m_videoFramesRead = m_source->currentFrameIndex();
+                auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
+                if (fileSource && fileSource->frameCount() > 0 && m_videoFramesRead >= fileSource->frameCount()) {
+                    m_videoFramesRead = fileSource->frameCount();
+                }
                 emit progressUpdated(m_videoFramesRead);
             }
         }
@@ -258,22 +256,27 @@ void CaptureWorker::stopCapturing() {
 }
 
 void CaptureWorker::requestSeek(int64_t frame) {
+    UiLogger::ctrl(QString("CaptureWorker: Seek requested to frame %1").arg(frame));
     std::lock_guard<std::mutex> lock(m_sourceMutex);
     if (!m_source) return;
     
     if (m_source->seekToFrame(frame)) {
-        m_videoFramesRead = frame;
+        // Sync m_videoFramesRead with ACTUAL frame index after seeking
+        m_videoFramesRead = m_source->currentFrameIndex();
         
         // Adjust sync timer to new position
         auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
         if (fileSource) {
             double fps = fileSource->nativeFps();
             auto now = std::chrono::high_resolution_clock::now();
-            auto offset = std::chrono::milliseconds(static_cast<int64_t>(frame * 1000.0 / fps));
-            m_videoStartTime = now - offset;
+            auto msOffset = static_cast<int64_t>(m_videoFramesRead * 1000.0 / fps);
+            m_videoStartTime = now - std::chrono::milliseconds(msOffset);
+            UiLogger::ctrl(QString("CaptureWorker: Seek successful. Actual frame: %1, Sync offset: %2 ms").arg(m_videoFramesRead).arg(msOffset));
         }
         
         emit progressUpdated(m_videoFramesRead);
+    } else {
+        UiLogger::ctrl("CaptureWorker: Seek failed.");
     }
 }
 
