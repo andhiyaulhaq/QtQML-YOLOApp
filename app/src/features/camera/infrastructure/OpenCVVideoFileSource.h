@@ -17,6 +17,8 @@ public:
 
     double nativeFps() const;
     int64_t frameCount() const override { return m_frameCount; }
+    int64_t currentFrameIndex() const override;
+    bool seekToFrame(int64_t frameIndex) override;
 
 private:
     cv::VideoCapture m_capture;

@@ -25,6 +25,8 @@ signals:
     void frameReady(std::shared_ptr<cv::Mat> frame); 
     void fpsUpdated(double fps);
     void resolutionChanged(QSize size);
+    void metadataUpdated(double fps, int64_t totalFrames);
+    void progressUpdated(int64_t frame);
     void cleanUp();
 
 public slots:
@@ -34,6 +36,7 @@ public slots:
     void clearDetections();
     void updateResolution(const QSize& size);
     void setSource(ICaptureSource* source, const SourceConfig& config);
+    void requestSeek(int64_t frame);
 
 private:
     ICaptureSource *m_source;

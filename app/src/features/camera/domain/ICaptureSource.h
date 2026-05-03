@@ -13,4 +13,6 @@ public:
     virtual bool readFrame(cv::Mat& outFrame) = 0;
     virtual QSize currentResolution() const = 0;
     virtual int64_t frameCount() const { return -1; }
+    virtual int64_t currentFrameIndex() const { return -1; }
+    virtual bool seekToFrame(int64_t frameIndex) { Q_UNUSED(frameIndex); return false; }
 };

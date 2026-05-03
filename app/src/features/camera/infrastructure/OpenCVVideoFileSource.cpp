@@ -79,3 +79,18 @@ QSize OpenCVVideoFileSource::currentResolution() const {
 double OpenCVVideoFileSource::nativeFps() const {
     return m_nativeFps;
 }
+
+int64_t OpenCVVideoFileSource::currentFrameIndex() const {
+    if (!m_capture.isOpened()) return -1;
+    return static_cast<int64_t>(m_capture.get(cv::CAP_PROP_POS_FRAMES));
+}
+
+bool OpenCVVideoFileSource::seekToFrame(int64_t frameIndex) {
+    if (!m_capture.isOpened()) return false;
+    
+    // Clamp to valid range
+    if (frameIndex < 0) frameIndex = 0;
+    if (m_frameCount > 0 && frameIndex >= m_frameCount) frameIndex = m_frameCount - 1;
+    
+    return m_capture.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(frameIndex));
+}

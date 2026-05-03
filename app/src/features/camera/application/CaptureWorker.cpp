@@ -98,7 +98,10 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
                 QThread::msleep(10);
                 continue;
             }
-            if (config.sourceType == InputSourceType::VideoFile) m_videoFramesRead++;
+            if (config.sourceType == InputSourceType::VideoFile) {
+                m_videoFramesRead++;
+                emit progressUpdated(m_videoFramesRead);
+            }
         }
 
         if (m_inferenceProcessingFlag && !m_inferenceProcessingFlag->load(std::memory_order_relaxed)) {
@@ -226,6 +229,14 @@ bool CaptureWorker::openSource(const SourceConfig& config) {
     }
 
     QSize actual = m_source->currentResolution();
+    
+    if (config.sourceType == InputSourceType::VideoFile) {
+        auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
+        if (fileSource) {
+            emit metadataUpdated(fileSource->nativeFps(), fileSource->frameCount());
+        }
+    }
+
     QVideoFrameFormat format(actual, QVideoFrameFormat::Format_RGBA8888);
     m_reusableFrames[0] = QVideoFrame(format);
     m_reusableFrames[1] = QVideoFrame(format);
@@ -244,6 +255,26 @@ bool CaptureWorker::openSource(const SourceConfig& config) {
 
 void CaptureWorker::stopCapturing() {
     m_running = false;
+}
+
+void CaptureWorker::requestSeek(int64_t frame) {
+    std::lock_guard<std::mutex> lock(m_sourceMutex);
+    if (!m_source) return;
+    
+    if (m_source->seekToFrame(frame)) {
+        m_videoFramesRead = frame;
+        
+        // Adjust sync timer to new position
+        auto* fileSource = dynamic_cast<OpenCVVideoFileSource*>(m_source);
+        if (fileSource) {
+            double fps = fileSource->nativeFps();
+            auto now = std::chrono::high_resolution_clock::now();
+            auto offset = std::chrono::milliseconds(static_cast<int64_t>(frame * 1000.0 / fps));
+            m_videoStartTime = now - offset;
+        }
+        
+        emit progressUpdated(m_videoFramesRead);
+    }
 }
 
 void CaptureWorker::updateResolution(const QSize& size) {
