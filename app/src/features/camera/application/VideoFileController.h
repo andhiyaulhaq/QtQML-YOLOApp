@@ -4,7 +4,6 @@
 #include <QUrl>
 #include <memory>
 #include "../domain/ICaptureSource.h"
-#include "../infrastructure/OpenCVVideoFileSource.h"
 
 class VideoFileController : public QObject {
     Q_OBJECT

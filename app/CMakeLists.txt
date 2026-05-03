@@ -89,8 +89,6 @@ qt_add_executable(appCamera
     src/features/camera/domain/ICaptureSource.h
     src/features/camera/infrastructure/OpenCVCameraSource.h
     src/features/camera/infrastructure/OpenCVCameraSource.cpp
-    src/features/camera/infrastructure/OpenCVVideoFileSource.h
-    src/features/camera/infrastructure/OpenCVVideoFileSource.cpp
     src/features/camera/infrastructure/OpenCVImageFileSource.h
     src/features/camera/infrastructure/OpenCVImageFileSource.cpp
     src/features/camera/infrastructure/FFmpegVideoSource.h

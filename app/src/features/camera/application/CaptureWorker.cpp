@@ -6,7 +6,6 @@
 #include <chrono>
 #include <QDebug>
 #include "../../shared/domain/UiLogger.h"
-#include "../infrastructure/OpenCVVideoFileSource.h"
 
 CaptureWorker::CaptureWorker(ICaptureSource *source, QObject *parent)
     : QObject(parent)
@@ -163,27 +162,36 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
 
         if (m_sink) {
             QVideoFrame& frame = m_reusableFrames[m_reusableFrameIndex];
-            if (frame.map(QVideoFrame::WriteOnly)) {
+            
+            // If the frame is currently held by the sink, creating a new one is safer than failing
+            if (!frame.map(QVideoFrame::WriteOnly)) {
+                QVideoFrameFormat format(m_source->currentResolution(), QVideoFrameFormat::Format_BGRA8888);
+                frame = QVideoFrame(format);
+                frame.map(QVideoFrame::WriteOnly);
+            }
+
+            if (frame.isMapped()) {
                 cv::Mat resizedFrame = currentFrame;
                 if (currentFrame.cols != frame.width() || currentFrame.rows != frame.height()) {
                     cv::resize(currentFrame, resizedFrame, cv::Size(frame.width(), frame.height()));
                 }
 
+                // BGRA8888 in Qt matches OpenCV's BGRA
                 cv::Mat wrapper(frame.height(), frame.width(), CV_8UC4, 
                               frame.bits(0), frame.bytesPerLine(0));
                               
                 if (resizedFrame.channels() == 3) {
-                    cv::cvtColor(resizedFrame, wrapper, cv::COLOR_BGR2RGBA);
+                    cv::cvtColor(resizedFrame, wrapper, cv::COLOR_BGR2BGRA);
                 } else if (resizedFrame.channels() == 4) {
-                    cv::cvtColor(resizedFrame, wrapper, cv::COLOR_BGRA2RGBA);
+                    resizedFrame.copyTo(wrapper);
                 } else if (resizedFrame.channels() == 1) {
-                    cv::cvtColor(resizedFrame, wrapper, cv::COLOR_GRAY2RGBA);
+                    cv::cvtColor(resizedFrame, wrapper, cv::COLOR_GRAY2BGRA);
                 }
                 
                 frame.unmap();
                 m_sink->setVideoFrame(frame);
             }
-            m_reusableFrameIndex = (m_reusableFrameIndex + 1) % 2;
+            m_reusableFrameIndex = (m_reusableFrameIndex + 1) % 4;
         }
         
         m_poolIndex = (m_poolIndex + 1) % 3;
@@ -245,9 +253,9 @@ bool CaptureWorker::openSource(const SourceConfig& config) {
         emit metadataUpdated(m_source->nativeFps(), m_source->frameCount());
     }
 
-    QVideoFrameFormat format(actual, QVideoFrameFormat::Format_RGBA8888);
-    m_reusableFrames[0] = QVideoFrame(format);
-    m_reusableFrames[1] = QVideoFrame(format);
+    QVideoFrameFormat format(actual, QVideoFrameFormat::Format_BGRA8888);
+    for (int i = 0; i < 4; ++i) m_reusableFrames[i] = QVideoFrame(format);
+    m_reusableFrameIndex = 0;
 
     for(int i=0; i<3; ++i) m_framePool[i] = cv::Mat();
     clearDetections();
