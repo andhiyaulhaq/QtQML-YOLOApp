@@ -6,15 +6,15 @@ RELEASE_DIR="build/Release"
 LIBS_DIR="$RELEASE_DIR/libs"
 
 echo "------------------------------------------------"
-echo "  YOLOApp: Deployment & Packaging"
+echo "[$(date '+%H:%M:%S')]  YOLOApp: Deployment & Packaging"
 echo "------------------------------------------------"
 
 # 1. Deploy Qt dependencies into libs/
-echo "[1/7] Running windeployqt..."
+echo "[$(date '+%H:%M:%S')] [1/7] Running windeployqt..."
 C:/Qt/6.8.3/msvc2022_64/bin/windeployqt.exe --release --qmldir content --dir "$LIBS_DIR" "$RELEASE_DIR/appCamera.exe"
 
 # 2. Organize Qt DLLs into libs/qt/
-echo "[2/7] Organizing Qt libraries..."
+echo "[$(date '+%H:%M:%S')] [2/7] Organizing Qt libraries..."
 mkdir -p "$LIBS_DIR/qt"
 mv "$LIBS_DIR"/Qt6*.dll "$LIBS_DIR/qt/" 2>/dev/null
 mv "$LIBS_DIR"/D3DCompiler_47.dll "$LIBS_DIR/qt/" 2>/dev/null
@@ -22,7 +22,7 @@ mv "$LIBS_DIR"/opengl32sw.dll "$LIBS_DIR/qt/" 2>/dev/null
 mv "$LIBS_DIR"/dxcompiler.dll "$LIBS_DIR/qt/" 2>/dev/null
 
 # 3. Organize Third-Party DLLs (OpenCV, OpenVINO, ONNX)
-echo "[3/7] Organizing third-party libraries..."
+echo "[$(date '+%H:%M:%S')] [3/7] Organizing third-party libraries..."
 
 # OpenCV
 mkdir -p "$LIBS_DIR/opencv"
@@ -43,7 +43,7 @@ cp "$LIBS_DIR/onnx/onnxruntime.dll" "$RELEASE_DIR/" 2>/dev/null
 cp "$LIBS_DIR/onnx/onnxruntime_providers_shared.dll" "$RELEASE_DIR/" 2>/dev/null
 
 # 4. Organize Qt plugins into libs/plugins/
-echo "[4/7] Organizing Qt plugins..."
+echo "[$(date '+%H:%M:%S')] [4/7] Organizing Qt plugins..."
 mkdir -p "$LIBS_DIR/plugins"
 for plugindir in generic iconengines imageformats multimedia networkinformation platforms tls; do
     if [ -d "$LIBS_DIR/$plugindir" ]; then
@@ -53,12 +53,12 @@ for plugindir in generic iconengines imageformats multimedia networkinformation 
 done
 
 # 5. Deploy Assets
-echo "[5/7] Deploying assets..."
+echo "[$(date '+%H:%M:%S')] [5/7] Deploying assets..."
 mkdir -p "$RELEASE_DIR/assets"
 cp -r ../assets/* "$RELEASE_DIR/assets/" 2>/dev/null
 
 # 6. Create Launcher Script (appCamera.bat)
-echo "[6/7] Creating launcher script..."
+echo "[$(date '+%H:%M:%S')] [6/7] Creating launcher script..."
 cat > "$RELEASE_DIR/appCamera.bat" << 'LAUNCHER'
 @echo off
 setlocal
@@ -71,10 +71,10 @@ set "QML2_IMPORT_PATH=%APP_DIR%libs\qml"
 LAUNCHER
 
 # 7. Cleanup
-echo "[7/7] Cleaning up..."
+echo "[$(date '+%H:%M:%S')] [7/7] Cleaning up..."
 rm -f "$RELEASE_DIR"/appCamera.lib "$RELEASE_DIR"/appCamera.exp 2>/dev/null
 
 echo "------------------------------------------------"
-echo "  Deployment Complete!"
+echo "[$(date '+%H:%M:%S')]  Deployment Complete!"
 echo "  Run via: $RELEASE_DIR/appCamera.bat"
 echo "------------------------------------------------"

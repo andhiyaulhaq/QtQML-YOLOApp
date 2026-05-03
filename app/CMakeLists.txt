@@ -164,9 +164,10 @@ file(GLOB OPENVINO_DLLS "C:/intel/openvino_toolkit/runtime/bin/intel64/Release/*
 file(GLOB TBB_DLLS "C:/intel/openvino_toolkit/runtime/3rdparty/tbb/bin/*.dll")
 
 add_custom_command(TARGET appCamera POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "[Post-Build] Deploying assets to execution directory..."
     COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:appCamera>/assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}/../assets
         $<TARGET_FILE_DIR:appCamera>/assets
-    COMMENT "Deploying assets..."
 )
