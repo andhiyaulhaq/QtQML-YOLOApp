@@ -17,6 +17,7 @@
 #include "../../features/camera/application/CaptureWorker.h"
 #include "../../features/camera/application/YoloCameraController.h"
 #include "../../features/camera/application/VideoFileController.h"
+#include "../../features/camera/application/ImageFileController.h"
 
 AppController::AppController(QQmlApplicationEngine *engine, QObject *parent)
     : QObject(parent)
@@ -52,6 +53,7 @@ void AppController::initialize()
     m_engine->rootContext()->setContextProperty("detection", m_detectionController);
     m_engine->rootContext()->setContextProperty("camera", m_cameraController);
     m_engine->rootContext()->setContextProperty("videoFile", m_videoFileController);
+    m_engine->rootContext()->setContextProperty("imageFile", m_imageFileController);
 
     m_monitoringThread.start(QThread::LowPriority);
     m_inferenceThread.start(QThread::HighPriority);
@@ -87,6 +89,7 @@ void AppController::setupCamera()
     m_captureWorker = new CaptureWorker(m_captureSourceImpl);
     m_cameraController = new YoloCameraController(m_captureWorker, this);
     m_videoFileController = new VideoFileController(this);
+    m_imageFileController = new ImageFileController(this);
 
     m_captureWorker->moveToThread(&m_cameraThread);
     connect(&m_cameraThread, &QThread::finished, m_captureWorker, &QObject::deleteLater);
@@ -110,6 +113,7 @@ void AppController::wireEverything()
     // Source Ready Requests
     connect(m_cameraController, &YoloCameraController::sourceReadyRequested, m_captureWorker, &CaptureWorker::setSource);
     connect(m_videoFileController, &VideoFileController::sourceReadyRequested, m_captureWorker, &CaptureWorker::setSource);
+    connect(m_imageFileController, &ImageFileController::sourceReadyRequested, m_captureWorker, &CaptureWorker::setSource);
 
     // Cross-Feature
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame);

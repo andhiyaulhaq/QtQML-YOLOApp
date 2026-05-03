@@ -86,12 +86,16 @@ qt_add_executable(appCamera
     src/features/camera/infrastructure/OpenCVCameraSource.cpp
     src/features/camera/infrastructure/OpenCVVideoFileSource.h
     src/features/camera/infrastructure/OpenCVVideoFileSource.cpp
+    src/features/camera/infrastructure/OpenCVImageFileSource.h
+    src/features/camera/infrastructure/OpenCVImageFileSource.cpp
     src/features/camera/application/CaptureWorker.h
     src/features/camera/application/CaptureWorker.cpp
     src/features/camera/application/YoloCameraController.h
     src/features/camera/application/YoloCameraController.cpp
     src/features/camera/application/VideoFileController.h
     src/features/camera/application/VideoFileController.cpp
+    src/features/camera/application/ImageFileController.h
+    src/features/camera/application/ImageFileController.cpp
 )
 
 # Optimization Flags

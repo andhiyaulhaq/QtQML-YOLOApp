@@ -3,7 +3,11 @@
 #include <QSize>
 #include <QString>
 
-enum class InputSourceType { LiveCamera, VideoFile };
+enum class InputSourceType {
+    LiveCamera,
+    VideoFile,
+    ImageFile
+};
 
 struct SourceConfig {
     InputSourceType sourceType = InputSourceType::LiveCamera;

@@ -12,7 +12,7 @@ Window {
     title: "YOLOApp - Dual Input Source"
     color: "#121212"
 
-    property string inputMode: "camera" // "camera" or "video"
+    property string inputMode: "camera" // "camera", "video", "image"
 
     FileDialog {
         id: videoFileDialog
@@ -24,6 +24,23 @@ Window {
         }
         onRejected: {
             if (inputMode === "video" && !videoFile.hasFile) {
+                sourceCombo.currentIndex = 0
+                inputMode = "camera"
+                camera.activate()
+            }
+        }
+    }
+
+    FileDialog {
+        id: imageFileDialog
+        title: "Select Image File"
+        nameFilters: ["Image files (*.jpg *.jpeg *.png *.bmp)"]
+        onAccepted: {
+            inputMode = "image"
+            imageFile.setFilePath(selectedFile)
+        }
+        onRejected: {
+            if (inputMode === "image" && !imageFile.hasFile) {
                 sourceCombo.currentIndex = 0
                 inputMode = "camera"
                 camera.activate()
@@ -132,26 +149,38 @@ Window {
             Text { text: "Source:"; color: "white" }
             StyledComboBox {
                 id: sourceCombo
-                model: ["Live Camera", "Video File"]
-                currentIndex: inputMode === "camera" ? 0 : 1
+                model: ["Live Camera", "Video File", "Image File"]
+                currentIndex: {
+                    if (inputMode === "camera") return 0;
+                    if (inputMode === "video") return 1;
+                    if (inputMode === "image") return 2;
+                    return 0;
+                }
                 onActivated: (index) => {
                     if (index === 0) {
                         inputMode = "camera"
                         camera.activate()
-                    } else {
-                        inputMode = "video"
-                        if (!videoFile.hasFile) {
-                            videoFileDialog.open()
-                        } else {
+                    } else if (index === 1) {
+                        if (videoFile.hasFile) {
+                            inputMode = "video"
                             videoFile.activate()
+                        } else {
+                            videoFileDialog.open()
+                        }
+                    } else if (index === 2) {
+                        if (imageFile.hasFile) {
+                            inputMode = "image"
+                            imageFile.activate()
+                        } else {
+                            imageFileDialog.open()
                         }
                     }
                 }
             }
 
-            // Path Display & Browse Button (only for Video mode)
+            // Path Display & Browse Button (for Video/Image mode)
             RowLayout {
-                visible: inputMode === "video"
+                visible: inputMode === "video" || inputMode === "image"
                 spacing: 8
                 
                 Rectangle {
@@ -166,7 +195,11 @@ Window {
                         anchors.fill: parent
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
-                        text: videoFile.filePath.split('/').pop() // Show filename only
+                        text: {
+                            if (inputMode === "video") return videoFile.filePath.split('/').pop();
+                            if (inputMode === "image") return imageFile.filePath.split('/').pop();
+                            return "";
+                        }
                         color: "#AAAAAA"
                         font.pixelSize: 11
                         verticalAlignment: Text.AlignVCenter
@@ -177,7 +210,10 @@ Window {
                 Button {
                     id: browseBtn
                     text: "Browse..."
-                    onClicked: videoFileDialog.open()
+                    onClicked: {
+                        if (inputMode === "video") videoFileDialog.open();
+                        else if (inputMode === "image") imageFileDialog.open();
+                    }
                     
                     contentItem: Text {
                         text: browseBtn.text

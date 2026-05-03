@@ -15,6 +15,7 @@ class IDetectionModel;
 
 class YoloCameraController;
 class VideoFileController;
+class ImageFileController;
 class CaptureWorker;
 class ICaptureSource;
 
@@ -47,6 +48,7 @@ private:
     CaptureWorker *m_captureWorker;
     YoloCameraController *m_cameraController;
     VideoFileController *m_videoFileController;
+    ImageFileController *m_imageFileController;
     QThread m_cameraThread;
 
     void setupMonitoring();
