@@ -84,11 +84,11 @@ void VideoFileController::seek(double position) {
     
     int64_t targetFrame = static_cast<int64_t>(position * m_totalFrames);
     
-    // If we are already seeking to this area, ignore
-    if (m_isSeeking && std::abs(targetFrame - m_targetFrame) <= 2) return;
+    // If we are already seeking to this area OR just finished seeking there, ignore
+    if (std::abs(targetFrame - m_targetFrame) <= 5) return;
     
     // If we are already AT this area, ignore
-    if (!m_isSeeking && std::abs(targetFrame - m_currentFrame) <= 2) return;
+    if (std::abs(targetFrame - m_currentFrame) <= 5) return;
     
     m_targetFrame = targetFrame;
     m_isSeeking = true;
