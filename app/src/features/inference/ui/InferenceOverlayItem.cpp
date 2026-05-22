@@ -36,6 +36,7 @@ void InferenceOverlayItem::onModelUpdated()
     update();
 }
 
+
 QSGNode *InferenceOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     QSGGeometryNode *node = static_cast<QSGGeometryNode *>(oldNode);
@@ -90,32 +91,13 @@ QSGNode *InferenceOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
         {8, 10}, {1, 2}, {0, 1}, {0, 2}, {1, 3}, {2, 4}, {3, 5}, {4, 6}
     };
 
-    float itemW = width();
-    float itemH = height();
-    float renderW = itemW;
-    float renderH = itemH;
-    float offsetX = 0;
-    float offsetY = 0;
-
-    QSize frameSize = m_model->frameSize();
-    if (!frameSize.isEmpty() && itemW > 0 && itemH > 0) {
-        float videoAspectRatio = static_cast<float>(frameSize.width()) / static_cast<float>(frameSize.height());
-        float itemAspectRatio = itemW / itemH;
-
-        if (videoAspectRatio > itemAspectRatio) {
-            renderH = itemW / videoAspectRatio;
-            offsetY = (itemH - renderH) / 2.0f;
-        } else {
-            renderW = itemH * videoAspectRatio;
-            offsetX = (itemW - renderW) / 2.0f;
-        }
-    }
+    RenderTransform t = RenderTransform::calculate(width(), height(), m_model->frameSize());
 
     for (const auto &det : visionObjects) {
-        float x = offsetX + det.x() * renderW;
-        float y = offsetY + det.y() * renderH;
-        float w = det.w() * renderW;
-        float h = det.h() * renderH;
+        float x = t.offsetX + det.x() * t.renderW;
+        float y = t.offsetY + det.y() * t.renderH;
+        float w = det.w() * t.renderW;
+        float h = det.h() * t.renderH;
 
         int hue = (det.classId() * 60) % 360;
         QColor color = QColor::fromHsl(hue, 255, 127);
@@ -142,8 +124,8 @@ QSGNode *InferenceOverlayItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNode
             const auto& kpts = det.keyPoints();
             for (int k = 0; k < 17; k++) {
                 unnormalizedKpts.push_back(QPointF(
-                    offsetX + kpts[k].x() * renderW, 
-                    offsetY + kpts[k].y() * renderH
+                    t.offsetX + kpts[k].x() * t.renderW, 
+                    t.offsetY + kpts[k].y() * t.renderH
                 ));
             }
 

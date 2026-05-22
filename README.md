@@ -59,6 +59,50 @@ cd app
 
 *Note: The deploy system automatically copies all dependencies (Qt, OpenCV, OpenVINO, ONNX Runtime) into the Release folder.*
 
+## 🧪 Testing
+
+The project employs a robust multi-layered testing strategy using **Google Test (GTest)** for C++ logic and **QtQuickTest** for QML UI verification.
+
+### 📁 Directory Structure
+- `app/tests/unit/`: C++ Unit tests for domain and application logic.
+    - `features/inference/`: Pre/Post processing, SIMD kernels, and pipeline orchestration.
+    - `features/capture/`: IO resilience tests for FFmpeg and OpenCV.
+    - `features/monitoring/`: System resource tracking validation.
+    - `shared/`: App lifecycle and clean shutdown sequences.
+- `app/tests/qml/`: QML UI tests using `QtQuickTest` (`tst_*.qml`).
+    - `tst_YoloOverlay.qml`: Scaling math and coordinate transformation.
+    - `tst_AppHeader.qml`: User interaction and signal routing.
+
+### 🚀 Running Tests
+Tests are built automatically when `BUILD_TESTING=ON` (default).
+
+```powershell
+cd app/build
+cmake --build . --config Release
+ctest -C Release --output-on-failure
+```
+
+#### Running QML Tests Individually
+The QML test runner is an executable that can be run directly for detailed output:
+```powershell
+./Release/QMLTests.exe -import ../src/ui
+```
+
+### 🛠 Adding New Tests
+
+#### C++ Tests
+1. Create a `.cpp` file in `app/tests/unit/`.
+2. Add it to `app/tests/CMakeLists.txt` using the `yolo_add_test` helper.
+
+#### QML Tests
+1. Create a `tst_Name.qml` file in `app/tests/qml/`.
+2. Ensure it uses `import QtTest` and contains a `TestCase` element.
+3. Add any new C++ dependencies to the `QMLTests` target in `app/tests/CMakeLists.txt`.
+
+### 🎭 Mocking & Isolation
+- **GMock**: Used to isolate workers from hardware (Camera) and heavy backends.
+- **RenderTransform**: A standalone header-only helper used to test UI math without instantiating heavy Scene Graph objects.
+
 ## 🏗️ Project Structure
 
 - **`app/`**: Contains the full C++ application codebase and build scripts.

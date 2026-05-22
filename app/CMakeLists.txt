@@ -12,7 +12,7 @@ if(MSVC)
 endif()
 
 # 1. Setup Qt6
-find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia QuickControls2 QuickDialogs2)
+find_package(Qt6 REQUIRED COMPONENTS Gui Widgets Quick Multimedia QuickControls2 QuickDialogs2 QuickTest)
 qt_standard_project_setup()
 
 # 2. Setup OpenCV
@@ -82,6 +82,7 @@ qt_add_executable(appCamera
     src/features/inference/ui/InferenceListModel.cpp
     src/features/inference/ui/InferenceOverlayItem.h
     src/features/inference/ui/InferenceOverlayItem.cpp
+    src/features/inference/ui/RenderTransform.h
 
     # ── Capture Feature ──
     src/features/capture/domain/SourceConfig.h
@@ -166,6 +167,13 @@ target_link_libraries(appCamera
 
 if(WIN32)
     target_link_libraries(appCamera PRIVATE pdh psapi)
+endif()
+
+# 10. Testing
+option(BUILD_TESTING "Build the testing suite" ON)
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
 
 # 9. Post-build: DLL Deployment

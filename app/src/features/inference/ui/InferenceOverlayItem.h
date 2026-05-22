@@ -6,6 +6,7 @@
 #include <QSGGeometryNode>
 #include <QSGGeometry>
 #include "../ui/InferenceListModel.h"
+#include "RenderTransform.h"
 
 class InferenceOverlayItem : public QQuickItem
 {
