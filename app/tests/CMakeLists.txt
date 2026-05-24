@@ -49,6 +49,11 @@ function(yolo_add_test TEST_NAME)
         ${CMAKE_SOURCE_DIR}/src/shared/application
     )
 
+    set_target_properties(${TEST_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/tests"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/tests"
+    )
+
     # Copy DLLs for Windows
     if(WIN32)
         add_custom_command(TARGET ${TEST_NAME} POST_BUILD
@@ -259,37 +264,12 @@ target_include_directories(QMLTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/features/inference/domain
 )
 
-if(WIN32)
-    add_custom_command(TARGET QMLTests POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Core.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Gui.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Widgets.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Qml.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Quick.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Multimedia.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6QuickTest.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6Network.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "C:/Qt/6.8.3/msvc2022_64/bin/Qt6OpenGL.dll"
-            $<TARGET_FILE_DIR:QMLTests>
-    )
-endif()
+set_target_properties(QMLTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/tests_qml"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/tests_qml"
+)
+
+# No need to copy DLLs manually since we set the PATH environment variable below.
 
 # We need to manually register the test with ctest
 add_test(NAME QMLTests COMMAND QMLTests 
@@ -298,4 +278,5 @@ add_test(NAME QMLTests COMMAND QMLTests
     -import ${CMAKE_BINARY_DIR}/Release/qml
 )
 
-
+# Ensure QMLTests can find all required Qt plugins and DLLs without relying on duplicate copies
+set_tests_properties(QMLTests PROPERTIES ENVIRONMENT "PATH=C:/Qt/6.8.3/msvc2022_64/bin;C:/opencv/build/x64/vc16/bin;C:/intel/openvino_toolkit/runtime/bin/intel64/Release;C:/onnxruntime/lib;C:/ffmpeg/bin;$ENV{PATH}")
