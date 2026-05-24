@@ -120,6 +120,8 @@ void AppController::wireEverything()
     connect(m_captureWorker, &CaptureWorker::metadataUpdated, m_videoFileController, &VideoFileController::onMetadataUpdated);
     connect(m_captureWorker, &CaptureWorker::progressUpdated, m_videoFileController, &VideoFileController::onProgressUpdated);
     connect(m_videoFileController, &VideoFileController::requestSeek, m_captureWorker, &CaptureWorker::requestSeek);
+    connect(m_videoFileController, &VideoFileController::requestPlayPause, m_captureWorker, &CaptureWorker::setPaused);
+    connect(m_captureWorker, &CaptureWorker::playStateChanged, m_videoFileController, &VideoFileController::onPlayStateChanged);
 
     // Cross-Feature
     connect(m_captureWorker, &CaptureWorker::frameReady, m_inferenceWorker, &InferenceWorker::processFrame);

@@ -57,6 +57,24 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
 
             frames = 0;
             startTime = std::chrono::high_resolution_clock::now();
+            
+            if (config.sourceType == InputSourceType::VideoFile) {
+                m_paused = true;
+                m_pausedFramePending = true;
+                emit playStateChanged(false);
+            } else {
+                m_paused = false;
+                emit playStateChanged(true);
+            }
+        }
+        
+        if (m_paused.load()) {
+            if (m_pausedFramePending.load() || m_needsStaticInference.load()) {
+                // proceed to process frame
+            } else {
+                QThread::msleep(30);
+                continue;
+            }
         }
 
         // Sync logic for Video File mode
@@ -82,7 +100,9 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
         }
 
         cv::Mat& currentFrame = m_framePool[m_poolIndex];
-        {
+        bool readSuccess = false;
+        
+        if (!m_paused.load() || m_pausedFramePending.load()) {
             std::lock_guard<std::mutex> lock(m_sourceMutex);
             if (!m_source || !m_source->readFrame(currentFrame) || currentFrame.empty()) {
                 if (config.sourceType == InputSourceType::VideoFile && config.loop) {
@@ -101,6 +121,20 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
                     m_videoFramesRead = total;
                 }
                 emit progressUpdated(m_videoFramesRead);
+            }
+            readSuccess = true;
+            
+            if (m_paused.load()) {
+                m_originalPausedFrame = currentFrame.clone();
+                m_pausedFramePending = false;
+            }
+        } else {
+            if (!m_originalPausedFrame.empty()) {
+                currentFrame = m_originalPausedFrame.clone();
+                readSuccess = true;
+            } else {
+                QThread::msleep(30);
+                continue;
             }
         }
 
@@ -194,7 +228,9 @@ void CaptureWorker::startCapturing(QVideoSink* sink)
             m_reusableFrameIndex = (m_reusableFrameIndex + 1) % 4;
         }
         
-        m_poolIndex = (m_poolIndex + 1) % 3;
+        if (!m_paused.load()) {
+            m_poolIndex = (m_poolIndex + 1) % 3;
+        }
 
         if (config.sourceType != InputSourceType::ImageFile) {
             frames++;
@@ -288,6 +324,10 @@ void CaptureWorker::requestSeek(int64_t frame) {
         
         UiLogger::ctrl(QString("CaptureWorker: Seek successful. Actual frame: %1").arg(m_videoFramesRead));
         emit progressUpdated(m_videoFramesRead);
+        
+        if (m_paused.load()) {
+            m_pausedFramePending = true;
+        }
     } else {
         UiLogger::ctrl("CaptureWorker: Seek failed.");
     }
@@ -329,4 +369,14 @@ void CaptureWorker::updateLatestDetections(std::shared_ptr<std::vector<Inference
 void CaptureWorker::clearDetections() {
     std::lock_guard<std::mutex> lock(m_detectionsMutex);
     m_latestDetections.reset();
+}
+
+void CaptureWorker::setPaused(bool paused) {
+    if (m_paused == paused) return;
+    m_paused = paused;
+    if (!paused) {
+        m_startFrameIndex = m_videoFramesRead;
+        m_isFirstFrame = true;
+    }
+    emit playStateChanged(!paused);
 }

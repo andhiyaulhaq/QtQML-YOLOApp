@@ -28,6 +28,7 @@ signals:
     void metadataUpdated(double fps, int64_t totalFrames);
     void progressUpdated(int64_t frame);
     void cleanUp();
+    void playStateChanged(bool playing);
 
 public slots:
     void startCapturing(QVideoSink* sink);
@@ -38,9 +39,13 @@ public slots:
     void setSource(ICaptureSource* source, const SourceConfig& config);
     void requestSeek(int64_t frame);
     void forceReinference() { m_needsStaticInference = true; }
+    void setPaused(bool paused);
 
 private:
     std::atomic<bool> m_needsStaticInference{true};
+    std::atomic<bool> m_paused{false};
+    std::atomic<bool> m_pausedFramePending{false};
+    cv::Mat m_originalPausedFrame;
     ICaptureSource *m_source;
     std::mutex m_sourceMutex;
 

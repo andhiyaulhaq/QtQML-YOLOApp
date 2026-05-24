@@ -23,8 +23,10 @@ void VideoFileController::setFilePath(const QUrl& fileUrl) {
         m_currentFrame = 0;
         m_totalFrames = 0;
         m_durationSeconds = 0;
+        m_isPaused = true;
         emit progressChanged();
         emit durationChanged();
+        emit isPausedChanged();
     } else {
         UiLogger::ctrl("VideoFileController: Re-selecting same file → " + m_filePath);
     }
@@ -114,4 +116,21 @@ QString VideoFileController::formatTime(double seconds) const {
     int m = s / 60;
     s = s % 60;
     return QString("%1:%2").arg(m, 2, 10, QChar('0')).arg(s, 2, 10, QChar('0'));
+}
+
+void VideoFileController::togglePlayPause() {
+    setPaused(!m_isPaused);
+}
+
+void VideoFileController::setPaused(bool paused) {
+    if (m_isPaused != paused) {
+        emit requestPlayPause(paused);
+    }
+}
+
+void VideoFileController::onPlayStateChanged(bool playing) {
+    if (m_isPaused != !playing) {
+        m_isPaused = !playing;
+        emit isPausedChanged();
+    }
 }

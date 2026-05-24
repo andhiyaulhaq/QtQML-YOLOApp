@@ -9,6 +9,7 @@ class VideoFileController : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString filePath READ filePath NOTIFY filePathChanged)
     Q_PROPERTY(bool hasFile READ hasFile NOTIFY filePathChanged)
+    Q_PROPERTY(bool isPaused READ isPaused NOTIFY isPausedChanged)
     Q_PROPERTY(double durationSeconds READ durationSeconds NOTIFY durationChanged)
     Q_PROPERTY(int64_t totalFrames READ totalFrames NOTIFY durationChanged)
     Q_PROPERTY(int64_t currentFrame READ currentFrame NOTIFY progressChanged)
@@ -23,6 +24,10 @@ public:
 
     QString filePath() const { return m_filePath; }
     bool hasFile() const { return !m_filePath.isEmpty(); }
+    bool isPaused() const { return m_isPaused; }
+    
+    Q_INVOKABLE void togglePlayPause();
+    Q_INVOKABLE void setPaused(bool paused);
     
     double durationSeconds() const { return m_durationSeconds; }
     int64_t totalFrames() const { return m_totalFrames; }
@@ -34,12 +39,17 @@ public:
     void onProgressUpdated(int64_t frame);
     void onMetadataUpdated(double fps, int64_t totalFrames);
 
+public slots:
+    void onPlayStateChanged(bool playing);
+
 signals:
     void filePathChanged();
     void durationChanged();
     void progressChanged();
+    void isPausedChanged();
     void sourceReadyRequested(ICaptureSource* source, SourceConfig config);
     void requestSeek(int64_t frame);
+    void requestPlayPause(bool paused);
 
 private:
     QString formatTime(double seconds) const;
@@ -51,4 +61,5 @@ private:
     int64_t m_totalFrames = 0;
     int64_t m_currentFrame = 0;
     double m_fps = 30.0;
+    bool m_isPaused = false;
 };

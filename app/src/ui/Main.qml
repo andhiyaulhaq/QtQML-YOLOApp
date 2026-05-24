@@ -136,7 +136,58 @@ Window {
                     inferenceController: inference
                 }
 
+                // Play/pause mouse area and overlay
+                MouseArea {
+                    id: videoMouseArea
+                    anchors.fill: videoOutput
+                    anchors.bottomMargin: playbackControls.visible ? playbackControls.height : 0
+                    visible: root.inputMode === "video"
+                    
+                    onClicked: {
+                        if (typeof videoFile !== "undefined" && videoFile) {
+                            videoFile.togglePlayPause()
+                        }
+                    }
+                }
+
+                // Play icon overlay
+                Rectangle {
+                    id: playOverlay
+                    anchors.fill: videoOutput
+                    anchors.bottomMargin: playbackControls.visible ? playbackControls.height : 0
+                    color: "#30000000" // subtle dimming
+                    visible: root.inputMode === "video" && (typeof videoFile !== "undefined" && videoFile && videoFile.isPaused)
+                    
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            if (typeof videoFile !== "undefined" && videoFile) {
+                                videoFile.togglePlayPause()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 90
+                        height: 90
+                        radius: 45
+                        color: "#B3FFFFFF"
+                        border.color: "#80FFFFFF"
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            anchors.horizontalCenterOffset: 5
+                            text: "▶"
+                            color: "#121212"
+                            font.pixelSize: 36
+                        }
+                    }
+                }
+
                 PlaybackControls {
+                    id: playbackControls
                     anchors.bottom: parent.bottom
                     anchors.left: parent.left
                     anchors.right: parent.right
