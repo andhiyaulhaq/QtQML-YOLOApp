@@ -215,29 +215,5 @@ Window {
                 monitoringSource: monitoring
             }
         }
-
-        // Footer
-        Button {
-            text: "Exit Application"
-            Layout.alignment: Qt.AlignHCenter
-            onClicked: Qt.quit()
-            
-            contentItem: Text {
-                text: parent.text
-                color: parent.pressed ? "#FF5252" : "#FFFFFF"
-                font.bold: true
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            
-            background: Rectangle {
-                implicitWidth: 150
-                implicitHeight: 40
-                color: parent.hovered ? "#333333" : "#222222"
-                radius: 4
-                border.color: "#444444"
-                border.width: 1
-            }
-        }
     }
 }
