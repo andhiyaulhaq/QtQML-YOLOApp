@@ -176,6 +176,17 @@ Window {
                         border.color: "#80FFFFFF"
                         border.width: 1
 
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (typeof videoFile !== "undefined" && videoFile) {
+                                    videoFile.togglePlayPause()
+                                }
+                            }
+                        }
+
                         Text {
                             anchors.centerIn: parent
                             anchors.horizontalCenterOffset: 5
