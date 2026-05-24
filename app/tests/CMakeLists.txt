@@ -163,6 +163,15 @@ yolo_add_test(FFmpegVideoSourceTest
 )
 target_link_libraries(FFmpegVideoSourceTest PRIVATE avcodec avformat avutil swscale)
 
+# Add VideoFileController Unit Test
+yolo_add_test(VideoFileControllerTest
+    unit/features/capture/VideoFileControllerTest.cpp
+    ../src/features/capture/application/VideoFileController.cpp
+    ../src/features/capture/application/VideoFileController.h
+    ../src/features/capture/infrastructure/FFmpegVideoSource.cpp
+)
+target_link_libraries(VideoFileControllerTest PRIVATE avcodec avformat avutil swscale)
+
 # Add AppController Unit Test
 yolo_add_test(AppControllerTest
     unit/shared/AppControllerTest.cpp

@@ -63,6 +63,12 @@ cd app
 
 The project employs a robust multi-layered testing strategy using **Google Test (GTest)** for C++ logic and **QtQuickTest** for QML UI verification.
 
+To run all tests, simply execute the test script from the `app` directory:
+```bash
+cd app
+./test.sh
+```
+
 ### 📁 Directory Structure
 - `app/tests/unit/`: C++ Unit tests for domain and application logic.
     - `features/inference/`: Pre/Post processing, SIMD kernels, and pipeline orchestration.
