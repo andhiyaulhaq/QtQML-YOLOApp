@@ -1,0 +1,28 @@
+PROJECT_NAME           = "YOLOApp"
+PROJECT_NUMBER         = @PROJECT_VERSION@
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/docs_output
+INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/src \
+                         @CMAKE_CURRENT_SOURCE_DIR@/../README.md
+RECURSIVE              = YES
+FILE_PATTERNS          = *.cpp *.h *.qml *.md
+EXTENSION_MAPPING      = qml=C++
+FILTER_PATTERNS        = *.qml=doxyqml
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = Q_OBJECT \
+                         Q_PROPERTY(x)= \
+                         Q_ENUM(x)= \
+                         Q_INVOKABLE \
+                         signals:=protected \
+                         slots:=protected
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+HAVE_DOT               = YES
+DOT_PATH               = "C:/Program Files/Graphviz/bin"
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+USE_MDFILE_AS_MAINPAGE = @CMAKE_CURRENT_SOURCE_DIR@/../README.md

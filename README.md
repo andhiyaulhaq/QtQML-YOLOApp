@@ -103,6 +103,24 @@ The QML test runner is an executable that can be run directly for detailed outpu
 - **GMock**: Used to isolate workers from hardware (Camera) and heavy backends.
 - **RenderTransform**: A standalone header-only helper used to test UI math without instantiating heavy Scene Graph objects.
 
+## 📚 Documentation
+
+The project includes integrated API and architecture documentation via **Doxygen**. It supports both the C++ backend and the QML frontend (via `doxyqml`), and automatically generates UML class diagrams and call graphs using **Graphviz**.
+
+### 🛠 Generating Documentation
+
+Ensure you have Doxygen, Graphviz, and Python (`pip install doxyqml`) installed on your system. Then, generate the docs using the provided script:
+
+```bash
+cd app
+./docs.sh
+```
+
+### 🔍 Viewing Documentation
+
+Once generated, you can view the HTML documentation by opening the following file in your preferred web browser:
+`app/build/docs_output/html/index.html`
+
 ## 🏗️ Project Structure
 
 - **`app/`**: Contains the full C++ application codebase and build scripts.
